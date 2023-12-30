@@ -1,35 +1,6 @@
 // PrintPy2040 Case
 $fn=90; // or fugly
 
-<<<<<<< HEAD
-
-// eyerything based on screen dimensions
-sx = 27.4; // Board width
-sy = 28;   // Board height
-vx = 21.7;   // viewport width
-vy = 10.8;   // viewport height
-vo = -1.75;   // viewport y offset
-holeOff = 23.5/2; // Holes are 23.5mm apart
-pinOff = (sy/2)-1.5; // Pins on PCB are 1.5mm from edge
-
-screenOff = (sx/2)+0.05; // X offset for each screen center
-
-inX = (2*sx)+1; // basic interior space based on screens
-inY = sy+1;     //  plus a 0.5mm gap
-inZ = 16;         // how deep (depends on cpu board etc..)
-wallRad=1.5;  // round off (case thickness)
-
-printing = !true;
-
-if(printing) {
-  casebody();
-  casestand([0,-50,0]);
-} else {
-  color("LightCyan",0.5)
-  casebody([0,0,inZ+5.1],[180,0,0]);
-  screens([0,0,inZ+0.8],[0,0,0],0.5);
-  rp2040([26,-1,4],[0,0,180]);
-=======
 // OLED screen modules
 sx = 27.4;              // Board width
 sy = 28;                // Board height
@@ -56,7 +27,6 @@ if(printing) {
   #casebody([0,0,inZ+5.1],[180,0,0]);
   screens([0,0,inZ+0.8],[0,0,0],0.5);
   rp2040([20,1,8],[0,0,180]);
->>>>>>> c68ea1b (Initial, case)
   color("MediumPurple",1)
   casestand();
   button([-17.5,0,8],[0,180,0]);
@@ -100,11 +70,7 @@ translate(pos) rotate(rot) {
         for(o=[-screenOff,screenOff])
           for(x=[o-holeOff,o+holeOff],
               y=[-holeOff,holeOff])
-<<<<<<< HEAD
-            translate([x,y]) circle(d=1.2);
-=======
             translate([x,y]) circle(d=1);
->>>>>>> c68ea1b (Initial, case)
       }
     }
     // Now the rest of the body to the back.
@@ -137,13 +103,8 @@ translate(pos) rotate(rot) {
       }
       // cable Hole
       minkowski() {
-<<<<<<< HEAD
-        translate([-2.5,-11])
-        square([5,3]);
-=======
         translate([-7,-11])
         square([14,3]);
->>>>>>> c68ea1b (Initial, case)
         circle(0.5);
       }
     }
@@ -161,22 +122,13 @@ translate(pos) rotate(rot) {
   }
   // Four tabs to grip onto case, wider at top
   // Thinner part
-<<<<<<< HEAD
-  linear_extrude(height=inZ-3.5,convexity=8) {
-=======
   linear_extrude(height=inZ-7.5,convexity=8) {
->>>>>>> c68ea1b (Initial, case)
     difference() {
       union() {
         square([inX-0.3,24],center=true);
         square([50,inY-0.3],center=true);
       }
-<<<<<<< HEAD
-      square([inX-3,inY-3],center=true);
-      translate([inX/2,0]) square([4,13],center=true);
-=======
       square([inX-4.5,inY-4.5],center=true);
->>>>>>> c68ea1b (Initial, case)
       translate([-screenOff,pinOff])
         square([11,4],center=true);
       translate([screenOff,pinOff])
@@ -184,21 +136,12 @@ translate(pos) rotate(rot) {
     }
   }
   // Thicker top
-<<<<<<< HEAD
-  translate([0,0,inZ-3.5])
-  linear_extrude(height=3.5,convexity=8) {
-    difference() {
-      union() {
-        square([inX,24],center=true);
-        square([50,inY],center=true);
-=======
   translate([0,0,inZ-8.5])
   linear_extrude(height=1,convexity=8) {
     difference() {
       union() {
         square([inX-0.1,24],center=true);
         square([50,inY-0.1],center=true);
->>>>>>> c68ea1b (Initial, case)
       }
       square([inX-3,inY-3],center=true);
       translate([-screenOff,pinOff])
@@ -230,12 +173,8 @@ translate(pos) rotate(rot) {
   oled();
 }
 
-<<<<<<< HEAD
-module oled() {
-=======
 module oled(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
->>>>>>> c68ea1b (Initial, case)
   color("blue")
   linear_extrude(height=1.2,convexity=5)
   #difference() {
