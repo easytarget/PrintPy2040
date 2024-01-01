@@ -22,14 +22,19 @@ printing = true;
 if(printing) {
   casebody([0,20,0]);
   casestand([0,-20,0]);
+  foot([0,-50,0]);
 } else {
   color("LightCyan",1)
-  #casebody([0,0,inZ+5.1],[180,0,0]);
+  casebody([0,0,inZ+5.1],[180,0,0]);
+  color("MediumPurple",1) {
+    casestand();
+    foot([0,-21.62,0.88],[-45,0,0]);
+  }
   screens([0,0,inZ+0.8],[0,0,0],0.5);
   rp2040([20,1,8],[0,0,180]);
-  color("MediumPurple",1)
-  casestand();
   button([-17.5,0,8],[0,180,0]);
+  3x15hexhead([23.1,-19.5,3],[0,-90,0]);
+  3x15hexhead([-23.1,-19.5,3],[0,90,0]);
 }
 
 module casebody(pos=[0,0,0],rot=[0,0,0])
@@ -109,16 +114,18 @@ translate(pos) rotate(rot) {
       }
     }
     translate([0,-16])
-    square([40,5],center=true);
+    *square([22,5],center=true);
   }
-  // foot
-  translate([0,-18.5,2])
-  hull() {
-    rotate([0,90,0])
-    cylinder(d=4,h=40,center=true);
-    translate([0,-5,12])
-    rotate([0,90,0])
-    cylinder(d=3,h=36,center=true);
+  // foot mount
+  translate([0,-19.5,3])
+  rotate([0,90,0])
+  difference() {
+    union() {
+      cylinder(d=6,h=30,center=true);
+      translate([1,0,-14.5])
+      cube([2,6,29]);
+    }
+    cylinder(d=3.2,h=33,center=true,$fn=6);
   }
   // Four tabs to grip onto case, wider at top
   // Thinner part
@@ -150,7 +157,6 @@ translate(pos) rotate(rot) {
         square([11,4],center=true);
     }
   }
-
   // Button recess
   translate([-17.5,0,2])
   linear_extrude(height=6,convexity=20) {
@@ -164,6 +170,23 @@ translate(pos) rotate(rot) {
     square([15.5,9],center=true);
   }
 }
+
+module foot(pos=[0,0,0],rot=[0,0,0],opacity=1)
+translate(pos) rotate(rot) {
+  translate([0,0,3])
+  rotate([0,90,0])
+  difference() {
+    hull() {
+      cylinder(d=6,h=40,center=true);
+      translate([1.5,-16,0])
+      cylinder(d=3,h=36,center=true);
+    }
+    cylinder(d=6.4,h=30.3,center=true);
+    cylinder(d=3.4,h=41,center=true);
+  }
+}
+
+// Modules and parts
 
 module screens(pos=[0,0,0],rot=[0,0,0],opacity=1)
 translate(pos) rotate(rot) {
@@ -294,4 +317,15 @@ translate(pos) rotate(rot) {
       cylinder(d=1.4,h=1.25,$fn=24);
     }
   }
+}
+
+module 3x15hexhead(pos=[0,0,0],rot=[0,0,0])
+translate(pos) rotate(rot) {
+  color("silver")
+  difference() {
+    cylinder(d=5.2,h=3);
+    cylinder(d=3,h=2.9,$fn=6);
+  }
+  translate([0,0,3])
+  cylinder(d=3,h=15);
 }
