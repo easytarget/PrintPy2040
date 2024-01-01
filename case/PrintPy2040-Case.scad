@@ -22,13 +22,13 @@ printing = true;
 if(printing) {
   casebody([0,20,0]);
   casestand([0,-20,0]);
-  foot([0,-50,0]);
+  foot([0,-50,3]);
 } else {
   color("LightCyan",1)
   casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple",1) {
     casestand();
-    foot([0,-21.62,0.88],[-45,0,0]);
+    foot([0,-19.5,3],[60,0,180]);
   }
   screens([0,0,inZ+0.8],[0,0,0],0.5);
   rp2040([20,1,8],[0,0,180]);
@@ -173,16 +173,28 @@ translate(pos) rotate(rot) {
 
 module foot(pos=[0,0,0],rot=[0,0,0],opacity=1)
 translate(pos) rotate(rot) {
-  translate([0,0,3])
   rotate([0,90,0])
   difference() {
     hull() {
-      cylinder(d=6,h=40,center=true);
+      cylinder(d=6,h=46,center=true);
       translate([1.5,-16,0])
       cylinder(d=3,h=36,center=true);
     }
-    cylinder(d=6.4,h=30.3,center=true);
+    hull() {
+      cylinder(d=6.4,h=30.3,center=true);
+      translate([6,-6,0])
+      cylinder(d=6.4,h=30.3,center=true);
+    }
     cylinder(d=3.4,h=41,center=true);
+    for (z=[-22,22]) {
+      translate([0,0,z])
+      cylinder(d=6.6,h=4,center=true);
+    }
+    rotate([0,90,0])
+    translate([0,-14,1.8])
+    linear_extrude(height=2,convexity=10) {
+      text("EasyTarget",size=5,halign="center");
+    }
   }
 }
 
