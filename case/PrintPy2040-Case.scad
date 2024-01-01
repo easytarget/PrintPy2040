@@ -14,7 +14,7 @@ screenOff = (sx/2)+0.1; // X offset for each screen + gap
 // Case size (x,y based on screen dimensions)
 inX = (2*sx)+1; // basic interior space based on screens
 inY = sy+1; 
-inZ = 16;       // how deep (depends on cpu board etc..)
+inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
 printing = true;
@@ -23,15 +23,15 @@ if(printing) {
   casebody([0,20,0]);
   casestand([0,-20,0]);
   foot([0,-50,3]);
-} else {
-  color("LightCyan",1)
+} else rotate([60,0,0]) {
+  color("LightCyan")
   casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple",1) {
     casestand();
-    foot([0,-19.5,3],[60,0,180]);
+    foot([0,-19.5,3],[110,0,0]);
   }
   screens([0,0,inZ+0.8],[0,0,0],0.5);
-  rp2040([20,1,8],[0,0,180]);
+  rp2040([20,1,6],[0,0,180]);
   button([-17.5,0,8],[0,180,0]);
   3x15hexhead([23.1,-19.5,3],[0,-90,0]);
   3x15hexhead([-23.1,-19.5,3],[0,90,0]);
@@ -127,9 +127,9 @@ translate(pos) rotate(rot) {
     }
     cylinder(d=3.2,h=33,center=true,$fn=6);
   }
-  // Four tabs to grip onto case, wider at top
+  // Tabs to grip onto case, wider at top
   // Thinner part
-  linear_extrude(height=inZ-7.5,convexity=8) {
+  linear_extrude(height=8,convexity=8) {
     difference() {
       union() {
         square([inX-0.3,24],center=true);
@@ -143,8 +143,8 @@ translate(pos) rotate(rot) {
     }
   }
   // Thicker top
-  translate([0,0,inZ-8.5])
-  linear_extrude(height=1,convexity=8) {
+  translate([0,0,7])
+  linear_extrude(height=0.5,convexity=8) {
     difference() {
       union() {
         square([inX-0.1,24],center=true);
@@ -268,8 +268,8 @@ translate(pos) rotate(rot) {
     }
   }
   color("Gold")
-  translate([0,0,-4])
-  linear_extrude(5,convexity=10) {
+  translate([0,0,-2])
+  linear_extrude(3,convexity=10) {
     for(x=[-1,1],y=[-1,1]) {
       translate([2.5*x,6*y]) circle(0.5);
     }
