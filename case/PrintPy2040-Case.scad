@@ -25,14 +25,15 @@ if(printing) {
   foot([0,-50,3]);
 } else rotate([60,0,0]) {
   color("LightCyan")
-  casebody([0,0,inZ+5.1],[180,0,0]);
+  #casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple",1) {
     casestand();
     foot([0,-19.5,3],[110,0,0]);
   }
   screens([0,0,inZ+0.8],[0,0,0],0.5);
-  rp2040([20,1,6],[0,0,180]);
-  button([-17.5,0,8],[0,180,0]);
+  rp2040([20,-1,2],[0,0,180]);
+  socket([-19,-7.5,6],[180,0,0]);
+  button([-19.5,2,8],[0,180,0]);
   3x15hexhead([23.1,-19.5,3],[0,-90,0]);
   3x15hexhead([-23.1,-19.5,3],[0,90,0]);
 }
@@ -96,25 +97,22 @@ translate(pos) rotate(rot) {
         circle(wallRad);
       }
       // button opening
-      translate([-17.5,0]) square([12.5,13.2],center=true);
-      // vent holes
-      for(y=[-4,1,6]) hull() {
-        translate([-7,y]) circle(d=2);
-        translate([22,y]) circle(d=2);
+      translate([-19.5,2]) square([12.5,13.2],center=true);
+      // mcu cutout
+      hull() {
+        for(x=[-10,24],y=[-9,7]) {
+          translate([x,y]) circle(d=2);
+        }
       }
+      // vent
       hull() {
         translate([-22,11]) circle(d=2);
         translate([22,11]) circle(d=2);
       }
-      // cable Hole
-      minkowski() {
-        translate([-7,-11])
-        square([14,3]);
-        circle(0.5);
-      }
+      // Socket
+      translate([-19,-7.5])
+      square([13.2,3],center=true);
     }
-    translate([0,-16])
-    *square([22,5],center=true);
   }
   // foot mount
   translate([0,-19.5,3])
@@ -158,16 +156,24 @@ translate(pos) rotate(rot) {
     }
   }
   // Button recess
-  translate([-17.5,0,2])
+  translate([-19.5,2,2])
   linear_extrude(height=6,convexity=20) {
     difference() {
-      square([15.5,16.2],center=true);
+      square([14.5,15.2],center=true);
       square([12.5,13.2],center=true);
     }
   }
-  translate([-17.5,0,8])
-  linear_extrude(height=1,convexity=20) {
-    square([15.5,9],center=true);
+  translate([-19.5,2,8])
+  linear_extrude(height=1,convexity=20,scale=[0.85,0.9]) {
+    square([14.5,9],center=true);
+  }
+  // socket support
+  translate([-19,-7.5])
+  linear_extrude(height=4,convexity=20) {
+    difference() {
+      square([15.2,5],center=true);
+      square([13.2,3],center=true);
+    }
   }
 }
 
@@ -339,5 +345,31 @@ translate(pos) rotate(rot) {
     cylinder(d=3,h=2.9,$fn=6);
   }
   translate([0,0,3])
-  cylinder(d=3,h=15);
+  cylinder(d=3,h=11);
+}
+
+module socket(pos=[0,0,0],rot=[0,0,0],pitch=2.54)
+translate(pos) rotate(rot) {
+  color("grey")
+  linear_extrude(height=6,convexity=10) {
+    difference() {
+      square([pitch*5,pitch],center=true);
+      for (x=[-2:1:2]) {
+        translate([x*pitch,0])
+        square([1,1],center=true);
+      }
+    }
+  }
+  color("grey")
+  linear_extrude(height=1,convexity=10) {
+    square([pitch*5,pitch],center=true);
+  }
+  color("gold")
+  translate([0,0,-4])
+  for (x=[-2:1:2]) {
+    linear_extrude(height=5) {
+      translate([x*pitch,0])
+      square([0.6,0.6],center=true);
+    }
+  }
 }
