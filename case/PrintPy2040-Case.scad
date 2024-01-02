@@ -17,20 +17,28 @@ inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-printing = true;
+*rp2040([20,-1,4],[0,0,180]);
+*screens([0,0,inZ+0.8],[0,0,0]);
+//caseback();
+//mcuplate();
+
+printing = !true;
 
 if(printing) {
   casebody([0,20,0]);
-  casestand([0,-20,0]);
+  caseback([0,-20,0]);
   foot([0,-50,3]);
 } else rotate([60,0,0]) {
+  // printable bits
+  color("MediumPurple")
+  caseback();
+  mcuplate();
   color("LightCyan")
-  #casebody([0,0,inZ+5.1],[180,0,0]);
-  color("MediumPurple",1) {
-    casestand();
-    foot([0,-19.5,3],[110,0,0]);
-  }
-  screens([0,0,inZ+0.8],[0,0,0],0.5);
+  casebody([0,0,inZ+5.1],[180,0,0]);
+  color("MediumPurple",1)
+  foot([0,-19.5,3],[110,0,0]);
+  // cpmponents
+  screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([20,-1,2],[0,0,180]);
   socket([-19,-7.5,6],[180,0,0]);
   button([-19.5,2,8],[0,180,0]);
@@ -87,7 +95,7 @@ translate(pos) rotate(rot) {
   }
 }
 
-module casestand(pos=[0,0,0],rot=[0,0,0])
+module caseback(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   //Baseplate
   linear_extrude(height=2,convexity=20) {
@@ -125,8 +133,7 @@ translate(pos) rotate(rot) {
     }
     cylinder(d=3.2,h=33,center=true,$fn=6);
   }
-  // Tabs to grip onto case, wider at top
-  // Thinner part
+  // Tabs to grip onto case
   linear_extrude(height=8,convexity=8) {
     difference() {
       union() {
@@ -140,7 +147,7 @@ translate(pos) rotate(rot) {
         square([11,4],center=true);
     }
   }
-  // Thicker top
+  // Lip on tabs to grip case
   translate([0,0,7])
   linear_extrude(height=0.5,convexity=8) {
     difference() {
@@ -163,6 +170,7 @@ translate(pos) rotate(rot) {
       square([12.5,13.2],center=true);
     }
   }
+  // Button support
   translate([-19.5,2,8])
   linear_extrude(height=1,convexity=20,scale=[0.85,0.9]) {
     square([14.5,9],center=true);
@@ -173,6 +181,58 @@ translate(pos) rotate(rot) {
     difference() {
       square([15.2,5],center=true);
       square([13.2,3],center=true);
+    }
+  }
+}
+
+module mcuplate(pos=[0,0,0],rot=[0,0,0])
+translate(pos) rotate(rot) {
+  linear_extrude(height=1.2,convexity=10) {
+    difference() {
+      // baseplate
+      hull() {
+        for(x=[-10,24],y=[-9,7]) {
+          translate([x,y]) circle(d=1);
+        }
+      }
+      // logo
+      translate([7,-1])
+      mirror([1,0])
+      text("2040",halign="center",valign="center",size=6);
+    }
+  }
+  // support logo
+  translate([7,-1,1])
+  linear_extrude(height=0.5,convexity=10,scale=[1,0.2]) {
+    square([25,1],center=true);
+  }
+  // clip mechanism and mcu support
+  difference() {
+    union() {
+      // rails
+      for (y=[-6,4]) {
+        translate([7,y,1])
+        linear_extrude(height=4,convexity=10) {
+          square([25,1],center=true);
+        }
+      }
+      // clip posts
+      for(x=[-6,20]) {
+        translate([x,-1,1])
+        linear_extrude(height=4,convexity=10,scale=[0.5,1]) {
+          square([6,17],center=true);
+        }
+      }
+      // with balls
+      for(x=[-6,20],y=-[-7,9]) {
+        translate([x,y,3.5])
+        sphere(r=1.5,$fn=24);
+      }
+    }
+    translate([20,-1,4])
+    linear_extrude(height=2,convexity=10) {
+      offset(r=0.15)
+      projection(cut = true) rp2040(rot=[0,0,180]);
     }
   }
 }
@@ -206,19 +266,22 @@ translate(pos) rotate(rot) {
 
 // Modules and parts
 
-module screens(pos=[0,0,0],rot=[0,0,0],opacity=1)
+module screens(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
-  translate([screenOff,0,0])
-  oled();
-  translate([-screenOff,0,0])
-  oled();
+  // left
+  oled([-screenOff,0,0]);
+  // right
+  oled([screenOff,0,0]);
+  // tape that seals the join.. 
+  color("black")
+  cube([2,sx-4,0.02],center=true);
 }
 
-module oled(pos=[0,0,0],rot=[0,0,0])
+module oled(pos=[0,0,0],rot=[0,0,0],pins=false)
 translate(pos) rotate(rot) {
   color("blue")
   linear_extrude(height=1.2,convexity=5)
-  #difference() {
+  difference() {
     square([sx,sy],center=true);
     for(x=[-1,1],y=[-1,1])
       translate([x*holeOff,y*holeOff]) circle(d=2.3);
@@ -235,14 +298,21 @@ translate(pos) rotate(rot) {
     square([sx,14.5],center=true);
   }
   for(x=[-3.81,-1.27,1.27,3.81]) {
-    color("gold")
-    translate([x,pinOff,-8.3])
-    linear_extrude(height=11.3,convexity=5)
-    square([0.6,0.6],center=true);
-    color("grey")
-    translate([x,pinOff,-2.5])
-    linear_extrude(height=2.5,convexity=5)
-    square([2,2.6],center=true);
+    if (pins) {
+      color("gold")
+      translate([x,pinOff,-8.3])
+      linear_extrude(height=11.3,convexity=5)
+      square([0.6,0.6],center=true);
+      color("grey")
+      translate([x,pinOff,-2.5])
+      linear_extrude(height=2.5,convexity=5)
+      square([2,2.6],center=true);
+    } else {
+      color("gold")
+      translate([x,pinOff,-1])
+      linear_extrude(height=3,convexity=5)
+      circle(d=1, $fn=24);
+    }
   }
 }
 
@@ -334,6 +404,14 @@ translate(pos) rotate(rot) {
       color("darkslategrey") // buttons
       cylinder(d=1.4,h=1.25,$fn=24);
     }
+  }
+  // solderpoints
+  color("gold")
+  translate([0,0,-1])
+  linear_extrude(height=3,convexity=10)
+    for (x=[3:2.54:19],y=[-7.7,7.7]) {
+    translate([x,y])
+    circle(d=1, $fn=24);
   }
 }
 
