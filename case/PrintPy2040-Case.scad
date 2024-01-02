@@ -19,22 +19,24 @@ wallRad=1.5;    // round off (case thickness)
 
 *rp2040([20,-1,4],[0,0,180]);
 *screens([0,0,inZ+0.8],[0,0,0]);
-//caseback();
-//mcuplate();
+*caseback();
+*mcuplate();
 
-printing = !true;
+printing = true;
 
 if(printing) {
   casebody([0,20,0]);
   caseback([0,-20,0]);
+  mcuplate([50,-20,0]);
   foot([0,-50,3]);
 } else rotate([60,0,0]) {
   // printable bits
   color("MediumPurple")
   caseback();
+  color("MediumPurple")
   mcuplate();
   color("LightCyan")
-  casebody([0,0,inZ+5.1],[180,0,0]);
+  #casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple",1)
   foot([0,-19.5,3],[110,0,0]);
   // cpmponents
@@ -183,6 +185,21 @@ translate(pos) rotate(rot) {
       square([13.2,3],center=true);
     }
   }
+  // mcu plate clips
+  difference() {
+    for (x=[-6,20],y=-[-9,11]) {
+      translate([x,y,1])
+      linear_extrude(height=5,convexity=20,scale=[0.5,1.2]) {
+        square([6,2],center=true);
+      }
+    }
+    // indents
+    for(x=[-6,20],y=-[-7,9]) {
+      translate([x,y,3.5])
+      sphere(r=1.5,$fn=24);
+    }
+
+  }
 }
 
 module mcuplate(pos=[0,0,0],rot=[0,0,0])
@@ -198,22 +215,22 @@ translate(pos) rotate(rot) {
       // logo
       translate([7,-1])
       mirror([1,0])
-      text("2040",halign="center",valign="center",size=6);
+      text("XIAO",halign="center",valign="center",size=6);
     }
   }
   // support logo
-  translate([7,-1,1])
+  translate([7,-0.875,1])
   linear_extrude(height=0.5,convexity=10,scale=[1,0.2]) {
     square([25,1],center=true);
   }
   // clip mechanism and mcu support
   difference() {
     union() {
-      // rails
+      // mcu support rails
       for (y=[-6,4]) {
-        translate([7,y,1])
-        linear_extrude(height=4,convexity=10) {
-          square([25,1],center=true);
+        translate([8,y,1])
+        linear_extrude(height=5.6,convexity=10,scale=[0.9,1]) {
+          square([30,1],center=true);
         }
       }
       // clip posts
@@ -229,9 +246,16 @@ translate(pos) rotate(rot) {
         sphere(r=1.5,$fn=24);
       }
     }
+    // remove cutout for xiao board
     translate([20,-1,4])
-    linear_extrude(height=2,convexity=10) {
-      offset(r=0.15)
+    linear_extrude(height=1.4,convexity=10) {
+      offset(r=0.1)
+      projection(cut = true) rp2040(rot=[0,0,180]);
+    }
+    // this creates a 'lip' to clip xiao into
+    translate([20,-1,5.3])
+    linear_extrude(height=3,convexity=10) {
+      offset(r=-0.05)
       projection(cut = true) rp2040(rot=[0,0,180]);
     }
   }
