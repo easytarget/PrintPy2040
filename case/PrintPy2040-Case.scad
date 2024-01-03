@@ -20,11 +20,11 @@ wallRad=1.5;    // round off (case thickness)
 *rp2040([20,-1,4],[0,0,180]);
 *screens([0,0,inZ+0.8],[0,0,0]);
 *caseback();
-*mcuplate();
+mcuplate();
 
 printing = true;
 
-if(printing) {
+*if(printing) {
   casebody([0,20,0]);
   caseback([0,-20,0]);
   mcuplate([50,-20,0]);
@@ -215,22 +215,27 @@ translate(pos) rotate(rot) {
       // logo
       translate([7,-1])
       mirror([1,0])
-      text("XIAO",halign="center",valign="center",size=6);
+      scale([0.6,0.9])
+      offset(r=0.12)
+      text("XIAO",halign="center",valign="center",size=10);
+      // liftout slot
+      translate([24.0,-1])
+      square([1.0,6],center=true);
     }
   }
-  // support logo
+  // support the logo
   translate([7,-0.875,1])
-  linear_extrude(height=0.5,convexity=10,scale=[1,0.2]) {
-    square([25,1],center=true);
+  linear_extrude(height=0.8,convexity=10,scale=[1,0.2]) {
+    square([25,1.6],center=true);
   }
   // clip mechanism and mcu support
   difference() {
     union() {
       // mcu support rails
       for (y=[-6,4]) {
-        translate([8,y,1])
-        linear_extrude(height=5.6,convexity=10,scale=[0.9,1]) {
-          square([30,1],center=true);
+        translate([9,y,1])
+        linear_extrude(height=6,convexity=10,scale=[0.9,1]) {
+          square([31,1],center=true);
         }
       }
       // clip posts
@@ -249,7 +254,7 @@ translate(pos) rotate(rot) {
     // remove cutout for xiao board
     translate([20,-1,4])
     linear_extrude(height=1.4,convexity=10) {
-      offset(r=0.1)
+      offset(r=0.25)
       projection(cut = true) rp2040(rot=[0,0,180]);
     }
     // this creates a 'lip' to clip xiao into
