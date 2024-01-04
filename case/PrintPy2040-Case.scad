@@ -1,5 +1,5 @@
 // PrintPy2040 Case
-$fn=90; // or fugly
+$fn=60; // or fugly
 
 // OLED screen modules
 sx = 27.4;              // Board width
@@ -13,24 +13,19 @@ screenOff = (sx/2)+0.1; // X offset for each screen + gap
 
 // Case size (x,y based on screen dimensions)
 inX = (2*sx)+1; // basic interior space based on screens
-inY = sy+1; 
+inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-// local assembly area
-*rp2040([20,-1,4],[0,0,180]);
-*screens([0,0,inZ+0.8],[0,0,0]);
-*caseback();
-*mcuplate();
-
 printing = true;
+assemble = !true;
 
 if(printing) {
   casebody([0,20,0]);
   caseback([0,-20,0]);
   mcuplate([50,-20,0]);
   foot([0,-50,3]);
-} else rotate([60,0,0]) {
+} else if (assemble) rotate([60,0,0]) {
   // printable bits
   color("MediumPurple")
   caseback();
@@ -42,13 +37,18 @@ if(printing) {
   foot([0,-19.5,3],[110,0,0]);
   // cpmponents
   screens([0,0,inZ+0.8],[0,0,0]);
-  rp2040([20,-1,2],[0,0,180]);
+  rp2040([20,-1,2]);
   socket([-18.8,-7.5,6],[180,0,0]);
   button([-19.5,2,8],[0,180,0]);
   3x15hexhead([23.1,-19.5,3],[0,-90,0]);
   3x15hexhead([-23.1,-19.5,3],[0,90,0]);
+} else {
+  // work area
+  *rp2040([20,-1,4]);
+  *screens([0,0,inZ+0.8],[0,0,0]);
+  caseback();
+  mcuplate();
 }
-
 module casebody(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   difference() {
@@ -210,14 +210,14 @@ translate(pos) rotate(rot) {
       // baseplate
       hull() {
         for(x=[-10,24],y=[-9,7]) {
-          translate([x,y]) circle(d=1);
+          translate([x,y]) circle(d=1,$fn=24);
         }
       }
       // logo
       translate([7,-1])
       mirror([1,0])
-      scale([0.6,0.9])
-      offset(r=0.12)
+      scale([0.9,1])
+      //offset(r=0.1,$fn=24)
       text("XIAO",halign="center",valign="center",size=10,$fn=24);
       // removal slot
       translate([24.0,-1])
@@ -225,9 +225,9 @@ translate(pos) rotate(rot) {
     }
   }
   // support the logo
-  translate([7,-0.875,1])
+  translate([7,-0.8,1])
   linear_extrude(height=1,convexity=10,scale=[1,0.4]) {
-    square([25,1.6],center=true);
+    square([30,1.6],center=true);
   }
   // clip mechanism and mcu support
   difference() {
@@ -253,9 +253,9 @@ translate(pos) rotate(rot) {
       }
       // board positioners and clips
       for(y=-[-6.4,8.4]) {
-        translate([-2,y,1])
-        linear_extrude(height=6,convexity=10,scale=[0.5,1]) {
-          square([5,2.2],center=true);
+        translate([-4,y,1])
+        linear_extrude(height=6,convexity=10,scale=[0.6,1]) {
+          square([9,2.2],center=true);
         }
       }
       // the USB-C bracket
@@ -267,14 +267,12 @@ translate(pos) rotate(rot) {
     // remove cutout for xiao board
     translate([20,-1,4])
     linear_extrude(height=1.4,convexity=10) {
-      offset(r=0.2)
-      projection(cut = true) rp2040(rot=[0,0,180]);
+      xiaoOutline(r=0.2);
     }
     // this creates a 'lip' to clip xiao into
     translate([20,-1,5.3])
     linear_extrude(height=3,convexity=10,scale=[0.99,1]) {
-      offset(r=-0.05)
-      projection(cut = true) rp2040(rot=[0,0,180]);
+      xiaoOutline(r=-0.05);
     }
     // The USB-C socket hole
     translate([15,-1,6.8])
@@ -323,7 +321,7 @@ translate(pos) rotate(rot) {
   oled([-screenOff,0,0]);
   // right
   oled([screenOff,0,0]);
-  // tape that seals the join.. 
+  // tape that seals the join..
   color("black")
   cube([2,sx-4,0.02],center=true);
 }
@@ -403,7 +401,7 @@ translate(pos) rotate(rot) {
   }
 }
 
-module rp2040(pos=[0,0,0],rot=[0,0,0])
+module rp2040(pos=[0,0,0],rot=[0,0,180])
 translate(pos) rotate(rot) {
   color("green")  // PCB
   linear_extrude(height=1.2, convexity=10) {
@@ -466,15 +464,21 @@ translate(pos) rotate(rot) {
   }
 }
 
+module xiaoOutline(r=0) {
+  offset(r=r,$fn=24)
+  projection(cut = true,$fn=24)
+  rp2040();
+}
+
 module 3x15hexhead(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   color("silver")
   difference() {
-    cylinder(d=5.2,h=3);
+    cylinder(d=5.2,h=3,$fn=36);
     cylinder(d=3,h=2.9,$fn=6);
   }
   translate([0,0,3])
-  cylinder(d=3,h=11);
+  cylinder(d=3,h=11,$fn=24);
 }
 
 module socket(pos=[0,0,0],rot=[0,0,0],pitch=2.54)
