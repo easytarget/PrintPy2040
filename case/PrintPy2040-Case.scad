@@ -22,7 +22,7 @@ inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
 printing = true;
-assemble = !true;
+assemble = true;
 
 if(printing) {
   casebody([0,20,0]);
@@ -35,7 +35,7 @@ if(printing) {
   footangle = 0;
   // printable bits
   color("LightCyan")
-  *casebody([0,0,inZ+5.1],[180,0,0]);
+  casebody([0,0,inZ+5.1],[180,0,0]);
   color("WhiteSmoke")
   lightchannel([0,0,inZ+0.60],[180,180,180]);
   color("MediumPurple")
@@ -58,7 +58,7 @@ if(printing) {
   *lightchannel([0,0,inZ+0.60],[180,180,0]);
   *caseback();
   mcuplate();
-  rp2040([20,-1,4]);
+  *rp2040([20,-1,4]);
   *screens([0,0,inZ+0.8],[0,0,0]);
 }
 module casebody(pos=[0,0,0],rot=[0,0,0])
@@ -301,9 +301,9 @@ translate(pos) rotate(rot) {
         }
       }
       // the USB-C bracket
-      translate([20.95,-1,4.99])
-      linear_extrude(height=5.5,convexity=10,scale=[1,0.9]) {
-        square([1.7,17],center=true);
+      translate([20.95,-1,1])
+      linear_extrude(height=9.5,convexity=10) {
+        square([4,17],center=true);
       }
     }
     // remove cutout for xiao board
@@ -313,7 +313,7 @@ translate(pos) rotate(rot) {
     }
     // this creates a 'lip' to clip xiao into
     translate([20,-1,5.3])
-    linear_extrude(height=3,convexity=10,scale=[0.99,1]) {
+    linear_extrude(height=5.5,convexity=10,scale=[0.98,1]) {
       xiaoOutline(r=-0.05);
     }
     // The USB-C socket hole
@@ -321,19 +321,14 @@ translate(pos) rotate(rot) {
     rotate([0,90,0])
     hull() {
       for (y=[-1,1]) {
-        translate([0,y*2.9,0])
+        translate([0,y*3,0])
         cylinder(d=3.5,h=10,$fn=24);
       }
     }
-    // Then cut USB bracket in half
-    //  .. so the whole plate 'squeezes' for fitting
-    translate([20.9,-1,4.98])
-    linear_extrude(height=2,convexity=10,scale=[1,0.84]) {
-      square([2,11],center=true);
-    }
-    translate([20.9,-1,4.98])
-    linear_extrude(height=10,convexity=10) {
-      square([2,6.75],center=true);
+    // Then cut USB bracket body to make a clip
+    translate([20.9,-1,0])
+    linear_extrude(height=11,convexity=10) {
+      square([5,6.75],center=true);
     }
 
   }
