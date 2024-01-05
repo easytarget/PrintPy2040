@@ -1,5 +1,9 @@
 // PrintPy2040 Case
-$fn=60; // or fugly
+
+// This is a very small model, 60 is fine here:
+$fn=60;
+// I override in a lot of places for speed and because
+// the effects are simply not visible on mm-sized bits.
 
 // OLED screen modules
 sx = 27.4;              // Board width
@@ -17,7 +21,7 @@ inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-printing = true;
+printing = !true;
 assemble = !true;
 
 if(printing) {
@@ -25,17 +29,20 @@ if(printing) {
   caseback([0,-20,0]);
   mcuplate([50,-20,0]);
   foot([0,-50,3]);
-} else if (assemble) rotate([60,0,0]) {
+  mount([50,-50,9],[90,0,180]);
+} else if (assemble) rotate([90,0,0]) {
+  footangle = 0;
   // printable bits
+  color("LightCyan")
+  casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple")
   caseback();
   color("MediumPurple")
   mcuplate();
-  color("LightCyan")
-  casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple",1)
-  foot([0,-19.5,3],[110,0,0]);
-  // cpmponents
+  //foot([0,-19.5,3],[footangle,0,0]);
+  mount([0,-19.5,3],[footangle,0,0]);
+  // components
   screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([20,-1,2]);
   socket([-18.8,-7.5,6],[180,0,0]);
@@ -45,8 +52,8 @@ if(printing) {
 } else {
   // work area
   *rp2040([20,-1,4]);
-  *screens([0,0,inZ+0.8],[0,0,0]);
-  caseback();
+  screens([0,0,inZ+0.8],[0,0,0]);
+  *caseback();
   mcuplate();
 }
 module casebody(pos=[0,0,0],rot=[0,0,0])
@@ -260,7 +267,7 @@ translate(pos) rotate(rot) {
       }
       // the USB-C bracket
       translate([21.1,-1,4])
-      linear_extrude(height=5.5,convexity=10,scale=[0.6,0.6]) {
+      linear_extrude(height=6,convexity=10,scale=[0.6,0.8]) {
         square([2,16],center=true);
       }
     }
@@ -286,7 +293,7 @@ translate(pos) rotate(rot) {
   }
 }
 
-module foot(pos=[0,0,0],rot=[0,0,0],opacity=1)
+module foot(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   rotate([0,90,0])
   difference() {
@@ -308,7 +315,57 @@ translate(pos) rotate(rot) {
     rotate([0,90,0])
     translate([0,-14,1.8])
     linear_extrude(height=2,convexity=10) {
-      text("EasyTarget",size=5,halign="center");
+      text("EasyTarget",size=5,halign="center",$fn=24);
+    }
+  }
+}
+
+module mount(pos=[0,0,0],rot=[0,0,0])
+translate(pos) rotate(rot) {
+  rotate([90,-90,90])
+  difference() {
+    union() {
+      hull() {
+        cylinder(d=6,h=40,center=true);
+        translate([0,6,0])
+        cylinder(d=6,h=26,center=true);
+      }
+      hull() {
+        translate([0,6,0])
+        cylinder(d=6,h=26,center=true);
+        translate([-15,7,0])
+        cylinder(d=4,h=20,center=true);
+      }
+    }
+    cylinder(d=3.4,h=41,center=true);
+    hull() {
+      cylinder(d=6.4,h=30.3,center=true);
+      translate([-6,0,0])
+      cylinder(d=6.4,h=30.3,center=true);
+    }
+    for (z=[-22,22]) {
+      translate([0,0,z])
+      cylinder(d=6.6,h=4,center=true);
+    }
+    rotate([0,90,90])
+    translate([0,10,8])
+    linear_extrude(height=1.1,convexity=10) {
+      text("Easy",size=5,halign="center");
+    }
+    rotate([0,90,90])
+    translate([0,0.5,8])
+    linear_extrude(height=1.1,convexity=10) {
+      text("Target",size=5,halign="center",$fn=24);
+    }
+    rotate([0,90,90])
+    translate([0,7,3])
+    linear_extrude(height=10,convexity=10) {
+      circle(d=3.5);
+    }
+    rotate([0,90,90])
+    translate([0,7,3])
+    linear_extrude(height=4,convexity=10) {
+      circle(d=6);
     }
   }
 }
@@ -323,7 +380,7 @@ translate(pos) rotate(rot) {
   oled([screenOff,0,0]);
   // tape that seals the join..
   color("black")
-  cube([2,sx-4,0.02],center=true);
+  cube([2,sx-6,0.02],center=true);
 }
 
 module oled(pos=[0,0,0],rot=[0,0,0],pins=false)
@@ -456,8 +513,8 @@ translate(pos) rotate(rot) {
   }
   // solderpoints
   color("gold")
-  translate([0,0,-1])
-  linear_extrude(height=3,convexity=10)
+  translate([0,0,-0.4])
+  linear_extrude(height=2,convexity=10)
     for (x=[3:2.54:19],y=[-7.7,7.7]) {
     translate([x,y])
     circle(d=1, $fn=24);
@@ -471,14 +528,15 @@ module xiaoOutline(r=0) {
 }
 
 module 3x15hexhead(pos=[0,0,0],rot=[0,0,0])
-translate(pos) rotate(rot) {
-  color("silver")
+translate(pos) rotate(rot)
+color("silver") {
   difference() {
-    cylinder(d=5.2,h=3,$fn=36);
-    cylinder(d=3,h=2.9,$fn=6);
+    cylinder(d=5.2,h=3);
+    translate([0,0,-0.1])
+    cylinder(d=3,h=3);
   }
   translate([0,0,3])
-  cylinder(d=3,h=11,$fn=24);
+  cylinder(d=3,h=10);
 }
 
 module socket(pos=[0,0,0],rot=[0,0,0],pitch=2.54)
