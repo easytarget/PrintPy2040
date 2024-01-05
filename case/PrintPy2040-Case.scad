@@ -21,11 +21,12 @@ inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-printing = !true;
+printing = true;
 assemble = !true;
 
 if(printing) {
   casebody([0,20,0]);
+  lightchannel([0,60,0]);
   caseback([0,-20,0]);
   mcuplate([50,-20,0]);
   foot([0,-50,3]);
@@ -34,7 +35,9 @@ if(printing) {
   footangle = 0;
   // printable bits
   color("LightCyan")
-  casebody([0,0,inZ+5.1],[180,0,0]);
+  *casebody([0,0,inZ+5.1],[180,0,0]);
+  color("WhiteSmoke")
+  lightchannel([0,0,inZ+0.60],[180,180,180]);
   color("MediumPurple")
   caseback();
   color("MediumPurple")
@@ -47,14 +50,16 @@ if(printing) {
   rp2040([20,-1,2]);
   socket([-18.8,-7.5,6],[180,0,0]);
   button([-19.5,2,8],[0,180,0]);
-  3x15hexhead([23.1,-19.5,3],[0,-90,0]);
-  3x15hexhead([-23.1,-19.5,3],[0,90,0]);
+  3x12hexhead([23.1,-19.5,3],[0,-90,0]);
+  3x12hexhead([-23.1,-19.5,3],[0,90,0]);
 } else {
   // work area
-  *rp2040([20,-1,4]);
-  screens([0,0,inZ+0.8],[0,0,0]);
+  *casebody([0,0,inZ+5.1],[180,0,0]);
+  *lightchannel([0,0,inZ+0.60],[180,180,0]);
   *caseback();
   mcuplate();
+  rp2040([20,-1,4]);
+  *screens([0,0,inZ+0.8],[0,0,0]);
 }
 module casebody(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
@@ -102,6 +107,36 @@ translate(pos) rotate(rot) {
     linear_extrude(height=2*inZ,convexity=8) {
       square([inX,inY],center=true);
     }
+  }
+}
+
+module lightchannel(pos=[0,0,0],rot=[180,0,0])
+translate(pos) rotate(rot) {
+  thick = inZ - 7.5;
+  translate([0,0,-thick])
+  linear_extrude(height=thick) {
+    difference() {
+      // Basic shape
+      #minkowski() {
+        translate([0,0,2])
+        square([inX-1.3,inY-1.3],center=true);
+        circle(r=0.5,$fn=24);
+      }
+      // pins and screenbacks
+      for (x=[-screenOff,screenOff]) {
+        translate([x,pinOff])
+        square([12,4],center=true);
+        translate([x,0])
+        square([sx-2,sy-2],center=true);
+      }
+      // central clearance (ie: C3 on R/H screen)
+      square([6,12],center=true);
+    }
+  }
+  // Light collector
+  translate([0,0,-thick-1])
+  linear_extrude(height=thick,scale=[0.25,0.6]) {
+    square([7,sx*0.75],center=true);
   }
 }
 
@@ -266,9 +301,9 @@ translate(pos) rotate(rot) {
         }
       }
       // the USB-C bracket
-      translate([21.1,-1,4])
-      linear_extrude(height=6,convexity=10,scale=[0.6,0.8]) {
-        square([2,16],center=true);
+      translate([20.95,-1,4.99])
+      linear_extrude(height=5.5,convexity=10,scale=[1,0.9]) {
+        square([1.7,17],center=true);
       }
     }
     // remove cutout for xiao board
@@ -290,6 +325,17 @@ translate(pos) rotate(rot) {
         cylinder(d=3.5,h=10,$fn=24);
       }
     }
+    // Then cut USB bracket in half
+    //  .. so the whole plate 'squeezes' for fitting
+    translate([20.9,-1,4.98])
+    linear_extrude(height=2,convexity=10,scale=[1,0.84]) {
+      square([2,11],center=true);
+    }
+    translate([20.9,-1,4.98])
+    linear_extrude(height=10,convexity=10) {
+      square([2,6.75],center=true);
+    }
+
   }
 }
 
@@ -372,6 +418,7 @@ translate(pos) rotate(rot) {
 
 // Modules and parts
 
+// Two screens with correct spacing.
 module screens(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   // left
@@ -383,6 +430,7 @@ translate(pos) rotate(rot) {
   cube([2,sx-6,0.02],center=true);
 }
 
+// OLED is based on a generic JMD0.96A-2 module
 module oled(pos=[0,0,0],rot=[0,0,0],pins=false)
 translate(pos) rotate(rot) {
   color("blue")
@@ -422,6 +470,7 @@ translate(pos) rotate(rot) {
   }
 }
 
+// A VERY common button design used in lots of kits etc.
 module button(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   color("Silver")
@@ -458,6 +507,7 @@ translate(pos) rotate(rot) {
   }
 }
 
+// Any XIAO module will fit, this is model is the RP2040
 module rp2040(pos=[0,0,0],rot=[0,0,180])
 translate(pos) rotate(rot) {
   color("green")  // PCB
@@ -521,13 +571,15 @@ translate(pos) rotate(rot) {
   }
 }
 
+// Generate an outline of the XIAO.
 module xiaoOutline(r=0) {
   offset(r=r,$fn=24)
   projection(cut = true,$fn=24)
   rp2040();
 }
 
-module 3x15hexhead(pos=[0,0,0],rot=[0,0,0])
+// A 3mm X 12mm hex head bolt
+module 3x12hexhead(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot)
 color("silver") {
   difference() {
@@ -536,9 +588,10 @@ color("silver") {
     cylinder(d=3,h=3);
   }
   translate([0,0,3])
-  cylinder(d=3,h=10);
+  cylinder(d=3,h=12);
 }
 
+// 5pin PinSocket, defaults to 2.54mm pitch
 module socket(pos=[0,0,0],rot=[0,0,0],pitch=2.54)
 translate(pos) rotate(rot) {
   color("grey")
