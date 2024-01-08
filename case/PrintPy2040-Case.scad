@@ -21,8 +21,8 @@ inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-printing = !true;
-assemble = !true;
+printing = true;
+assemble = true;
 
 if(printing) {
   casebody([0,20,0]);
@@ -34,19 +34,19 @@ if(printing) {
 } else if (assemble) rotate([90,0,0]) {
   footangle = 0;
   // printable bits
-  *color("LightCyan")
+  color("LightCyan")
   casebody([0,0,inZ+5.1],[180,0,0]);
   color("WhiteSmoke")
   lightchannel([0,0,inZ+0.60],[180,180,180]);
   color("MediumPurple")
-  *caseback();
+  caseback();
   color("MediumPurple")
   mcuplate();
   color("MediumPurple",1)
   //foot([0,-19.5,3],[footangle,0,0]);
   mount([0,-19.5,3],[footangle,0,0]);
   // components
-  screens([0,0,inZ+0.8],[0,0,0]);
+  *screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([20,-1,2]);
   socket([-18.8,-7.5,6],[180,0,0]);
   button([-19.5,2,8],[0,180,0]);
@@ -56,11 +56,12 @@ if(printing) {
   // work area
   *casebody([0,0,inZ+5.1],[180,0,0]);
   #lightchannel([0,0,inZ+0.60],[180,180,180]);
-  caseback();
-  mcuplate();
-  *rp2040([20,-1,4]);
-  *screens([0,0,inZ+0.8],[0,0,0]);
+  *caseback();
+  *mcuplate();
+  rp2040([20,-1,4]);
+  screens([0,0,inZ+0.8],[0,0,0]);
 }
+
 module casebody(pos=[0,0,0],rot=[0,0,0])
 translate(pos) rotate(rot) {
   difference() {
@@ -135,9 +136,9 @@ translate(pos) rotate(rot) {
     }
   }
   // Light collector
-  translate([0,-1,-thick-1.5])
-  linear_extrude(height=thick+1.5,scale=[0.1,3]) {
-    square([6,5],center=true);
+  translate([0,-1,-thick-1])
+  linear_extrude(height=thick+1,scale=[0.21,6.5]) {
+    square([3,4],center=true);
   }
 }
 
@@ -223,10 +224,10 @@ translate(pos) rotate(rot) {
   }
   // socket support
   translate([-18.8,-7.5])
-  linear_extrude(height=5,convexity=20) {
+  linear_extrude(height=6,convexity=20) {
     difference() {
       square([15.2,5],center=true);
-      square([13.4,3],center=true);
+      square([13.4,2.8],center=true);
     }
   }
   // mcu plate clips
@@ -282,28 +283,29 @@ translate(pos) rotate(rot) {
           square([28,1.2],center=true);
         }
       }
-      // posts..
-      for(x=[-20],y=-[-6,8]) {
-        translate([x,y,1])
-        linear_extrude(height=4,convexity=10,scale=[0.6,1]) {
-          square([6,3],center=true);
+      // 'rear' board positioners
+      for(y=-[-6,8]) {
+        translate([-4,y,1])
+        linear_extrude(height=4,convexity=10,scale=[0.7,1]) {
+          square([9,3],center=true);
         }
       }
-      // ..with balls
+      // 'rear' board clips
+      for(y=-[-6.5,8.5]) {
+        translate([1,y,1])
+        linear_extrude(height=7,convexity=10,scale=[0.6,1],) {
+          translate([-3.5,0])
+          square([6,2],center=true);
+        }
+      }
+      // with balls
       for(x=[-6,20],y=-[-7,9]) {
         translate([x,y,3.5])
         sphere(r=1.52,$fn=24);
       }
-      // board positioners and clips
-      for(y=-[-6,8.0]) {
-        translate([-4,y,1])
-        linear_extrude(height=9.5,convexity=10,scale=[0.6,1]) {
-          square([9,3],center=true);
-        }
-      }
-      // the USB-C bracket
+      // the USB-C clip bracket
       translate([19.95,-1,1])
-      linear_extrude(height=9.5,convexity=10) {
+      linear_extrude(height=9.25,convexity=10) {
         square([5,17],center=true);
       }
     }
@@ -312,10 +314,10 @@ translate(pos) rotate(rot) {
     linear_extrude(height=1.4,convexity=10) {
       xiaoOutline(r=0.2);
     }
-    // this creates a 'lip' to clip xiao into
+    // this creates a insert clearance to clip xiao into
     translate([20,-1,5.3])
-    linear_extrude(height=5.5,convexity=10,scale=[0.95,1]) {
-      xiaoOutline(r=-0.05);
+    linear_extrude(height=5.5,convexity=10,scale=[0.75,1]) {
+      xiaoOutline(r=0);
     }
     // The USB-C socket hole
     translate([15,-1,6.8])
