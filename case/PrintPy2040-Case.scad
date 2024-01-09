@@ -22,7 +22,7 @@ inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
 printing = true;
-assemble = true;
+assemble = !true;
 
 if(printing) {
   casebody([0,20,0]);
@@ -55,11 +55,11 @@ if(printing) {
 } else {
   // work area
   *casebody([0,0,inZ+5.1],[180,0,0]);
-  #lightchannel([0,0,inZ+0.60],[180,180,180]);
+  *lightchannel([0,0,inZ+0.60],[180,180,180]);
   *caseback();
-  *mcuplate();
+  mcuplate();
   rp2040([20,-1,4]);
-  screens([0,0,inZ+0.8],[0,0,0]);
+  *screens([0,0,inZ+0.8],[0,0,0]);
 }
 
 module casebody(pos=[0,0,0],rot=[0,0,0])
@@ -294,8 +294,8 @@ translate(pos) rotate(rot) {
       for(y=-[-6.5,8.5]) {
         translate([1,y,1])
         linear_extrude(height=7,convexity=10,scale=[0.6,1],) {
-          translate([-3.5,0])
-          square([6,2],center=true);
+          translate([-5,0])
+          square([8,2],center=true);
         }
       }
       // with balls
