@@ -193,10 +193,10 @@ translate(pos) rotate(rot) {
         square([50,inY-0.3],center=true);
       }
       square([inX-4.5,inY-4.5],center=true);
-      translate([-screenOff,pinOff])
-        square([11,4],center=true);
-      translate([screenOff,pinOff])
-        square([11,4],center=true);
+      translate([-screenOff,0])
+        square([11,30],center=true);
+      translate([screenOff,0])
+        square([11,30],center=true);
     }
   }
   // Lip on tabs to grip case
@@ -208,10 +208,10 @@ translate(pos) rotate(rot) {
         square([50,inY-0.1],center=true);
       }
       square([inX-3,inY-3],center=true);
-      translate([-screenOff,pinOff])
-        square([11,4],center=true);
-      translate([screenOff,pinOff])
-        square([11,4],center=true);
+      translate([-screenOff,0])
+        square([11,30],center=true);
+      translate([screenOff,0])
+        square([11,30],center=true);
     }
   }
   // Button recess
