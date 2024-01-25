@@ -18,11 +18,11 @@ screenOff = (sx/2)+0.1; // X offset for each screen + gap
 // Case size (x,y based on screen dimensions)
 inX = (2*sx)+1; // basic interior space based on screens
 inY = sy+1;
-inZ = 10;       // how deep (depends on cpu board etc..)
+inZ = 12;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
 printing = true;
-assemble = !true;
+assemble = true;
 
 if(printing) {
   casebody([0,20,0]);
@@ -34,31 +34,31 @@ if(printing) {
 } else if (assemble) rotate([90,0,0]) {
   footangle = 0;
   // printable bits
-  color("LightCyan")
+  color("LightCyan",0.6)
   *casebody([0,0,inZ+5.1],[180,0,0]);
   // color("WhiteSmoke")
   // lightchannel([0,0,inZ+0.60],[180,180,180]);
   color("MediumPurple")
-  *caseback();
+  caseback();
   color("MediumPurple")
   mcuplate();
   color("MediumPurple",1)
   //foot([0,-19.5,3],[footangle,0,0]);
-  *mount([0,-19.5,3],[footangle,0,0]);
+  mount([0,-19.5,3],[footangle,0,0]);
   // components
-  screens([0,0,inZ+0.8],[0,0,0]);
+  *screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([20,-1,4]);
-  //socket([-18.8,-7.5,6],[180,0,0]);
-  //button([-19.5,2,8],[0,180,0]);
-  //3x12hexhead([23.1,-19.5,3],[0,-90,0]);
-  //3x12hexhead([-23.1,-19.5,3],[0,90,0]);
+  socket([-18.8,-7.5,6],[180,0,0]);
+  button([-19.5,2,8],[0,180,0]);
+  3x12hexhead([23.1,-19.5,3],[0,-90,0]);
+  3x12hexhead([-23.1,-19.5,3],[0,90,0]);
 } else {
   // work area
   *casebody([0,0,inZ+5.1],[180,0,0]);
   // *lightchannel([0,0,inZ+0.60],[180,180,180]);
   *caseback();
   mcuplate();
-  *rp2040([20,-1,4]);
+  rp2040([20,-1,4]);
   *screens([0,0,inZ+0.8],[0,0,0]);
 }
 
@@ -160,7 +160,7 @@ translate(pos) rotate(rot) {
       translate([-19.5,2]) square([12.5,13.2],center=true);
       // mcu cutout
       hull() {
-        for(x=[-10,24],y=[-9,7]) {
+        for(x=[-6,24],y=[-9,7]) {
           translate([x,y]) circle(d=2);
         }
       }
@@ -237,14 +237,14 @@ translate(pos) rotate(rot) {
   }
   // mcu plate clips
   difference() {
-    for (x=[-6,20],y=-[-9,11.12]) {
+    for (x=[-2,20],y=-[-9,11.12]) {
       translate([x,y,1])
       linear_extrude(height=6,convexity=20,scale=[0.4,1.2]) {
         square([12,2],center=true);
       }
     }
     // indents
-    for(x=[-6,20],y=-[-7,9]) {
+    for(x=[-2,20],y=-[-7,9]) {
       translate([x,y,3.5])
       sphere(r=1.5,$fn=24);
     }
@@ -258,14 +258,14 @@ translate(pos) rotate(rot) {
     difference() {
       // baseplate
       hull() {
-        for(x=[-10,24],y=[-9,7]) {
+        for(x=[-6,24],y=[-9,7]) {
           translate([x,y]) circle(d=1,$fn=24);
         }
       }
       // logo
-      translate([7,-1])
+      translate([8,-1])
       mirror([1,0])
-      scale([0.9,1])
+      scale([0.85,1])
       //offset(r=0.1,$fn=24)
       text("XIAO",halign="center",valign="center",size=10,$fn=24);
       // removal slot
@@ -276,7 +276,7 @@ translate(pos) rotate(rot) {
   // support the board and logo, stiffen length-wise
   translate([7.5,-0.8,1])
   linear_extrude(height=2.9,convexity=10,scale=[0.9,0.2]) {
-    square([27,2.4],center=true);
+    square([28,2],center=true);
   }
   // clip mechanism and mcu support
   difference() {
@@ -295,21 +295,21 @@ translate(pos) rotate(rot) {
       }
       // 'button end' board positioners
       for(y=-[-5.75,7.75]) {
-        translate([-4.5,y,1])
-        linear_extrude(height=6,convexity=10,scale=[0.4,1]) {
-          square([10,3.5],center=true);
+        translate([-2,y,1])
+        linear_extrude(height=4, convexity=10,scale=[0.4,1]) {
+          square([8,3.5],center=true);
         }
       }
       // board clips
       for(y=-[-6.5,8.5]) {
-        translate([1.5,y,1])
+        translate([1.0,y,1])
         linear_extrude(height=9,convexity=10,scale=[0.6,1],) {
-          translate([-6,0])
-          square([10,2],center=true);
+          translate([-4,0])
+          square([6,2],center=true);
         }
       }
       // balls
-      for(x=[-6,20],y=-[-7,9]) {
+      for(x=[-2,20],y=-[-7,9]) {
         translate([x,y,3.5])
         sphere(r=1.52,$fn=24);
       }
