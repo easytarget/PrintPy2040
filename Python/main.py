@@ -74,36 +74,39 @@ pixel.write
 
 begin = time.ticks_ms()  # DEMO
 
-printerstate = {}        # This....
-
-speed = 50;              # Loop polling speed (ms)
-start = time.ticks_ms()  # Set when we send packets
-light = (1,0,0)          # Current NeoPixel value
-intensity = 55           # Scale the NeoPixel power (dimming)
-flashing = False         # Is the NeoPixel active?
-rgbstate = (True,False,False)
+poll = 1000                    # How often to send packets
+start = time.ticks_ms()        # Time the last packet was sent
+speed = 50                     # Polling speed (ms), sets main loop speed too
+start = time.ticks_ms()        # Set when we send packets
+light = (1,0,0)                # Current NeoPixel value
+intensity = 255                # Scale the NeoPixel power (dimming)
+flashing = time.ticks_ms()     # Set when we activate the neopixel
+rgbstate = (True,False,False)  # RGB indicator status
 
 # Main Loop
 
 while True:
-
+    # First see if we have any incoming data
     # The timeout value for the poll commad sets the base loop speed
     if (rrfsending.poll(speed)):
         # Process any incoming packets here
         packet = rrf.readline()
         try:
             printerstate = json.loads(packet)
-            setRGB(rgbstate)
-            rgbstate = (rgbstate[2],rgbstate[0],rgbstate[1])
         except:
             print("\r\nInvalid data recieved: " + str(packet))
-            setRGB((True,True,True))  # white = packet error
+        flashing = time.ticks_ms()  # flash the pixel
+	if (printerstate):
+            pixel[0] = (int(light[0]*intensity),int(light[1]*intensity),int(light[2]*intensity))
+        else:
+            pixel[0] = (intensity,intensity,intensity) # = white = packet error
+        pixel.write()
         print()
         print("Latest state: " + str(printerstate))
         if "status" in printerstate:
             print("Status: " + printerstate["status"])
                 
-    waiting = int(time.ticks_diff(time.ticks_ms(), start))  #how long since we sent the last request?
+    waiting = int(time.ticks_diff(time.ticks_ms(), start))  # How long since we sent the last request?
     
     if (flashing and (waiting >= speed)):
         print("-", end="")
@@ -114,10 +117,9 @@ while True:
     if (waiting >= 1000):
         print(".", end="")
         start = time.ticks_ms()  # reset the timer
-        sendGcode("M408 S0")     # Send a new packet request
-        flashing = True          # flash the pixel
-        pixel[0] = (int(light[0]*intensity),int(light[1]*intensity),int(light[2]*intensity))
-        pixel.write()
+        sendGcode("M409 F"fnd99"")     # Send a new packet request
+        setRGB(rgbstate)         # Rotate the onboard RGB
+        rgbstate = (rgbstate[2],rgbstate[0],rgbstate[1])
         
     # display runtime in mins and secs for demo
     now = int(time.ticks_diff(time.ticks_ms(), begin))
