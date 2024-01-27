@@ -43,7 +43,7 @@ def setRGB(state=(False,False,False)):
     rgbR.value(not state[0])   # pins are inverted
     rgbG.value(not state[1])
     rgbB.value(not state[2])
-    
+
 setRGB()
 
 # Serial
@@ -72,7 +72,9 @@ pixel.write
 
 # Vars
 
-begin = time.ticks_ms()  # DEMO
+rrfstate = {}            # Start knowing nothing
+
+begin = time.ticks_ms()  # used in DEMO
 
 poll = 1000                    # How often to send packets
 start = time.ticks_ms()        # Time the last packet was sent
@@ -80,7 +82,9 @@ speed = 50                     # Polling speed (ms), sets main loop speed too
 start = time.ticks_ms()        # Set when we send packets
 light = (1,0,0)                # Current NeoPixel value
 intensity = 255                # Scale the NeoPixel power (dimming)
-flashing = time.ticks_ms()     # Set when we activate the neopixel
+flashing = False               # Set when we activate the neopixel
+flashtime = time.ticks_ms()    # also set when we activate the neopixel
+flashspeed = 200               # 'On' time for flash, use a multiple of 'speed'
 rgbstate = (True,False,False)  # RGB indicator status
 
 # Main Loop
@@ -90,37 +94,47 @@ while True:
     # The timeout value for the poll commad sets the base loop speed
     if (rrfsending.poll(speed)):
         # Process any incoming packets here
+        print()
         packet = rrf.readline()
         try:
-            printerstate = json.loads(packet)
+            state = json.loads(packet)
         except:
-            print("\r\nInvalid data recieved: " + str(packet))
-        flashing = time.ticks_ms()  # flash the pixel
-	if (printerstate):
+            state = None
+        flashing = True
+        flashtime = time.ticks_ms()  # flash the pixel
+        if (state):
             pixel[0] = (int(light[0]*intensity),int(light[1]*intensity),int(light[2]*intensity))
+            try:
+                for key in state['result']:
+                    print(key + " : " + str(state['result'][key]))
+            except KeyError:
+                print("No results Key in packet: " + str(state))
+                pass
+            try:
+                rrfstate['status'] = state['result']['state']['status']
+                print("MASTER Status: " + rrfstate['status'])
+            except KeyError:
+                pass
         else:
             pixel[0] = (intensity,intensity,intensity) # = white = packet error
+            print("Invalid data recieved: " + str(packet))
         pixel.write()
-        print()
-        print("Latest state: " + str(printerstate))
-        if "status" in printerstate:
-            print("Status: " + printerstate["status"])
-                
+
     waiting = int(time.ticks_diff(time.ticks_ms(), start))  # How long since we sent the last request?
-    
-    if (flashing and (waiting >= speed)):
+
+    if (flashing and (time.ticks_diff(time.ticks_ms(), flashtime) >= flashspeed)):
+        flashing = False
         print("-", end="")
         pixel[0]=(0,0,0)
         pixel.write()
-        flashing = False
 
     if (waiting >= 1000):
         print(".", end="")
         start = time.ticks_ms()  # reset the timer
-        sendGcode("M409 F"fnd99"")     # Send a new packet request
+        sendGcode('M409 F"fnd99"')     # Send a new packet request
         setRGB(rgbstate)         # Rotate the onboard RGB
         rgbstate = (rgbstate[2],rgbstate[0],rgbstate[1])
-        
+
     # display runtime in mins and secs for demo
     now = int(time.ticks_diff(time.ticks_ms(), begin))
     secs = int((now / 1000) % 60)
@@ -129,8 +143,9 @@ while True:
     display1.fill_rect(11, 21, 105, 41, 0)
     display0.text(str(mins), 58, 35, 1)
     display1.text(str(secs), 58, 35, 1)
-    if "status" in printerstate:
+    if "status" in rrfstate:
         display0.rect(1, 1, 125, 14, 0, True)
-        display0.text("State: " + printerstate["status"], 10, 5, 1)
+        display0.text("State: " + rrfstate["status"], 10, 5, 1)
     display0.show()
     display1.show()
+
