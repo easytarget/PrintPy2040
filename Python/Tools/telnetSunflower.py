@@ -24,6 +24,8 @@ import json
 OMstatuskeys = ['heat','sensors']
 OMupdatekeys = ['state','job','heat','seqs']
 
+status = {'state':{'status':'undefined'}}
+
 # Init telnet and log in
 rrf = telnet(host)
 print("Connected")
@@ -36,8 +38,9 @@ print(rrf.read_until(b"Log in successful!").decode('ascii'))
 
 # This is the way...
 def OMrequest(OMkey,OMflags="fnd99"):
+    global status
     cmd = b'M409 F"' + bytes(OMflags, 'utf8') + b'" K"' + bytes(OMkey, 'utf8') + b'"\n'
-    print('SEND: '+ str(cmd))
+    #DEBUG:print('SEND: '+ str(cmd))
     rrf.write(cmd)
     try:
         response = rrf.read_until(b"ok",timeout=0.5).decode('ascii').replace("\r", "").split('\n')
@@ -54,24 +57,31 @@ def OMrequest(OMkey,OMflags="fnd99"):
         print(response[0])
         payload = {}
     #DEBUG:print(payload, type(payload), len(payload))
+
+    if not payload['key'] in status.keys():
+        status[payload['key']] = {}
+
     if 'result' in payload.keys():
-	# This is where we need to update our internal status map !!!!
-        for key in payload['result']:    # Just dump for now.
-            print("  DATA: " + payload['key'] + '.' + key + " = " + str(payload['result'][key]))
+	# This is where we update our local status structure
+        for item in payload['result']:
+            #DEBUG:print("  DATA: " + payload['key'] + '.' + item + " = " + str(payload['result'][item]))
+            status[payload['key']][item] = payload['result'][item]
     else:
         print("No Payload!")
     if response[0] == 'timeout':
         print('TIMEOUT: ')
 
 # simple control loop
-fullstateknown = False
+print(status)
+updatefullstate = True
 while True:
-    if not fullstateknown:
+    if updatefullstate:
         for key in OMstatuskeys:
            OMrequest(key,"vnd99")
         print("Full status fetch cycle complete")
-        fullstateknown = True
+        updatefullstate = False
     for key in OMupdatekeys:
         OMrequest(key)
     print("Update fetch cycle complete")
+    print(status)
     sleep(60)
