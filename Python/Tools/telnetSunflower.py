@@ -1,46 +1,68 @@
+from duetconfig import host,password
 from telnetlib import Telnet as telnet
 from time import sleep
 import json
-from duetconfig import host,password
 
-''' M409 keys of interest:
+''' 
+    This script uses Telnet to connect to my duet (I have my reasons)
+    The inbuilt 'telnetlib' library it uses comes with the following warning:
+    > Deprecated since version 3.11, will be removed in version 3.13:
+    consider yourself warned ;)
+
+    It is intended to be run on a desktop system (CPython, not microPython)
+    and will be used to create a 'framework' for extracting data from
+    a RRF based system using the ObjectModel.
+
+    M409 keys of interest:
     heat
     job
     sensors
-    ?seqs
     state
+    ?seqs
 '''
 
-#host = "10.0.0.30"
-#password = "freedumb"
+OMkeys = {'heat','job','sensors','state','seq'}
 
-tn = telnet(host)
+# Init telnet and log in
+rrf = telnet(host)
 print("Connected")
 
-print(tn.read_until(b"Please enter your password:").decode('ascii'))
-print('Password Prompt: ',end='')
+print(rrf.read_until(b"Please enter your password:").decode('ascii'))
+print('[password sent]',end='')
 
-tn.write(password.encode('ascii') + b"\n")
-print(tn.read_until(b"Log in successful!").decode('ascii'))
+rrf.write(password.encode('ascii') + b"\n")
+print(rrf.read_until(b"Log in successful!").decode('ascii'))
 
-while True:
-    # cmd= b'M409 F"fnd99" K"job"\n'
-    cmd = b'M409 F"vd2"\n'
-    tn.write(cmd)
+# This is the way...
+def OMrequest(OMkey):
+    cmd = b'M409 F"fnd99" K"' + bytes(OMkey, 'utf8') + b'"\n'
     print('SEND: '+ str(cmd))
-    response = tn.read_until(b"ok").decode('ascii').split()
-    print(response)
-    print(type(response))
-    #for key in response:
-    #    print("DATA: " + key + " = " + str(response[key]))
-    print(len(response))
+    rrf.write(cmd)
     try:
-        payload = json.load(response[0])
+        response = rrf.read_until(b"ok",timeout=0.5).decode('ascii').replace("\r", "").split('\n')
     except:
-        print("????")
-        payload = []
-    for key in payload['result']:
-        print("DATA: " + key + " = " + str(payload['result'][key]))
+        response = ['timeout']
+    for line in response:
+        if line == '':
+            response.pop(response.index(line))
+    #print(response, type(response), len(response))
+    try:
+       payload = json.loads(response[0])
+    except:
+        print("NOT VALID JSON: ")
+        print(response[0])
+        payload = {}
+    print(payload, type(payload), len(payload))
+    if 'result' in payload.keys():
+	# This is where we need to update our internal status map !!!!
+        for key in payload['result']:    # Just dump for now.
+            print("DATA: " + payload['key'] + '.' + key + " = " + str(payload['result'][key]))
     else:
         print("No Payload!")
+    if response[0] == 'timeout':
+        print('TIMEOUT: ')
+
+# simple control loop
+while True:
+    OMrequest('state')
     sleep(10)
