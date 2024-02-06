@@ -1,6 +1,7 @@
 from telnetlib import Telnet as telnet
 from time import sleep
 import json
+from duetconfig import host,password
 
 ''' M409 keys of interest:
     heat
@@ -10,16 +11,18 @@ import json
     state
 '''
 
-HOST = "10.0.0.30"
-password = "freedumb"
+#host = "10.0.0.30"
+#password = "freedumb"
 
-tn = telnet(HOST)
+tn = telnet(host)
+print("Connected")
 
 print(tn.read_until(b"Please enter your password:").decode('ascii'))
-print('send')
+print('Password Prompt: ',end='')
+
 tn.write(password.encode('ascii') + b"\n")
-print('sent')
 print(tn.read_until(b"Log in successful!").decode('ascii'))
+
 while True:
     # cmd= b'M409 F"fnd99" K"job"\n'
     cmd = b'M409 F"vd2"\n'
