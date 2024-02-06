@@ -21,7 +21,8 @@ import json
     ?seqs
 '''
 
-OMkeys = ['state','job','heat','sensors','seqs']
+OMstatuskeys = ['heat','sensors']
+OMupdatekeys = ['state','job','heat','seqs']
 
 # Init telnet and log in
 rrf = telnet(host)
@@ -34,8 +35,8 @@ rrf.write(password.encode('ascii') + b"\n")
 print(rrf.read_until(b"Log in successful!").decode('ascii'))
 
 # This is the way...
-def OMrequest(OMkey):
-    cmd = b'M409 F"fnd99" K"' + bytes(OMkey, 'utf8') + b'"\n'
+def OMrequest(OMkey,OMflags="fnd99"):
+    cmd = b'M409 F"' + bytes(OMflags, 'utf8') + b'" K"' + bytes(OMkey, 'utf8') + b'"\n'
     print('SEND: '+ str(cmd))
     rrf.write(cmd)
     try:
@@ -63,8 +64,14 @@ def OMrequest(OMkey):
         print('TIMEOUT: ')
 
 # simple control loop
+fullstateknown = False
 while True:
-    for key in OMkeys:
+    if not fullstateknown:
+        for key in OMstatuskeys:
+           OMrequest(key,"vnd99")
+        print("Full status fetch cycle complete")
+        fullstateknown = True
+    for key in OMupdatekeys:
         OMrequest(key)
-    print("Data fetch cycle complete")
+    print("Update fetch cycle complete")
     sleep(60)
