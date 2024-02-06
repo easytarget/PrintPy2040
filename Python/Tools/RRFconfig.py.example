@@ -1,0 +1,6 @@
+```
+    Copy this file as `RRFconfig.py`, and
+    then edit the Host and Password there.
+```
+host = 'your.host.ip.address'
+password = 'your password'

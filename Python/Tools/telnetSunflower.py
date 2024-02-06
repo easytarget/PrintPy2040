@@ -1,4 +1,4 @@
-from duetconfig import host,password
+from RRFconfig import host,password
 from telnetlib import Telnet as telnet
 from time import sleep
 import json
@@ -49,14 +49,12 @@ def OMrequest(OMkey,OMflags="fnd99"):
     for line in response:
         if line == '':
             response.pop(response.index(line))
-    #DEBUG:print(response, type(response), len(response))
     try:
        payload = json.loads(response[0])
     except:
         print("NOT VALID JSON: ")
         print(response[0])
         payload = {}
-    #DEBUG:print(payload, type(payload), len(payload))
 
     if not payload['key'] in status.keys():
         status[payload['key']] = {}
@@ -64,7 +62,6 @@ def OMrequest(OMkey,OMflags="fnd99"):
     if 'result' in payload.keys():
 	# This is where we update our local status structure
         for item in payload['result']:
-            #DEBUG:print("  DATA: " + payload['key'] + '.' + item + " = " + str(payload['result'][item]))
             status[payload['key']][item] = payload['result'][item]
     else:
         print("No Payload!")
