@@ -34,9 +34,9 @@ if(printing) {
 } else if (assemble) rotate([90,0,0]) {
   footangle = 0;
   // printable bits
-  color("LightCyan",0.6)
-  *casebody([0,0,inZ+5.1],[180,0,0]);
-  // color("WhiteSmoke")
+  color("WhiteSmoke",0.6)
+  casebody([0,0,inZ+5.1],[180,0,0]);
+  // color("LightCyan")
   // lightchannel([0,0,inZ+0.60],[180,180,180]);
   color("MediumPurple")
   caseback();
@@ -46,7 +46,7 @@ if(printing) {
   //foot([0,-19.5,3],[footangle,0,0]);
   mount([0,-19.5,3],[footangle,0,0]);
   // components
-  *screens([0,0,inZ+0.8],[0,0,0]);
+  screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([20,-1,4]);
   socket([-18.8,-7.5,6],[180,0,0]);
   button([-19.5,2,8],[0,180,0]);
