@@ -21,7 +21,7 @@ import json
     ?seqs
 '''
 
-OMkeys = {'heat','job','sensors','state','seq'}
+OMkeys = ['state','job','heat','sensors','seqs']
 
 # Init telnet and log in
 rrf = telnet(host)
@@ -45,18 +45,18 @@ def OMrequest(OMkey):
     for line in response:
         if line == '':
             response.pop(response.index(line))
-    #print(response, type(response), len(response))
+    #DEBUG:print(response, type(response), len(response))
     try:
        payload = json.loads(response[0])
     except:
         print("NOT VALID JSON: ")
         print(response[0])
         payload = {}
-    print(payload, type(payload), len(payload))
+    #DEBUG:print(payload, type(payload), len(payload))
     if 'result' in payload.keys():
 	# This is where we need to update our internal status map !!!!
         for key in payload['result']:    # Just dump for now.
-            print("DATA: " + payload['key'] + '.' + key + " = " + str(payload['result'][key]))
+            print("  DATA: " + payload['key'] + '.' + key + " = " + str(payload['result'][key]))
     else:
         print("No Payload!")
     if response[0] == 'timeout':
@@ -64,5 +64,7 @@ def OMrequest(OMkey):
 
 # simple control loop
 while True:
-    OMrequest('state')
-    sleep(10)
+    for key in OMkeys:
+        OMrequest(key)
+    print("Data fetch cycle complete")
+    sleep(60)
