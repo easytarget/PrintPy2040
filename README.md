@@ -21,7 +21,7 @@ The case needs care when slicing and printing, some of the clearances are very t
 There is no PCB needed for this, the circuit should be wired + soldered directly in-place (this is fiddly, but possible)
 
 ## Connection
-Take care with wiring this, it is important that the 5V supply does not contact the (3v3) TX/RX lines! The connector allows the plug to be reversed to revers TX/RX lines safely.
+Take care with wiring this, it is important that the 5V supply does not contact the (3v3) TX/RX lines! The connector allows the plug to be reversed to swap TX/RX lines quickly and safely.
 
 ## Alternate connections/deployments
 ### RP2040 I2C pins
