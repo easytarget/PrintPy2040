@@ -1,9 +1,9 @@
-from RRFconfig import host,password
+from RRFconfig import host,port,password
 from telnetlib import Telnet as telnet
 from time import sleep
 import json
 
-''' 
+'''
     This script uses Telnet to connect to my duet (I have my reasons)
     The inbuilt 'telnetlib' library it uses comes with the following warning:
     > Deprecated since version 3.11, will be removed in version 3.13:
@@ -20,6 +20,8 @@ import json
     state
     ?seqs
 '''
+statusflags = "vnd99"
+updateflags = "fnd99"
 
 OMstatuskeys = ['heat','sensors']
 OMupdatekeys = ['state','job','heat','seqs']
@@ -27,7 +29,7 @@ OMupdatekeys = ['state','job','heat','seqs']
 status = {'state':{'status':'undefined'}}
 
 # Init telnet and log in
-rrf = telnet(host)
+rrf = telnet(host,port)
 print("Connected")
 
 print(rrf.read_until(b"Please enter your password:").decode('ascii'))
@@ -37,9 +39,9 @@ rrf.write(password.encode('ascii') + b"\n")
 print(rrf.read_until(b"Log in successful!").decode('ascii'))
 
 # This is the way...
-def OMrequest(OMkey,OMflags="fnd99"):
+def OMrequest(OMkey,flags):
     global status
-    cmd = b'M409 F"' + bytes(OMflags, 'utf8') + b'" K"' + bytes(OMkey, 'utf8') + b'"\n'
+    cmd = b'M409 F"' + bytes(flags, 'utf8') + b'" K"' + bytes(OMkey, 'utf8') + b'"\n'
     #DEBUG:print('SEND: '+ str(cmd))
     rrf.write(cmd)
     try:
@@ -74,11 +76,11 @@ updatefullstate = True
 while True:
     if updatefullstate:
         for key in OMstatuskeys:
-           OMrequest(key,"vnd99")
-        print("Full status fetch cycle complete")
+           OMrequest(key,statusflags)
+        print("Status fetch cycle complete")
         updatefullstate = False
     for key in OMupdatekeys:
-        OMrequest(key)
+        OMrequest(key,updateflags)
     print("Update fetch cycle complete")
     print(status)
     sleep(60)

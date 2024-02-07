@@ -1,6 +1,8 @@
 ```
     Copy this file as `RRFconfig.py`, and
     then edit the Host and Password there.
+    Port 23 is the telnet default
 ```
 host = 'your.host.ip.address'
+port = 23
 password = 'your password'
