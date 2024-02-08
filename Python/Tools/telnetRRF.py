@@ -144,6 +144,8 @@ def OMrequest(OMkey,fullstatus=False):
         return False
 
     # If we got here; we had a successful cycle
+    if fullstatus:
+        print(key, "==", status[key])
     return True
 
 def seqrequest():
