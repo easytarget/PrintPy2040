@@ -118,7 +118,7 @@ def OMrequest(OMkey,fullstatus=False):
         response.remove('')
 
     if not response:
-        print('Failed response on : ' + cmd.decode())
+        print('Failed response on : ' + cmd.decode(),end="")
         return False
 
     # load as a json data structure
@@ -134,11 +134,11 @@ def OMrequest(OMkey,fullstatus=False):
         if fullstatus:
             status[payload['key']] = payload['result']
         else:
-            print(OMkey + ":")
-            print(status[payload['key']])
-            print(payload['result'])
-            print(merge(status[payload['key']],payload['result']))
-            status[payload['key']] = merge(status[payload['key']],payload['result']))
+            #print(OMkey + ":")
+            #print(status[payload['key']])
+            #print(payload['result'])
+            #print(merge(status[payload['key']],payload['result']))
+            status[payload['key']] = merge(status[payload['key']],payload['result'])
     else:
         print("No Payload!")
         return False
@@ -151,19 +151,24 @@ def seqrequest():
     # a list of keys where the sequence number has changed
     print(status['seqs'])
 
+def updatedisplay():
+    print('status:',status['state']['status'],
+          '| uptime:',status['state']['upTime'],
+          '| bed:',status['heat']['heaters'][0]['current'],
+          '| tool:',status['heat']['heaters'][1]['current'])
+
 # simple control loop
 updatefullstate = True
 while True:
     if updatefullstate:
         for key in OMstatuskeys:
-           OMrequest(key,True)
-        print("Status fetch cycle complete")
-        #print(len(str(status)),status)
-        print(len(str(status)))
+            OMrequest(key,True)
+        #print("Status fetch cycle complete")
         updatefullstate = False
-    for key in OMupdatekeys:
-        OMrequest(key,False)
-    print("Update fetch cycle complete")
+    else:
+        for key in OMupdatekeys:
+            OMrequest(key,False)
+        #print("Update fetch cycle complete")
     #print(len(str(status)),status)
-    print(len(str(status)))
+    updatedisplay()
     sleep(10)
