@@ -1,8 +1,6 @@
-```
+'''
     Copy this file as `RRFconfig.py`, and
-    then edit the Host and Password there.
-    Port 23 is the telnet default
-```
-host = 'your.host.ip.address'
-port = 23
-password = 'your password'
+    then edit the serial port path and baud rate there.
+'''
+port = '/dev/ttyACM0'
+baud = 57600

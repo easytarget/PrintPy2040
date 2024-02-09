@@ -1,8 +1,9 @@
-from RRFconfig import host,port,password
-from telnetlib import Telnet as telnet
+from RRFconfig import port,baud
+from serial import Serial
 from time import sleep
-import json
-import itertools
+from json import loads
+from itertools import zip_longest
+from sys import exit
 
 '''
     This script uses Telnet to connect to my duet (I have my reasons)
@@ -41,39 +42,38 @@ import itertools
     https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
 '''
 
-# A global dict. of the all OM keys we see when running state and update checks
-#status = {'state':{'status':'undefined'},'seqs':{}}
-status = {'state':{'status':'undefined'}}
+# A global dict. structure of the all OM keys we see when running state and update checks
+status = {'state':{'status':'undefined'},'seqs':None}
 
 # These are the only key sets in the OM we are interested in
 #  This could be expanded as needed.
-OMstatuskeys = ['seqs','state','heat','job','sensors','network','tools']  # all keys
-OMupdatekeys = ['seqs','state','heat','job']  # subset of keys to always update
+OMstatuskeys = ['state','heat','job','sensors','network','tools']  # all keys
+OMupdatekeys = ['state','heat','job']  # subset of keys to always update
+
+# Basic time between updates
+updatetime = 1
 
 # Used when the 'seqs' keys are not available (eg SBC mode)
 # force full status fetches and assume the controller can keep up..
-forcestatus = False
+sbcmode = False
 
 # Handle hard (eg serial or comms) errors; needs expansion ;-)
-def hardfail():
-    while true:  # BlackHole the process
-        print('CRITICAL ERROR: HALTED')
-        sleep(60)
+def hardfail(why):
+    while True:  # BlackHole the process
+        print('CRITICAL ERROR: ' + why + '\nHALTED')
+        quit()
 
-# Init telnet connection
+# Init RRF connection
 try:
-    rrf = telnet(host,port)
+    rrf = Serial(port,baud,timeout=0.25)
 except:
-    print('Connection could not be established')
-    hardfail()
+    hardfail('Connection could not be established')
 
-# Log in - Needs some logic to cover failures..
-print('Connected')
-response = rrf.read_until(b"Please enter your password:").decode('ascii').replace("\r", "").split('\n')
-rrf.write(password.encode('ascii') + b"\n")
-print('Password sent')
-response = rrf.read_until(b"Log in successful!").decode('ascii').replace("\r", "").split('\n')
-print('Logged in')
+# Connect and get firmware string - Needs some logic to cover failures..
+rrf.write(b'\nM115\n')
+response = rrf.read_until(b"ok").decode('ascii').replace("\r", "\n")
+print(response)
+print('PrintPy is Connected')
 
 # Recursive/iterative merge of dict/list structures.
 # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
@@ -84,7 +84,7 @@ def merge(a, b):
         return d
 
     if isinstance(a, list) and isinstance(b, list):
-        return [merge(x, y) for x, y in itertools.zip_longest(a, b)]
+        return [merge(x, y) for x, y in zip_longest(a, b)]
 
     return a if b is None else b
 
@@ -111,7 +111,7 @@ def OMrequest(OMkey,fullstatus=False):
         return False
 
     # And wait for a response
-    response = rrf.read_until(b"ok",timeout=0.25).decode('ascii').replace("\r", "").split('\n')
+    response = rrf.read_until(b"ok").decode('ascii').replace("\r", "\n").split('\n')
 
     # remove empty lines
     while '' in response:
@@ -132,7 +132,7 @@ def OMrequest(OMkey,fullstatus=False):
 
         # Load as a json data structure
         try:
-            payload = json.loads(response[line][jsonstart:])
+            payload = loads(response[line][jsonstart:])
         except:
             # invalid JSON, skip to next line
             continue
@@ -148,14 +148,27 @@ def OMrequest(OMkey,fullstatus=False):
 
     # If we got here; we had a successful cycle
     if fullstatus:
-        #DEBUG:print(key, "==", status[key])
-        print(key)
+        #print(OMkey, "==", status[OMkey])
+        print(OMkey)
     return True
 
 def seqrequest():
     # Send a 'seqs' request to the OM, updates status and returns
     # a list of keys where the sequence number has changed
-    print(status['seqs'])
+    global OMseqcounter
+    changed=[]
+    OMrequest('seqs',False)
+    if status['seqs'] != None:
+        #for key in status['seqs'].keys():
+        for key in OMstatuskeys:
+            print(status['seqs'][key],end=' | ')
+            if OMseqcounter[key] != status['seqs'][key]:
+                changed.append(key)
+                OMseqcounter[key] = status['seqs'][key]
+    else:
+        return False
+    print('Changed:',changed,end=' :: ')
+    return changed
 
 def updatedisplay():
     print('status:',status['state']['status'],
@@ -165,18 +178,22 @@ def updatedisplay():
 
 # simple control loop
 updatefullstate = True
+
+# populate the counters used to track changes to the sequence numbers
+OMrequest('seqs',False)
+OMseqcounter = status['seqs']
+print(OMseqcounter)
+
 while True:
+    seqrequest()
+    #print(OMseqcounter)
     if updatefullstate:
         for key in OMstatuskeys:
             OMrequest(key,True)
-        #print("Status fetch cycle complete")
         updatefullstate = False
     else:
         for key in OMupdatekeys:
             OMrequest(key,False)
-        #print("Update fetch cycle complete")
-    #print(len(str(status)),status)
     updatedisplay()
-    #print('seqs :',status['seqs'])
 
-    sleep(10)
+    sleep(updatetime)
