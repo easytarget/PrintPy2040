@@ -117,35 +117,39 @@ def OMrequest(OMkey,fullstatus=False):
     while '' in response:
         response.remove('')
 
+    # Test if the list is still populated, empty == timeout
     if not response:
-        print('Failed response on : ' + cmd.decode(),end="")
+        print('Response timed out for : ' + cmd.decode(),end="")
         return False
 
-    # load as a json data structure
-    try:
-       payload = json.loads(response[0])
-    except:
-        print("NOT VALID JSON: ")
-        print(response[0])
-        return False
+    # Look for Json data in response
+    for line in range(0,len(response)):
+        try:
+            jsonstart = response[line].index('{')
+        except ValueError:
+            # No JSON in the line, skip to next
+            continue
 
-	# This is where we update our local status structure
-    if 'result' in payload.keys():
-        if fullstatus:
-            status[payload['key']] = payload['result']
+        # Load as a json data structure
+        try:
+            payload = json.loads(response[line][jsonstart:])
+        except:
+            # invalid JSON, skip to next line
+            continue
+
+        # Update global status structure
+        if 'result' in payload.keys():
+            if fullstatus:
+                status[payload['key']] = payload['result']
+            else:
+                status[payload['key']] = merge(status[payload['key']],payload['result'])
         else:
-            #print(OMkey + ":")
-            #print(status[payload['key']])
-            #print(payload['result'])
-            #print(merge(status[payload['key']],payload['result']))
-            status[payload['key']] = merge(status[payload['key']],payload['result'])
-    else:
-        print("No Payload!")
-        return False
+            print('No result key in JSON payload:',payload)
 
     # If we got here; we had a successful cycle
     if fullstatus:
-        print(key, "==", status[key])
+        #DEBUG:print(key, "==", status[key])
+        print(key)
     return True
 
 def seqrequest():
@@ -173,4 +177,6 @@ while True:
         #print("Update fetch cycle complete")
     #print(len(str(status)),status)
     updatedisplay()
+    #print('seqs :',status['seqs'])
+
     sleep(10)
