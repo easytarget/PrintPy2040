@@ -82,10 +82,8 @@ def merge(a, b):
         d = dict(a)
         d.update({k: merge(a.get(k, None), b[k]) for k in b})
         return d
-
     if isinstance(a, list) and isinstance(b, list):
         return [merge(x, y) for x, y in zip_longest(a, b)]
-
     return a if b is None else b
 
 # This is the way...?
@@ -185,15 +183,16 @@ OMseqcounter = status['seqs']
 print(OMseqcounter)
 
 while True:
-    seqrequest()
-    #print(OMseqcounter)
+    fullupdatelist = seqrequest()
     if updatefullstate:
         for key in OMstatuskeys:
             OMrequest(key,True)
         updatefullstate = False
     else:
         for key in OMupdatekeys:
-            OMrequest(key,False)
+            if key in fullupdatelist:
+                OMrequest(key,True)
+            else:
+                OMrequest(key,False)
     updatedisplay()
-
     sleep(updatetime)
