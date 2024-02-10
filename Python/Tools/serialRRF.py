@@ -47,33 +47,17 @@ status = {'state':{'status':'undefined'},'seqs':None}
 
 # These are the only key sets in the OM we are interested in
 #  This could be expanded as needed.
-OMstatuskeys = ['state','heat','job','sensors','network','tools']  # all keys
-OMupdatekeys = ['state','heat','job']  # subset of keys to always update
+OMstatuskeys = ['heat','job','sensors','network','tools']  # all keys
+OMupdatekeys = ['heat','job','network']  # subset of keys to always update
 
 # Basic time between updates
 updatetime = 1
-
-# Used when the 'seqs' keys are not available (eg SBC mode)
-# force full status fetches and assume the controller can keep up..
-sbcmode = False
 
 # Handle hard (eg serial or comms) errors; needs expansion ;-)
 def hardfail(why):
     while True:  # BlackHole the process
         print('CRITICAL ERROR: ' + why + '\nHALTED')
         quit()
-
-# Init RRF connection
-try:
-    rrf = Serial(port,baud,timeout=0.25)
-except:
-    hardfail('Connection could not be established')
-
-# Connect and get firmware string - Needs some logic to cover failures..
-rrf.write(b'\nM115\n')
-response = rrf.read_until(b"ok").decode('ascii').replace("\r", "\n")
-print(response)
-print('PrintPy is Connected')
 
 # Recursive/iterative merge of dict/list structures.
 # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
@@ -137,17 +121,20 @@ def OMrequest(OMkey,fullstatus=False):
 
         # Update global status structure
         if 'result' in payload.keys():
-            if fullstatus:
-                status[payload['key']] = payload['result']
+            if payload['result'] == None:
+                # if reult is None the key doeesnt exist
+                return False
             else:
-                status[payload['key']] = merge(status[payload['key']],payload['result'])
+                # We have a vaalid result, store it
+                if fullstatus:
+                    status[payload['key']] = payload['result']
+                else:
+                    status[payload['key']] = merge(status[payload['key']],payload['result'])
         else:
-            print('No result key in JSON payload:',payload)
+            # Valid JSON but no result
+            return False
 
     # If we got here; we had a successful cycle
-    if fullstatus:
-        #print(OMkey, "==", status[OMkey])
-        print(OMkey)
     return True
 
 def seqrequest():
@@ -157,15 +144,12 @@ def seqrequest():
     changed=[]
     OMrequest('seqs',False)
     if status['seqs'] != None:
-        #for key in status['seqs'].keys():
         for key in OMstatuskeys:
-            print(status['seqs'][key],end=' | ')
+            #print(status['seqs'][key],end=' | ')
             if OMseqcounter[key] != status['seqs'][key]:
                 changed.append(key)
                 OMseqcounter[key] = status['seqs'][key]
-    else:
-        return False
-    print('Changed:',changed,end=' :: ')
+        print('Changed:',changed,end=' :: ')
     return changed
 
 def updatedisplay():
@@ -174,25 +158,70 @@ def updatedisplay():
           '| bed:',status['heat']['heaters'][0]['current'],
           '| tool:',status['heat']['heaters'][1]['current'])
 
-# simple control loop
-updatefullstate = True
 
-# populate the counters used to track changes to the sequence numbers
-OMrequest('seqs',False)
-OMseqcounter = status['seqs']
-print(OMseqcounter)
+'''
+    Simple control loop to begin with
+'''
+
+# Init RRF connection
+try:
+    rrf = Serial(port,baud,timeout=0.25)
+except:
+    hardfail('Connection could not be established')
+
+# Connect and get firmware string - Needs some logic to cover failures..
+rrf.write(b'\nM115\n')
+response = rrf.read_until(b"ok").decode('ascii').replace("\r", "\n")
+print(response)
+print('PrintPy is Connected')
+
+# request the boards, status and seqs keys
+for key in ['boards','state','seqs']:
+    if OMrequest(key,True):
+        print('Initial "' + key + '" data acquired')
+    else:
+        hardfail('Failed to accqire "' + key + '" data')
+
+#print('\nInit with: ', status, '\n')
+
+# Determine SBC mode
+if status['seqs'] == None:
+    SBCmode = True
+    print('Controller is in SBC mode')
+else:
+    SBCmode = False
+    OMseqcounter = status['seqs']
+    print('Controller is in standalone mode')
+
+# Get initial data set
+# - in future decide what we are getting via the mode (FFF vs CNC vs laser)
+for key in OMstatuskeys:
+    if OMrequest(key,True):
+        print('Initial "' + key + '" data acquired')
+    else:
+        hardfail('Failed to accqire "' + key + '" data')
+
+# MAIN LOOP
 
 while True:
-    fullupdatelist = seqrequest()
-    if updatefullstate:
+    if OMrequest('state',False):
+        # Set the list of keys based on our state
+        # If uptime has decreased do a restart
+        # also restart if mode chaanges
+        pass
+    else:
+        print('Failed to fetch machine state')
+        sleep(updatetime)
+        continue
+    if SBCmode:
         for key in OMstatuskeys:
             OMrequest(key,True)
-        updatefullstate = False
     else:
-        for key in OMupdatekeys:
+        fullupdatelist = seqrequest()
+        for key in OMupdatekeys + fullupdatelist:
             if key in fullupdatelist:
                 OMrequest(key,True)
             else:
-                OMrequest(key,False)
+             OMrequest(key,False)
     updatedisplay()
     sleep(updatetime)
