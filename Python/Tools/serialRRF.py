@@ -1,19 +1,17 @@
 from RRFconfig import port,baud
 from serial import Serial
-from time import sleep
-from json import loads
+from time import sleep,time  # CPython: for micropython use ticks_ms and  ticks_diff
+from json import loads,JSONDecoder
 from itertools import zip_longest
 from sys import exit
+from functools import reduce
 
 '''
-    This script uses Telnet to connect to my duet (I have my reasons)
-    The inbuilt 'telnetlib' library it uses comes with the following warning:
-    "> Deprecated since version 3.11, will be removed in version 3.13:"
-    consider yourself warned ;)
+    This is intended to be run on a desktop system (CPython, not microPython)
+    that connects via serial or USBserial to a RRF 3.x based controller.
 
-    It is intended to be run on a desktop system (CPython, not microPython)
-    and will be used to create a 'framework' for extracting data from
-    a RRF based system using the ObjectModel.
+    It will be used to create a 'framework' for extracting data from
+    RRF based systems using the ObjectModel.
 
     We make two different types of request:
       Status requests to read the full tree
@@ -29,7 +27,7 @@ from sys import exit
     when necessary for all the keys we monitor. As will any 'reset' of
     the uptime status.
 
-    M409 K'xxx' : keys of interest:
+    M409 K'xxx' : keys of interest:                  <---------- WIP!
     state   : Status and Update - machine state and uptime
     heat    : Status and Update - Temperatures and tool type
     job     : Status and Update - print progress monitoring
@@ -50,14 +48,51 @@ status = {'state':{'status':'undefined'},'seqs':None}
 OMstatuskeys = ['heat','job','sensors','network','tools']  # all keys
 OMupdatekeys = ['heat','job','network']  # subset of keys to always update
 
-# Basic time between updates
-updatetime = 1
+# Basic time between updates (ms)
+updateTime = 1000
+# listen time for replies after sending request
+rrfWait = updateTime / 4
+
+# bytearray of valid ascii chars for JSON response body
+jsonChars = bytearray(range(0x20,0x7F))
 
 # Handle hard (eg serial or comms) errors; needs expansion ;-)
 def hardfail(why):
     while True:  # BlackHole the process
         print('CRITICAL ERROR: ' + why + '\nHALTED')
         quit()
+
+# send a gcode+chksum then block until it is sent, or error
+def sendGcode(code):
+    chksum = reduce(lambda x, y: x ^ y, map(ord, code))
+    #print('SEND: ', code, chksum)
+    try:
+        rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
+    except OSError:
+        print('Connection Failed')
+        return False
+    try:
+        rrf.flush()
+    except:
+        print('Write Failed')
+        return False
+    return True
+
+def extract_json_objects(text):
+    """Find JSON objects in text, and yield the decoded JSON data
+        https://stackoverflow.com/questions/54235528/how-to-find-json-object-in-text-with-python
+    """
+    pos = 0
+    while True:
+        match = text.find('{', pos)
+        if match == -1:
+            break
+        try:
+            result, index = loads(text[match:])
+            yield result
+            pos = match + index
+        except ValueError:
+            pos = match + 1
 
 # Recursive/iterative merge of dict/list structures.
 # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
@@ -70,8 +105,13 @@ def merge(a, b):
         return [merge(x, y) for x, y in zip_longest(a, b)]
     return a if b is None else b
 
-# This is the way...?
+# Handle a request to the OM
 def OMrequest(OMkey,fullstatus=False):
+
+    # CPython only: Replace this with micropython inbuilt time_ms()
+    def time_ms():
+        return int(time() * 1000)
+
     # Using a global here saves memory. ??
     global status
 
@@ -81,42 +121,58 @@ def OMrequest(OMkey,fullstatus=False):
     else:
         OMflags = 'fnd99'
 
-    # Construct the command
-    cmd = b'M409 F"' + bytes(OMflags, 'utf8') + b'" K"' + bytes(OMkey, 'utf8') + b'"\n'
-    #DEBUG:print('SEND: '+ str(cmd))
+    # Construct the command (no newline)
+    cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
 
     # Send the M409 command to RRF
-    try:
-        rrf.write(cmd)
-    except OSError:
-        print('Connection Failed')
-        return False
+    if not sendGcode(cmd):
+        hardfail('UART failed: Cannot write to controller')
+
+    requestTime = time_ms()
 
     # And wait for a response
-    response = rrf.read_until(b"ok").decode('ascii').replace("\r", "\n").split('\n')
+    reply = b''
+    while (time_ms()-requestTime) < rrfWait:  # CPython; for micropython use ticks_diff()
+        next = rrf.read(1)
+        if next:
+            if next in jsonChars:
+                reply = reply + next
+    #print(reply, type(reply),len(reply))
 
-    # remove empty lines
-    while '' in response:
-        response.remove('')
-
-    # Test if the list is still populated, empty == timeout
-    if not response:
-        print('Response timed out for : ' + cmd.decode(),end="")
+    if len(reply) == 0:
+        print("Timed out waiting for reply to: ",cmd)
         return False
 
+    # tease out all the possible JSON reponses
+    response = []
+    nest = 0;
+    block = ''
+    for char in reply:
+        #print(chr(char),end='')
+        if char == ord('{'):
+            nest += 1
+        if nest > 0:
+            block = block + chr(char)
+        if char == ord('}'):
+            nest -= 1
+        if block and (nest == 0):
+            response.append(block)
+            block = ""
+
+    #print(response, type(response))
+
+    #for item in response:
+    #    print(item)
+
     # Look for Json data in response
-    for line in range(0,len(response)):
-        try:
-            jsonstart = response[line].index('{')
-        except ValueError:
-            # No JSON in the line, skip to next
-            continue
+    for line in response:
 
         # Load as a json data structure
         try:
-            payload = loads(response[line][jsonstart:])
+            payload = loads(line)
         except:
             # invalid JSON, skip to next line
+            print('Invalid JSON:',line)
             continue
 
         # Update global status structure
@@ -142,14 +198,15 @@ def seqrequest():
     # a list of keys where the sequence number has changed
     global OMseqcounter
     changed=[]
-    OMrequest('seqs',False)
-    if status['seqs'] != None:
+    if OMrequest('seqs',False):
         for key in OMstatuskeys:
             #print(status['seqs'][key],end=' | ')
             if OMseqcounter[key] != status['seqs'][key]:
                 changed.append(key)
                 OMseqcounter[key] = status['seqs'][key]
         print('Changed:',changed,end=' :: ')
+    else:
+        print('Sequence key request failed')
     return changed
 
 def updatedisplay():
@@ -171,7 +228,7 @@ except:
 
 # Connect and get firmware string - Needs some logic to cover failures..
 rrf.write(b'\nM115\n')
-response = rrf.read_until(b"ok").decode('ascii').replace("\r", "\n")
+response = rrf.read_until(b"ok").decode('ascii')
 print(response)
 print('PrintPy is Connected')
 
@@ -203,6 +260,8 @@ for key in OMstatuskeys:
 
 # MAIN LOOP
 
+#print(status)
+
 while True:
     if OMrequest('state',False):
         # Set the list of keys based on our state
@@ -211,7 +270,7 @@ while True:
         pass
     else:
         print('Failed to fetch machine state')
-        sleep(updatetime)
+        sleep(updateTime/1000)
         continue
     if SBCmode:
         for key in OMstatuskeys:
@@ -224,4 +283,4 @@ while True:
             else:
              OMrequest(key,False)
     updatedisplay()
-    sleep(updatetime)
+    sleep(updateTime/1000)
