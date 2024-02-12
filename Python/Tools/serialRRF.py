@@ -49,12 +49,12 @@ OMstatuskeys = ['heat','job','sensors','network','tools']  # all keys
 OMupdatekeys = ['heat','job','network']  # subset of keys to always update
 
 # Basic time between updates (ms)
-updateTime = 1000
+updateTime = 5000
 # listen time for replies after sending request
-rrfWait = updateTime / 4
+rrfWait = updateTime / 2
 
-# bytearray of valid ascii chars for JSON response body
-jsonChars = bytearray(range(0x20,0x7F))
+# string of valid ascii chars for JSON response body
+jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
 
 # Handle hard (eg serial or comms) errors; needs expansion ;-)
 def hardfail(why):
@@ -77,22 +77,6 @@ def sendGcode(code):
         print('Write Failed')
         return False
     return True
-
-def extract_json_objects(text):
-    """Find JSON objects in text, and yield the decoded JSON data
-        https://stackoverflow.com/questions/54235528/how-to-find-json-object-in-text-with-python
-    """
-    pos = 0
-    while True:
-        match = text.find('{', pos)
-        if match == -1:
-            break
-        try:
-            result, index = loads(text[match:])
-            yield result
-            pos = match + index
-        except ValueError:
-            pos = match + 1
 
 # Recursive/iterative merge of dict/list structures.
 # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
@@ -126,47 +110,47 @@ def OMrequest(OMkey,fullstatus=False):
 
     # Send the M409 command to RRF
     if not sendGcode(cmd):
-        hardfail('UART failed: Cannot write to controller')
+        hardfail('Serial/UART failed: Cannot write to controller')
 
+    #print('Sent: ' + cmd)
     requestTime = time_ms()
 
     # And wait for a response
-    reply = b''
-    while (time_ms()-requestTime) < rrfWait:  # CPython; for micropython use ticks_diff()
-        next = rrf.read(1)
-        if next:
-            if next in jsonChars:
-                reply = reply + next
-    #print(reply, type(reply),len(reply))
-
-    if len(reply) == 0:
-        print("Timed out waiting for reply to: ",cmd)
-        return False
-
-    # tease out all the possible JSON reponses
     response = []
     nest = 0;
-    block = ''
-    for char in reply:
-        #print(chr(char),end='')
-        if char == ord('{'):
-            nest += 1
-        if nest > 0:
-            block = block + chr(char)
-        if char == ord('}'):
-            nest -= 1
-        if block and (nest == 0):
-            response.append(block)
-            block = ""
+    maybeJSON = ''
+    notJSON= ''
+    while ((time_ms()-requestTime) < rrfWait):  # CPython; for micropython use ticks_diff()
+        char = rrf.read(1).decode('ascii')
+        if char:
+            if char in jsonChars:
+                if char == '{':
+                    nest += 1
+                if nest > 0:
+                    maybeJSON = maybeJSON + char
+                else:
+                    notJSON = notJSON + char
+                if char == '}':
+                    nest -= 1
+                if nest == 0:
+                    if maybeJSON:
+                        response.append(maybeJSON)
+                        maybeJSON = ""
+                    if (notJSON[:2] == 'ok'):
+                        break
 
-    #print(response, type(response))
+    if notJSON[:2] != 'ok':
+        print('Timed out waiting for "ok": ',cmd)
+
+    if len(response) == 0:
+        print("No sensible response from: ",cmd)
+        return False
 
     #for item in response:
-    #    print(item)
+    #    print('JSON: ' + item)
 
-    # Look for Json data in response
+    # Process Json lines
     for line in response:
-
         # Load as a json data structure
         try:
             payload = loads(line)
@@ -174,22 +158,20 @@ def OMrequest(OMkey,fullstatus=False):
             # invalid JSON, skip to next line
             print('Invalid JSON:',line)
             continue
-
         # Update global status structure
         if 'result' in payload.keys():
             if payload['result'] == None:
-                # if reult is None the key doeesnt exist
+                # if reult is None the key doesnt exist
                 return False
             else:
-                # We have a vaalid result, store it
+                # We have a valid result, store it
                 if fullstatus:
                     status[payload['key']] = payload['result']
                 else:
                     status[payload['key']] = merge(status[payload['key']],payload['result'])
         else:
-            # Valid JSON but no result
+            # Valid JSON but no 'result' data in it
             return False
-
     # If we got here; we had a successful cycle
     return True
 
@@ -200,11 +182,9 @@ def seqrequest():
     changed=[]
     if OMrequest('seqs',False):
         for key in OMstatuskeys:
-            #print(status['seqs'][key],end=' | ')
             if OMseqcounter[key] != status['seqs'][key]:
                 changed.append(key)
                 OMseqcounter[key] = status['seqs'][key]
-        print('Changed:',changed,end=' :: ')
     else:
         print('Sequence key request failed')
     return changed
@@ -212,9 +192,15 @@ def seqrequest():
 def updatedisplay():
     print('status:',status['state']['status'],
           '| uptime:',status['state']['upTime'],
-          '| bed:',status['heat']['heaters'][0]['current'],
-          '| tool:',status['heat']['heaters'][1]['current'])
-
+          end='')
+    if not status['state']['status'] in ['off','idle']:
+        print('| bed:',  "%.1f" % status['heat']['heaters'][0]['current'],
+              '| tool:', "%.1f" % status['heat']['heaters'][1]['current'],
+              end='')
+    if status['job']['build']:
+        percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
+        print(' | progress:', "%.1f" % percent,end='%')
+    print()
 
 '''
     Simple control loop to begin with
@@ -222,7 +208,7 @@ def updatedisplay():
 
 # Init RRF connection
 try:
-    rrf = Serial(port,baud,timeout=0.25)
+    rrf = Serial(port,baud,timeout=(rrfWait/1000))
 except:
     hardfail('Connection could not be established')
 
@@ -234,9 +220,7 @@ print('PrintPy is Connected')
 
 # request the boards, status and seqs keys
 for key in ['boards','state','seqs']:
-    if OMrequest(key,True):
-        print('Initial "' + key + '" data acquired')
-    else:
+    if not OMrequest(key,True):
         hardfail('Failed to accqire "' + key + '" data')
 
 #print('\nInit with: ', status, '\n')
@@ -253,9 +237,7 @@ else:
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
 for key in OMstatuskeys:
-    if OMrequest(key,True):
-        print('Initial "' + key + '" data acquired')
-    else:
+    if not OMrequest(key,True):
         hardfail('Failed to accqire "' + key + '" data')
 
 # MAIN LOOP
@@ -277,10 +259,10 @@ while True:
             OMrequest(key,True)
     else:
         fullupdatelist = seqrequest()
-        for key in OMupdatekeys + fullupdatelist:
+        for key in set(OMupdatekeys).union(fullupdatelist):
             if key in fullupdatelist:
                 OMrequest(key,True)
             else:
-             OMrequest(key,False)
+                OMrequest(key,False)
     updatedisplay()
     sleep(updateTime/1000)
