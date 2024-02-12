@@ -190,13 +190,30 @@ def seqrequest():
     return changed
 
 def updatedisplay():
+    def showHeater(number,name):
+        if status['heat']['heaters'][number]['state'] == 'fault':
+            print(' | ' + name + ': HEATER FAULT',end='')
+        else:
+            print(' | ' + name + ':', '%.1f' % status['heat']['heaters'][number]['current'],end='')
+            if status['heat']['heaters'][number]['state'] == 'active':
+                print(' (%.1f)' % status['heat']['heaters'][number]['active'],end='')
+            elif status['heat']['heaters'][number]['state'] == 'standby':
+                print(' (%.1f)' % status['heat']['heaters'][number]['standby'],end='')
+
+    # Currently a one-line text status output,
+    #  eventually a separate class to drive physical displays
     print('status:',status['state']['status'],
           '| uptime:',status['state']['upTime'],
           end='')
-    if not status['state']['status'] in ['off','idle']:
-        print('| bed:',  "%.1f" % status['heat']['heaters'][0]['current'],
-              '| tool:', "%.1f" % status['heat']['heaters'][1]['current'],
-              end='')
+    if status['state']['status'] in ['updating','starting']:
+        # display a splash while starting or updating..
+        pass
+    elif status['state']['status'] == 'off':
+        # turn display off
+        print()
+        return
+    showHeater(0,'bed')
+    showHeater(1,'E0')
     if status['job']['build']:
         percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
         print(' | progress:', "%.1f" % percent,end='%')
@@ -232,7 +249,13 @@ if status['seqs'] == None:
 else:
     SBCmode = False
     OMseqcounter = status['seqs']
-    print('Controller is in standalone mode')
+    print('Controller is standalone')
+
+# Determine machine mode (FFF,CNC or Laser)
+machineMode = status['state']['machineMode']
+if machineMode != 'FFF':
+    hardfail('We currently do not support "' + machineMode + '" controller mode, sorry.')
+print(machineMode + ' machine mode detected')
 
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
