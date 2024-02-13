@@ -27,14 +27,6 @@ from functools import reduce
     when necessary for all the keys we monitor. As will any 'reset' of
     the uptime status.
 
-    M409 K'xxx' : keys of interest:                  <---------- WIP!
-    state   : Status and Update - machine state and uptime
-    heat    : Status and Update - Temperatures and tool type
-    job     : Status and Update - print progress monitoring
-    network : ??? Status only - connected/disconnected
-    sensors : Status only - ??? need in order to 'name' the sensors
-    tools   : Status only - tool names
-
     See:
     https://docs.duet3d.com/User_manual/Reference/Gcodes#m409-query-object-model
     https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
@@ -43,13 +35,12 @@ from functools import reduce
 # A global dict. structure of the all OM keys we see when running state and update checks
 status = {'state':{'status':'undefined'},'seqs':None}
 
-# These are the only key sets in the OM we are interested in
-#  This could be expanded as needed.
-OMstatuskeys = ['heat','job','sensors','network','tools']  # all keys
-OMupdatekeys = ['heat','job','network']  # subset of keys to always update
+# These are the only key sets in the OM we are interested in (for FFF mode!)
+OMstatuskeys = ['heat','job','boards','network','tools']  # keys to full update as needed
+OMupdatekeys = ['heat','job','boards']  # subset of keys to always frequent update
 
 # Basic time between updates (ms)
-updateTime = 5000
+updateTime = 1000
 # listen time for replies after sending request
 rrfWait = updateTime / 2
 
@@ -90,7 +81,7 @@ def merge(a, b):
     return a if b is None else b
 
 # Handle a request to the OM
-def OMrequest(OMkey,fullstatus=False):
+def OMrequest(OMkey,OMflags):
 
     # CPython only: Replace this with micropython inbuilt time_ms()
     def time_ms():
@@ -98,12 +89,6 @@ def OMrequest(OMkey,fullstatus=False):
 
     # Using a global here saves memory. ??
     global status
-
-    # Chose the appropriate flags
-    if fullstatus:
-        OMflags = 'vnd99'
-    else:
-        OMflags = 'fnd99'
 
     # Construct the command (no newline)
     cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
@@ -121,7 +106,10 @@ def OMrequest(OMkey,fullstatus=False):
     maybeJSON = ''
     notJSON= ''
     while ((time_ms()-requestTime) < rrfWait):  # CPython; for micropython use ticks_diff()
-        char = rrf.read(1).decode('ascii')
+        try:
+            char = rrf.read(1).decode('ascii')
+        except UnicodeDecodeError:
+            char = None
         if char:
             if char in jsonChars:
                 if char == '{':
@@ -134,13 +122,14 @@ def OMrequest(OMkey,fullstatus=False):
                     nest -= 1
                 if nest == 0:
                     if maybeJSON:
+                        notJSON = '{...}' + notJSON  # helps debug
                         response.append(maybeJSON)
                         maybeJSON = ""
-                    if (notJSON[:2] == 'ok'):
+                    if (notJSON[-2:] == 'ok'):
                         break
 
-    if notJSON[:2] != 'ok':
-        print('Timed out waiting for "ok": ',cmd)
+    if notJSON[-2:] != 'ok':
+        print('Timed out waiting for "ok": ',cmd, notJSON)
 
     if len(response) == 0:
         print("No sensible response from: ",cmd)
@@ -165,7 +154,7 @@ def OMrequest(OMkey,fullstatus=False):
                 return False
             else:
                 # We have a valid result, store it
-                if fullstatus:
+                if OMflags[:1] == 'v':
                     status[payload['key']] = payload['result']
                 else:
                     status[payload['key']] = merge(status[payload['key']],payload['result'])
@@ -180,7 +169,7 @@ def seqrequest():
     # a list of keys where the sequence number has changed
     global OMseqcounter
     changed=[]
-    if OMrequest('seqs',False):
+    if OMrequest('seqs','fnd99'):
         for key in OMstatuskeys:
             if OMseqcounter[key] != status['seqs'][key]:
                 changed.append(key)
@@ -192,7 +181,7 @@ def seqrequest():
 def updatedisplay():
     def showHeater(number,name):
         if status['heat']['heaters'][number]['state'] == 'fault':
-            print(' | ' + name + ': HEATER FAULT',end='')
+            print(' | ' + name + ': FAULT',end='')
         else:
             print(' | ' + name + ':', '%.1f' % status['heat']['heaters'][number]['current'],end='')
             if status['heat']['heaters'][number]['state'] == 'active':
@@ -202,21 +191,61 @@ def updatedisplay():
 
     # Currently a one-line text status output,
     #  eventually a separate class to drive physical displays
+
+    # Overall Status
     print('status:',status['state']['status'],
           '| uptime:',status['state']['upTime'],
           end='')
+
+    # Voltage
+    print(' | Vin: %.1f' % status['boards'][0]['vIn']['current'],end='')
+
+    # MCU temp
+    print(' | mcu: %.1f' % status['boards'][0]['mcuTemp']['current'],end='')
+
+    # Network
+    if len(status['network']['interfaces']) > 0:
+        print(' | network:', status['network']['interfaces'][0]['state'],end='')
+
+    # Temporary States
     if status['state']['status'] in ['updating','starting']:
         # display a splash while starting or updating..
-        pass
-    elif status['state']['status'] == 'off':
-        # turn display off
         print()
         return
-    showHeater(0,'bed')
-    showHeater(1,'E0')
+
+    # Machine Off
+    if status['state']['status'] == 'off':
+        # turn display off and return
+        print()
+        return
+
+    # Bed
+    if len(status['heat']['bedHeaters']) > 0:
+        if status['heat']['bedHeaters'][0] != -1:
+            showHeater(status['heat']['bedHeaters'][0],'bed')
+
+    # Chamber
+    if len(status['heat']['chamberHeaters']) > 0:
+        if status['heat']['chamberHeaters'][0] != -1:
+            showHeater(status['heat']['chamberHeaters'][0],'chamber')
+
+    # Extruders
+    if len(status['tools']) > 0:
+        for tool in status['tools']:
+            if len(tool['heaters']) > 0:
+                showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
+
+    # Job progress
     if status['job']['build']:
-        percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
+        try:
+            percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
+        except ZeroDivisionError:
+            percent = 0  # file size can be 0 as the job starts.
         print(' | progress:', "%.1f" % percent,end='%')
+
+    # M117 messages
+    if status['state']['displayMessage']:
+        print(' | message:', status['state']['displayMessage'],end='')
     print()
 
 '''
@@ -237,7 +266,7 @@ print('PrintPy is Connected')
 
 # request the boards, status and seqs keys
 for key in ['boards','state','seqs']:
-    if not OMrequest(key,True):
+    if not OMrequest(key,'vnd2'):
         hardfail('Failed to accqire "' + key + '" data')
 
 #print('\nInit with: ', status, '\n')
@@ -260,15 +289,13 @@ print(machineMode + ' machine mode detected')
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
 for key in OMstatuskeys:
-    if not OMrequest(key,True):
+    if not OMrequest(key,'vnd99'):
         hardfail('Failed to accqire "' + key + '" data')
 
 # MAIN LOOP
 
-#print(status)
-
 while True:
-    if OMrequest('state',False):
+    if OMrequest('state','fnd2'):
         # Set the list of keys based on our state
         # If uptime has decreased do a restart
         # also restart if mode chaanges
@@ -277,15 +304,16 @@ while True:
         print('Failed to fetch machine state')
         sleep(updateTime/1000)
         continue
+    # test here for uptime or machineMode changes and reboot as needed
     if SBCmode:
         for key in OMstatuskeys:
-            OMrequest(key,True)
+            OMrequest(key,'vnd99')
     else:
         fullupdatelist = seqrequest()
         for key in set(OMupdatekeys).union(fullupdatelist):
             if key in fullupdatelist:
-                OMrequest(key,True)
+                OMrequest(key,'vnd99')
             else:
-                OMrequest(key,False)
+                OMrequest(key,'fnd99')
     updatedisplay()
     sleep(updateTime/1000)
