@@ -44,21 +44,21 @@ rrfWait = updateTime / 2
 # string of valid ascii chars for JSON response body
 jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
 
+# Do a minimum drama restart/reboot
+def restartNow(why):
+    print('Restarting: ' + why + '\n')
+    quit()   # <--------------------------------------do this properly!!!!
+
 # Handle (transient) serial or comms errors; needs expansion ;-)
 def commsFail(why):
     print('Communications error: ' + why + '\nWaiting for Controller to respond.\n')
     while True:
-        # Re-check the comms port (m115) looking for life..
+        # Re-check the comms port (M115) looking for life..
         sleep(6)
         print('>',end='')
         if firmwareRequest():
             print()
             restartNow('Communications lost then re-established')
-
-# Do a minimum drama restaart/reboot
-def restartNow(why):
-    print('Restarting: ' + why + '\n')
-    quit()
 
 # Used for critical hardware errors during initialisation
 def hardwareFail(why):
@@ -229,8 +229,6 @@ for key in ['boards','state','seqs']:
     if not OMrequest(key,'vnd2'):
         commsFail('Failed to accqire "' + key + '" data')
 
-#print('\nInit with: ', status, '\n')
-
 # Determine SBC mode
 if status['seqs'] == None:
     SBCmode = True
@@ -242,9 +240,11 @@ else:
 
 # Determine machine mode (FFF,CNC or Laser)
 machineMode = status['state']['machineMode']
-if machineMode != 'FFF':
-    commsFail('We currently do not support "' + machineMode + '" controller mode, sorry.')
-print(machineMode + ' machine mode detected')
+if machineMode in OMstatuskeys.keys():
+    print(machineMode + ' machine mode detected')
+else:
+    restartNow('We currently do not support "' + machineMode + '" controller mode, sorry.')
+
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
 for key in OMstatuskeys[machineMode]:

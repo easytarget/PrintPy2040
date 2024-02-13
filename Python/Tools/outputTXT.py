@@ -5,10 +5,19 @@ from sys import exit
     It will later be adapted for I2C displas etc
 '''
 
-# These are the only key sets in the OM we are interested in (for FFF mode!)
-#  We will also be getting 'state'  at the start of the loop
-OMstatuskeys = {'FFF':['heat','job','boards','network','tools']}  # keys to full update as needed
-OMupdatekeys = {'FFF':['heat','job','boards']}  # subset of keys to always frequent update
+# These are the only key sets in the OM we are interested in
+#  We will always get 'state' at the start of the loop
+#  We get 'seqs' each loop unless in SBC mode
+# We also get 'boards' during startup to determine the machine mode
+
+# keys to full update on startup and when sews change
+OMstatuskeys = {'FFF':['heat','job','boards','network','tools'],
+                'CNC':[],
+                'Laser':[]}
+# subset of keys to frequent update independent of SEQs
+OMupdatekeys = {'FFF':['heat','job','boards'],
+                'CNC':[],
+                'Laser':[]}
 
 def updateOutput(status,machineMode):
     if machineMode == 'FFF':
