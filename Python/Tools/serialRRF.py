@@ -1,6 +1,7 @@
 from RRFconfig import port,baud
+from outputTXT import updateOutput,OMstatuskeys,OMupdatekeys
 from serial import Serial
-from time import sleep,time  # CPython: for micropython use ticks_ms and  ticks_diff
+from time import sleep,time  # CPython: for micropython use ticks_ms and ticks_diff
 from json import loads,JSONDecoder
 from itertools import zip_longest
 from sys import exit
@@ -35,23 +36,40 @@ from functools import reduce
 # A global dict. structure of the all OM keys we see when running state and update checks
 status = {'state':{'status':'undefined'},'seqs':None}
 
-# These are the only key sets in the OM we are interested in (for FFF mode!)
-OMstatuskeys = ['heat','job','boards','network','tools']  # keys to full update as needed
-OMupdatekeys = ['heat','job','boards']  # subset of keys to always frequent update
-
 # Basic time between updates (ms)
 updateTime = 1000
-# listen time for replies after sending request
+# listen timeout for replies after sending request
 rrfWait = updateTime / 2
 
 # string of valid ascii chars for JSON response body
 jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
 
-# Handle hard (eg serial or comms) errors; needs expansion ;-)
-def hardfail(why):
-    while True:  # BlackHole the process
-        print('CRITICAL ERROR: ' + why + '\nHALTED')
-        quit()
+# Handle (transient) serial or comms errors; needs expansion ;-)
+def commsFail(why):
+    print('Communications error: ' + why + '\nWaiting for Controller to respond.\n')
+    while True:
+        # Re-check the comms port (m115) looking for life..
+        sleep(6)
+        print('>',end='')
+        if firmwareRequest():
+            print()
+            restartNow('Communications lost then re-established')
+
+# Do a minimum drama restaart/reboot
+def restartNow(why):
+    print('Restarting: ' + why + '\n')
+    quit()
+
+# Used for critical hardware errors during initialisation
+def hardwareFail(why):
+    print('A Critical Hardware error has occured!')
+    print('Do a full power off/on cycle and check wiring etc..:\n' + why + '\n')
+    while True:
+        sleep(60)
+
+# CPython only: Replace this with micropython inbuilt ticks_ms))(
+def ticks_ms():
+    return int(time() * 1000)
 
 # send a gcode+chksum then block until it is sent, or error
 def sendGcode(code):
@@ -69,23 +87,19 @@ def sendGcode(code):
         return False
     return True
 
-# Recursive/iterative merge of dict/list structures.
-# https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
-def merge(a, b):
-    if isinstance(a, dict) and isinstance(b, dict):
-        d = dict(a)
-        d.update({k: merge(a.get(k, None), b[k]) for k in b})
-        return d
-    if isinstance(a, list) and isinstance(b, list):
-        return [merge(x, y) for x, y in zip_longest(a, b)]
-    return a if b is None else b
-
 # Handle a request to the OM
 def OMrequest(OMkey,OMflags):
 
-    # CPython only: Replace this with micropython inbuilt time_ms()
-    def time_ms():
-        return int(time() * 1000)
+    # Recursive/iterative merge of dict/list structures.
+    # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
+    def merge(a, b):
+        if isinstance(a, dict) and isinstance(b, dict):
+            d = dict(a)
+            d.update({k: merge(a.get(k, None), b[k]) for k in b})
+            return d
+        if isinstance(a, list) and isinstance(b, list):
+            return [merge(x, y) for x, y in zip_longest(a, b)]
+        return a if b is None else b
 
     # Using a global here saves memory. ??
     global status
@@ -95,17 +109,17 @@ def OMrequest(OMkey,OMflags):
 
     # Send the M409 command to RRF
     if not sendGcode(cmd):
-        hardfail('Serial/UART failed: Cannot write to controller')
+        commsFail('Serial/UART failed: Cannot write to controller')
 
     #print('Sent: ' + cmd)
-    requestTime = time_ms()
+    requestTime = ticks_ms()
 
     # And wait for a response
     response = []
     nest = 0;
     maybeJSON = ''
-    notJSON= ''
-    while ((time_ms()-requestTime) < rrfWait):  # CPython; for micropython use ticks_diff()
+    notJSON = ''
+    while ((ticks_ms()-requestTime) < rrfWait):  # CPython; for micropython use ticks_diff()
         try:
             char = rrf.read(1).decode('ascii')
         except UnicodeDecodeError:
@@ -132,13 +146,10 @@ def OMrequest(OMkey,OMflags):
         print('Timed out waiting for "ok": ',cmd, notJSON)
 
     if len(response) == 0:
-        print("No sensible response from: ",cmd)
+        print("No sensible response from: ",cmd, notJSON)
         return False
 
-    #for item in response:
-    #    print('JSON: ' + item)
-
-    # Process Json lines
+    # Process Json candidate lines
     for line in response:
         # Load as a json data structure
         try:
@@ -154,9 +165,11 @@ def OMrequest(OMkey,OMflags):
                 return False
             else:
                 # We have a valid result, store it
-                if OMflags[:1] == 'v':
+                if 'v' in OMflags:
+                    # Verbose output replaces the existing key
                     status[payload['key']] = payload['result']
                 else:
+                    # Frequent updates just refresh the existing key
                     status[payload['key']] = merge(status[payload['key']],payload['result'])
         else:
             # Valid JSON but no 'result' data in it
@@ -164,13 +177,13 @@ def OMrequest(OMkey,OMflags):
     # If we got here; we had a successful cycle
     return True
 
-def seqrequest():
+def seqRequest():
     # Send a 'seqs' request to the OM, updates status and returns
     # a list of keys where the sequence number has changed
     global OMseqcounter
     changed=[]
     if OMrequest('seqs','fnd99'):
-        for key in OMstatuskeys:
+        for key in OMstatuskeys[machineMode]:
             if OMseqcounter[key] != status['seqs'][key]:
                 changed.append(key)
                 OMseqcounter[key] = status['seqs'][key]
@@ -178,96 +191,43 @@ def seqrequest():
         print('Sequence key request failed')
     return changed
 
-def updatedisplay():
-    def showHeater(number,name):
-        if status['heat']['heaters'][number]['state'] == 'fault':
-            print(' | ' + name + ': FAULT',end='')
-        else:
-            print(' | ' + name + ':', '%.1f' % status['heat']['heaters'][number]['current'],end='')
-            if status['heat']['heaters'][number]['state'] == 'active':
-                print(' (%.1f)' % status['heat']['heaters'][number]['active'],end='')
-            elif status['heat']['heaters'][number]['state'] == 'standby':
-                print(' (%.1f)' % status['heat']['heaters'][number]['standby'],end='')
-
-    # Currently a one-line text status output,
-    #  eventually a separate class to drive physical displays
-
-    # Overall Status
-    print('status:',status['state']['status'],
-          '| uptime:',status['state']['upTime'],
-          end='')
-
-    # Voltage
-    print(' | Vin: %.1f' % status['boards'][0]['vIn']['current'],end='')
-
-    # MCU temp
-    print(' | mcu: %.1f' % status['boards'][0]['mcuTemp']['current'],end='')
-
-    # Network
-    if len(status['network']['interfaces']) > 0:
-        print(' | network:', status['network']['interfaces'][0]['state'],end='')
-
-    # Temporary States
-    if status['state']['status'] in ['updating','starting']:
-        # display a splash while starting or updating..
-        print()
-        return
-
-    # Machine Off
-    if status['state']['status'] == 'off':
-        # turn display off and return
-        print()
-        return
-
-    # Bed
-    if len(status['heat']['bedHeaters']) > 0:
-        if status['heat']['bedHeaters'][0] != -1:
-            showHeater(status['heat']['bedHeaters'][0],'bed')
-
-    # Chamber
-    if len(status['heat']['chamberHeaters']) > 0:
-        if status['heat']['chamberHeaters'][0] != -1:
-            showHeater(status['heat']['chamberHeaters'][0],'chamber')
-
-    # Extruders
-    if len(status['tools']) > 0:
-        for tool in status['tools']:
-            if len(tool['heaters']) > 0:
-                showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
-
-    # Job progress
-    if status['job']['build']:
-        try:
-            percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
-        except ZeroDivisionError:
-            percent = 0  # file size can be 0 as the job starts.
-        print(' | progress:', "%.1f" % percent,end='%')
-
-    # M117 messages
-    if status['state']['displayMessage']:
-        print(' | message:', status['state']['displayMessage'],end='')
-    print()
+def firmwareRequest():
+    # Use M115 to (re)establish comms andv erify firmware
+    # Needs some logic to cover failures..
+    try:
+        rrf.write(b'\n')
+    except:
+        hardwareFail('Failed to write during comms start, UART/serial hardware error?')
+    _ = rrf.read()
+    sendGcode('M115')
+    response = rrf.read_until(b"ok").decode('ascii')
+    print(response)
+    if not 'RepRapFirmware' in response:
+        return False
+    return True
 
 '''
     Simple control loop to begin with
 '''
 
+print('serialRRF is starting')
+
 # Init RRF connection
 try:
     rrf = Serial(port,baud,timeout=(rrfWait/1000))
 except:
-    hardfail('Connection could not be established')
+    hardwareFail('UART/serial could not be initialised')
 
-# Connect and get firmware string - Needs some logic to cover failures..
-rrf.write(b'\nM115\n')
-response = rrf.read_until(b"ok").decode('ascii')
-print(response)
-print('PrintPy is Connected')
+print('Checking for connected controller\n> M115')
+if firmwareRequest():
+    print('serialRRF is connected')
+else:
+    commsFail('Failed to get Firmware string')
 
 # request the boards, status and seqs keys
 for key in ['boards','state','seqs']:
     if not OMrequest(key,'vnd2'):
-        hardfail('Failed to accqire "' + key + '" data')
+        commsFail('Failed to accqire "' + key + '" data')
 
 #print('\nInit with: ', status, '\n')
 
@@ -283,18 +243,18 @@ else:
 # Determine machine mode (FFF,CNC or Laser)
 machineMode = status['state']['machineMode']
 if machineMode != 'FFF':
-    hardfail('We currently do not support "' + machineMode + '" controller mode, sorry.')
+    commsFail('We currently do not support "' + machineMode + '" controller mode, sorry.')
 print(machineMode + ' machine mode detected')
-
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
-for key in OMstatuskeys:
+for key in OMstatuskeys[machineMode]:
     if not OMrequest(key,'vnd99'):
-        hardfail('Failed to accqire "' + key + '" data')
+        commsFail('Failed to accqire initial "' + key + '" data')
 
 # MAIN LOOP
 
 while True:
+    begin = ticks_ms()
     if OMrequest('state','fnd2'):
         # Set the list of keys based on our state
         # If uptime has decreased do a restart
@@ -306,14 +266,14 @@ while True:
         continue
     # test here for uptime or machineMode changes and reboot as needed
     if SBCmode:
-        for key in OMstatuskeys:
+        for key in OMstatuskeys[machineMode]:
             OMrequest(key,'vnd99')
     else:
-        fullupdatelist = seqrequest()
-        for key in set(OMupdatekeys).union(fullupdatelist):
+        fullupdatelist = seqRequest()
+        for key in set(OMupdatekeys[machineMode]).union(fullupdatelist):
             if key in fullupdatelist:
                 OMrequest(key,'vnd99')
             else:
                 OMrequest(key,'fnd99')
-    updatedisplay()
+    updateOutput(status,machineMode)
     sleep(updateTime/1000)
