@@ -260,14 +260,14 @@ for key in OMstatuskeys[machineMode]:
 
 while True:
     begin = ticks_ms()
-    if OMrequest('state','vnd2'):
-        # Set the list of keys based on our state
+    # Do a full 'state' tree update
+    if OMrequest('state','vnd99'):
         # If uptime has decreased do a restart
         # also restart if mode chaanges
         pass
     else:
         print('Failed to fetch machine state')
-        sleep(updateTime/1000)
+        sleep(updateTime/10000)  # re-try after 1/10th of update time
         continue
     # test here for uptime or machineMode changes and reboot as needed
     if SBCmode:

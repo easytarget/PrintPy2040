@@ -65,34 +65,43 @@ def updateFFF(status):
     # Machine Off
     if status['state']['status'] == 'off':
         # turn display off and return
-        print()
-        return
+        pass
+    else:
+        # Bed
+        if len(status['heat']['bedHeaters']) > 0:
+            if status['heat']['bedHeaters'][0] != -1:
+                showHeater(status['heat']['bedHeaters'][0],'bed')
 
-    # Bed
-    if len(status['heat']['bedHeaters']) > 0:
-        if status['heat']['bedHeaters'][0] != -1:
-            showHeater(status['heat']['bedHeaters'][0],'bed')
+        # Chamber
+        if len(status['heat']['chamberHeaters']) > 0:
+            if status['heat']['chamberHeaters'][0] != -1:
+                showHeater(status['heat']['chamberHeaters'][0],'chamber')
 
-    # Chamber
-    if len(status['heat']['chamberHeaters']) > 0:
-        if status['heat']['chamberHeaters'][0] != -1:
-            showHeater(status['heat']['chamberHeaters'][0],'chamber')
+        # Extruders
+        if len(status['tools']) > 0:
+            for tool in status['tools']:
+                if len(tool['heaters']) > 0:
+                    showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
 
-    # Extruders
-    if len(status['tools']) > 0:
-        for tool in status['tools']:
-            if len(tool['heaters']) > 0:
-                showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
-
-    # Job progress
-    if status['job']['build']:
-        try:
-            percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
-        except ZeroDivisionError:
-            percent = 0  # file size can be 0 as the job starts.
-        print(' | progress:', "%.1f" % percent,end='%')
+        # Job progress
+        if status['job']['build']:
+            try:
+                percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
+            except ZeroDivisionError:  # file size can be 0 as the job starts
+                percent = 0
+            print(' | progress:', "%.1f" % percent,end='%')
 
     # M117 messages
     if status['state']['displayMessage']:
         print(' | message:', status['state']['displayMessage'],end='')
+
+    # M291 messages
+    if status['state']['messageBox']:
+        if status['state']['messageBox']['mode'] == 0:
+            print(' | info: ',end='')
+        else:
+            print(' | query: ',end='')
+        if status['state']['messageBox']['title']:
+            print('==', status['state']['messageBox']['title'],end=' == ')
+        print(status['state']['messageBox']['message'],end='')
     print()
