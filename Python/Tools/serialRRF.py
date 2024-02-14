@@ -1,11 +1,14 @@
 from RRFconfig import port,baud
 from outputTXT import updateOutput,OMstatuskeys,OMupdatekeys
 from serial import Serial
-from time import sleep,time  # CPython: for micropython use ticks_ms and ticks_diff
-from json import loads,JSONDecoder
+from time import sleep,time           # <---- CPython: for micropython use ticks_ms and ticks_diff directly
+from json import loads
 from itertools import zip_longest
-from sys import exit
+from sys import exit,executable,argv # <---- CPython
 from functools import reduce
+from os import execv                  # <---- CPython
+#from machine import reset            # MicroPython
+from gc import collect
 
 '''
     This is intended to be run on a desktop system (CPython, not microPython)
@@ -47,7 +50,9 @@ jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
 # Do a minimum drama restart/reboot
 def restartNow(why):
     print('Restarting: ' + why + '\n')
-    quit()   # <--------------------------------------do this properly!!!!
+    execv(executable, ['python'] + argv)   #  <----  CPython
+    # Micropython; reboot module
+    #reset()
 
 # Handle (transient) serial or comms errors; needs expansion ;-)
 def commsFail(why):
@@ -64,8 +69,10 @@ def commsFail(why):
 def hardwareFail(why):
     print('A Critical Hardware error has occured!')
     print('Do a full power off/on cycle and check wiring etc..:\n' + why + '\n')
-    while True:
-        sleep(60)
+    quit()     #  <----  CPython, just exit...`
+    # Micropython; hang...
+    #while True:  # loop forever
+    #    sleep(60)
 
 # CPython only: Replace this with micropython inbuilt ticks_ms))(
 def ticks_ms():
@@ -110,8 +117,6 @@ def OMrequest(OMkey,OMflags):
     # Send the M409 command to RRF
     if not sendGcode(cmd):
         commsFail('Serial/UART failed: Cannot write to controller')
-
-    #print('Sent: ' + cmd)
     requestTime = ticks_ms()
 
     # And wait for a response
@@ -255,7 +260,7 @@ for key in OMstatuskeys[machineMode]:
 
 while True:
     begin = ticks_ms()
-    if OMrequest('state','fnd2'):
+    if OMrequest('state','vnd2'):
         # Set the list of keys based on our state
         # If uptime has decreased do a restart
         # also restart if mode chaanges
@@ -276,4 +281,5 @@ while True:
             else:
                 OMrequest(key,'fnd99')
     updateOutput(status,machineMode)
+    collect()
     sleep(updateTime/1000)
