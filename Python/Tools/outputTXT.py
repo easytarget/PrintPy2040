@@ -11,21 +11,72 @@ from sys import exit
 # We also get 'boards' during startup to determine the machine mode
 
 # keys to full update on startup and when seqs change
-OMstatuskeys = {'FFF':['heat','job','boards','network','tools'],
-                'CNC':[],
-                'Laser':[]}
+OMstatuskeys = {'FFF':['heat','tools','job','boards','network'],
+                'CNC':['job','boards','network'],
+                'Laser':['job','boards','network']}
 # subset of keys to frequent update independent of seqs
 OMupdatekeys = {'FFF':['heat','job','boards'],
-                'CNC':[],
-                'Laser':[]}
+                'CNC':['job','boards'],
+                'Laser':['job','boards']}
 
 def updateOutput(status,machineMode):
     if machineMode == 'FFF':
+        updateCommon(status)
         updateFFF(status)
+        updateJob(status)
+        updateMessages(status)
     elif machineMode == 'CNC':
-        print('CNC output not yet implemented')
+        updateCommon(status)
+        updateJob(status)
+        updateMessages(status)
+        print(' | Full CNC output not yet implemented')
     elif machineMode == 'Laser':
-        print('Laser output not yet implemented')
+        updateCommon(status)
+        updateJob(status)
+        updateMessages(status)
+        print(' | Full Laser output not yet implemented')
+
+def updateCommon(status):
+    # Overall Status
+    print('status:',status['state']['status'],
+          '| uptime:',status['state']['upTime'],
+          end='')
+    # Voltage
+    print(' | Vin: %.1f' % status['boards'][0]['vIn']['current'],end='')
+    # MCU temp
+    print(' | mcu: %.1f' % status['boards'][0]['mcuTemp']['current'],end='')
+    # Network
+    if len(status['network']['interfaces']) > 0:
+        print(' | network:', status['network']['interfaces'][0]['state'],end='')
+    # Temporary States
+    if status['state']['status'] in ['updating','starting']:
+        # display a splash while starting or updating..
+        print()
+        return False
+    return True
+
+def updateJob(status):
+        # Job progress
+        if status['job']['build']:
+            try:
+                percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
+            except ZeroDivisionError:  # file size can be 0 as the job starts
+                percent = 0
+            print(' | progress:', "%.1f" % percent,end='%')
+
+def updateMessages(status):
+    # M117 messages
+    if status['state']['displayMessage']:
+        print(' | message:', status['state']['displayMessage'],end='')
+    # M291 messages
+    if status['state']['messageBox']:
+        if status['state']['messageBox']['mode'] == 0:
+            print(' | info: ',end='')
+        else:
+            print(' | query: ',end='')
+        if status['state']['messageBox']['title']:
+            print('==', status['state']['messageBox']['title'],end=' == ')
+        print(status['state']['messageBox']['message'],end='')
 
 def updateFFF(status):
     def showHeater(number,name):
@@ -40,27 +91,6 @@ def updateFFF(status):
 
     # Currently a one-line text status output,
     #  eventually a separate class to drive physical displays
-
-    # Overall Status
-    print('status:',status['state']['status'],
-          '| uptime:',status['state']['upTime'],
-          end='')
-
-    # Voltage
-    print(' | Vin: %.1f' % status['boards'][0]['vIn']['current'],end='')
-
-    # MCU temp
-    print(' | mcu: %.1f' % status['boards'][0]['mcuTemp']['current'],end='')
-
-    # Network
-    if len(status['network']['interfaces']) > 0:
-        print(' | network:', status['network']['interfaces'][0]['state'],end='')
-
-    # Temporary States
-    if status['state']['status'] in ['updating','starting']:
-        # display a splash while starting or updating..
-        print()
-        return
 
     # Machine Off
     if status['state']['status'] == 'off':
@@ -83,25 +113,4 @@ def updateFFF(status):
                 if len(tool['heaters']) > 0:
                     showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
 
-        # Job progress
-        if status['job']['build']:
-            try:
-                percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
-            except ZeroDivisionError:  # file size can be 0 as the job starts
-                percent = 0
-            print(' | progress:', "%.1f" % percent,end='%')
-
-    # M117 messages
-    if status['state']['displayMessage']:
-        print(' | message:', status['state']['displayMessage'],end='')
-
-    # M291 messages
-    if status['state']['messageBox']:
-        if status['state']['messageBox']['mode'] == 0:
-            print(' | info: ',end='')
-        else:
-            print(' | query: ',end='')
-        if status['state']['messageBox']['title']:
-            print('==', status['state']['messageBox']['title'],end=' == ')
-        print(status['state']['messageBox']['message'],end='')
     print()
