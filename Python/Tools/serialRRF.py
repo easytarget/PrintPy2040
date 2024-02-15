@@ -231,7 +231,7 @@ else:
 
 # request the boards, status and seqs keys
 for key in ['boards','state','seqs']:
-    if not OMrequest(key,'vnd2'):
+    if not OMrequest(key,'vnd99'):
         commsFail('Failed to accqire "' + key + '" data')
 
 # Determine SBC mode
@@ -243,12 +243,15 @@ else:
     OMseqcounter = status['seqs']
     print('Controller is standalone')
 
-# Determine machine mode (FFF,CNC or Laser)
+# Determine and record the machine mode (FFF,CNC or Laser)
 machineMode = status['state']['machineMode']
 if machineMode in OMstatuskeys.keys():
     print(machineMode + ' machine mode detected')
 else:
     restartNow('We currently do not support "' + machineMode + '" controller mode, sorry.')
+
+# Record the curret uptime for the board.
+upTime = status['state']['upTime']
 
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
@@ -262,14 +265,19 @@ while True:
     begin = ticks_ms()
     # Do a full 'state' tree update
     if OMrequest('state','vnd99'):
-        # If uptime has decreased do a restart
-        # also restart if mode chaanges
-        pass
+        # test for uptime or machineMode changes and reboot as needed
+        if status['state']['machineMode'] != machineMode:
+            restartNow('Machine mode has chaanged')
+        if status['state']['upTime'] < upTime:
+            restartNow('Controller rebooted')
+        else:
+            # Record the curret uptime for the board.
+            upTime = status['state']['upTime']
     else:
         print('Failed to fetch machine state')
         sleep(updateTime/10000)  # re-try after 1/10th of update time
         continue
-    # test here for uptime or machineMode changes and reboot as needed
+
     if SBCmode:
         for key in OMstatuskeys[machineMode]:
             OMrequest(key,'vnd99')

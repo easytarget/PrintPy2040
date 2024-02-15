@@ -10,11 +10,11 @@ from sys import exit
 #  We get 'seqs' each loop unless in SBC mode
 # We also get 'boards' during startup to determine the machine mode
 
-# keys to full update on startup and when sews change
+# keys to full update on startup and when seqs change
 OMstatuskeys = {'FFF':['heat','job','boards','network','tools'],
                 'CNC':[],
                 'Laser':[]}
-# subset of keys to frequent update independent of SEQs
+# subset of keys to frequent update independent of seqs
 OMupdatekeys = {'FFF':['heat','job','boards'],
                 'CNC':[],
                 'Laser':[]}
