@@ -31,10 +31,10 @@ def updateOutput(status,machineMode):
         else:
             hrs = ''
         if m > 0:
-            mins = "%2.f" % m + ':'
+            mins = "%02.f" % m + ':'
         else:
             mins = ''
-        secs = "%2.f" % s
+        secs = "%02.f" % s
         return hrs+mins+secs
 
     # Overall Status
