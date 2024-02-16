@@ -6,11 +6,12 @@ from sys import exit
 '''
 
 # These are the only key sets in the OM we are interested in
-#  We will always get 'state' at the start of the loop
-#  We get 'seqs' each loop unless in SBC mode
-# We also get 'boards' during startup to determine the machine mode
+# We will always get 'state' at the start of the loop
+#  - We get 'seqs' each loop unless in SBC mode
+#  - We also get 'boards' during startup to determine the machine mode
+# All other keys need to be specified below on a per-mode basis
 
-# keys to full update on startup and when seqs change
+# keys to verbose update on startup and when seqs change
 OMstatuskeys = {'FFF':['heat','tools','job','boards','network'],
                 'CNC':['job','boards','network'],
                 'Laser':['job','boards','network']}
@@ -20,27 +21,45 @@ OMupdatekeys = {'FFF':['heat','job','boards'],
                 'Laser':['job','boards']}
 
 def updateOutput(status,machineMode):
-    if machineMode == 'FFF':
-        updateCommon(status)
-        updateFFF(status)
+    # Human readable uptime
+    def hms(t):
+        h = int(t / 3600)
+        m = int((t / 60) % 60)
+        s = int(t % 60)
+        if h > 0:
+            hrs = str(h)  + ':'
+        else:
+            hrs = ''
+        if m > 0:
+            mins = "%2.f" % m + ':'
+        else:
+            mins = ''
+        secs = "%2.f" % s
+        return hrs+mins+secs
+
+    # Overall Status
+    print('status:',status['state']['status'], end='')
+    print(' | uptime:',hms(status['state']['upTime']), end='')
+    if status['state']['status'] in ['updating','starting']:
+        # placeholder for display splash while starting or updating..
+        print(' | Please wait')
+        return
+    updateCommon(status)
+    if status['state']['status'] == 'off':
+        pass   # Placeholder for display off code etc..
+    else:
+        # this is where we show mode-specific data
+        if machineMode == 'FFF':
+            updateFFF(status)
+        elif machineMode == 'CNC':
+            updateCNC(status)
+        elif machineMode == 'Laser':
+            updateLaser(status)
         updateJob(status)
-        updateMessages(status)
-    elif machineMode == 'CNC':
-        updateCommon(status)
-        updateJob(status)
-        updateMessages(status)
-        print(' | Full CNC output not yet implemented')
-    elif machineMode == 'Laser':
-        updateCommon(status)
-        updateJob(status)
-        updateMessages(status)
-        print(' | Full Laser output not yet implemented')
+    updateMessages(status)
+    print()
 
 def updateCommon(status):
-    # Overall Status
-    print('status:',status['state']['status'],
-          '| uptime:',status['state']['upTime'],
-          end='')
     # Voltage
     print(' | Vin: %.1f' % status['boards'][0]['vIn']['current'],end='')
     # MCU temp
@@ -48,11 +67,6 @@ def updateCommon(status):
     # Network
     if len(status['network']['interfaces']) > 0:
         print(' | network:', status['network']['interfaces'][0]['state'],end='')
-    # Temporary States
-    if status['state']['status'] in ['updating','starting']:
-        # display a splash while starting or updating..
-        print()
-        return False
     return True
 
 def updateJob(status):
@@ -79,6 +93,7 @@ def updateMessages(status):
         print(status['state']['messageBox']['message'],end='')
 
 def updateFFF(status):
+    # For FFF mode we want to show the Heater states
     def showHeater(number,name):
         if status['heat']['heaters'][number]['state'] == 'fault':
             print(' | ' + name + ': FAULT',end='')
@@ -89,28 +104,22 @@ def updateFFF(status):
             elif status['heat']['heaters'][number]['state'] == 'standby':
                 print(' (%.1f)' % status['heat']['heaters'][number]['standby'],end='')
 
-    # Currently a one-line text status output,
-    #  eventually a separate class to drive physical displays
+    # Bed
+    if len(status['heat']['bedHeaters']) > 0:
+        if status['heat']['bedHeaters'][0] != -1:
+            showHeater(status['heat']['bedHeaters'][0],'bed')
+    # Chamber
+    if len(status['heat']['chamberHeaters']) > 0:
+        if status['heat']['chamberHeaters'][0] != -1:
+            showHeater(status['heat']['chamberHeaters'][0],'chamber')
+    # Extruders
+    if len(status['tools']) > 0:
+        for tool in status['tools']:
+            if len(tool['heaters']) > 0:
+                showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
 
-    # Machine Off
-    if status['state']['status'] == 'off':
-        # turn display off and return
-        pass
-    else:
-        # Bed
-        if len(status['heat']['bedHeaters']) > 0:
-            if status['heat']['bedHeaters'][0] != -1:
-                showHeater(status['heat']['bedHeaters'][0],'bed')
+def updateCNC(status):
+    print(' | CNC output not yet implemented')
 
-        # Chamber
-        if len(status['heat']['chamberHeaters']) > 0:
-            if status['heat']['chamberHeaters'][0] != -1:
-                showHeater(status['heat']['chamberHeaters'][0],'chamber')
-
-        # Extruders
-        if len(status['tools']) > 0:
-            for tool in status['tools']:
-                if len(tool['heaters']) > 0:
-                    showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
-
-    print()
+def updateLaser(status):
+    print(' | Laser output not yet implemented')
