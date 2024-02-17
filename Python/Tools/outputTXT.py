@@ -27,106 +27,106 @@ class outputRRF:
         self.refresh = refresh
         print('output is starting, refresh interval: ',self.refresh)
 
-def updateOutput(status,machineMode):
-    # Human readable uptime
-    def hms(t):
-        h = int(t / 3600)
-        m = int((t / 60) % 60)
-        s = int(t % 60)
-        if h > 0:
-            hrs = str(h)  + ':'
+    def updateOutput(self):
+        # Human readable uptime
+        def hms(t):
+            h = int(t / 3600)
+            m = int((t / 60) % 60)
+            s = int(t % 60)
+            if h > 0:
+                hrs = str(h)  + ':'
+            else:
+                hrs = ''
+            if m > 0:
+                mins = "%02.f" % m + ':'
+            else:
+                mins = ''
+            secs = "%02.f" % s
+            return hrs+mins+secs
+
+        # Overall Status
+        print('status:',self.localOM['state']['status'], end='')
+        print(' | uptime:',hms(self.localOM['state']['upTime']), end='')
+        if self.localOM['state']['status'] in ['updating','starting']:
+            # placeholder for display splash while starting or updating..
+            print(' | Please wait')
+            return
+        self.updateCommon()
+        if self.localOM['state']['status'] == 'off':
+            pass   # Placeholder for display off code etc..
         else:
-            hrs = ''
-        if m > 0:
-            mins = "%02.f" % m + ':'
-        else:
-            mins = ''
-        secs = "%02.f" % s
-        return hrs+mins+secs
+            # this is where we show mode-specific data
+            if self.localOM['state']['machineMode'] == 'FFF':
+                self.updateFFF()
+            elif self.localOM['state']['machineMode']  == 'CNC':
+                self.updateCNC()
+            elif self.localOM['state']['machineMode']  == 'Laser':
+                self.updateLaser()
+            self.updateJob()
+        self.updateMessages()
+        print()
 
-    # Overall Status
-    print('status:',status['state']['status'], end='')
-    print(' | uptime:',hms(status['state']['upTime']), end='')
-    if status['state']['status'] in ['updating','starting']:
-        # placeholder for display splash while starting or updating..
-        print(' | Please wait')
-        return
-    updateCommon(status)
-    if status['state']['status'] == 'off':
-        pass   # Placeholder for display off code etc..
-    else:
-        # this is where we show mode-specific data
-        if machineMode == 'FFF':
-            updateFFF(status)
-        elif machineMode == 'CNC':
-            updateCNC(status)
-        elif machineMode == 'Laser':
-            updateLaser(status)
-        updateJob(status)
-    updateMessages(status)
-    print()
+    def updateCommon(self):
+        # Voltage
+        print(' | Vin: %.1f' % self.localOM['boards'][0]['vIn']['current'],end='')
+        # MCU temp
+        print(' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current'],end='')
+        # Network
+        if len(self.localOM['network']['interfaces']) > 0:
+            print(' | network:', self.localOM['network']['interfaces'][0]['state'],end='')
+        return True
 
-def updateCommon(status):
-    # Voltage
-    print(' | Vin: %.1f' % status['boards'][0]['vIn']['current'],end='')
-    # MCU temp
-    print(' | mcu: %.1f' % status['boards'][0]['mcuTemp']['current'],end='')
-    # Network
-    if len(status['network']['interfaces']) > 0:
-        print(' | network:', status['network']['interfaces'][0]['state'],end='')
-    return True
+    def updateJob(self):
+            # Job progress
+            if self.localOM['job']['build']:
+                try:
+                    percent = self.localOM['job']['filePosition'] / self.localOM['job']['file']['size'] * 100
+                except ZeroDivisionError:  # file size can be 0 as the job starts
+                    percent = 0
+                print(' | progress:', "%.1f" % percent,end='%')
 
-def updateJob(status):
-        # Job progress
-        if status['job']['build']:
-            try:
-                percent = status['job']['filePosition'] / status['job']['file']['size'] * 100
-            except ZeroDivisionError:  # file size can be 0 as the job starts
-                percent = 0
-            print(' | progress:', "%.1f" % percent,end='%')
+    def updateMessages(self):
+        # M117 messages
+        if self.localOM['state']['displayMessage']:
+            print(' | message:', self.localOM['state']['displayMessage'],end='')
+        # M291 messages
+        if self.localOM['state']['messageBox']:
+            if self.localOM['state']['messageBox']['mode'] == 0:
+                print(' | info: ',end='')
+            else:
+                print(' | query: ',end='')
+            if self.localOM['state']['messageBox']['title']:
+                print('==', self.localOM['state']['messageBox']['title'],end=' == ')
+            print(self.localOM['state']['messageBox']['message'],end='')
 
-def updateMessages(status):
-    # M117 messages
-    if status['state']['displayMessage']:
-        print(' | message:', status['state']['displayMessage'],end='')
-    # M291 messages
-    if status['state']['messageBox']:
-        if status['state']['messageBox']['mode'] == 0:
-            print(' | info: ',end='')
-        else:
-            print(' | query: ',end='')
-        if status['state']['messageBox']['title']:
-            print('==', status['state']['messageBox']['title'],end=' == ')
-        print(status['state']['messageBox']['message'],end='')
+    def updateFFF(self):
+        # For FFF mode we want to show the Heater states
+        def showHeater(number,name):
+            if self.localOM['heat']['heaters'][number]['state'] == 'fault':
+                print(' | ' + name + ': FAULT',end='')
+            else:
+                print(' | ' + name + ':', '%.1f' % self.localOM['heat']['heaters'][number]['current'],end='')
+                if self.localOM['heat']['heaters'][number]['state'] == 'active':
+                    print(' (%.1f)' % self.localOM['heat']['heaters'][number]['active'],end='')
+                elif self.localOM['heat']['heaters'][number]['state'] == 'standby':
+                    print(' (%.1f)' % self.localOM['heat']['heaters'][number]['standby'],end='')
 
-def updateFFF(status):
-    # For FFF mode we want to show the Heater states
-    def showHeater(number,name):
-        if status['heat']['heaters'][number]['state'] == 'fault':
-            print(' | ' + name + ': FAULT',end='')
-        else:
-            print(' | ' + name + ':', '%.1f' % status['heat']['heaters'][number]['current'],end='')
-            if status['heat']['heaters'][number]['state'] == 'active':
-                print(' (%.1f)' % status['heat']['heaters'][number]['active'],end='')
-            elif status['heat']['heaters'][number]['state'] == 'standby':
-                print(' (%.1f)' % status['heat']['heaters'][number]['standby'],end='')
+        # Bed
+        if len(self.localOM['heat']['bedHeaters']) > 0:
+            if self.localOM['heat']['bedHeaters'][0] != -1:
+                showHeater(self.localOM['heat']['bedHeaters'][0],'bed')
+        # Chamber
+        if len(self.localOM['heat']['chamberHeaters']) > 0:
+            if self.localOM['heat']['chamberHeaters'][0] != -1:
+                showHeater(self.localOM['heat']['chamberHeaters'][0],'chamber')
+        # Extruders
+        if len(self.localOM['tools']) > 0:
+            for tool in self.localOM['tools']:
+                if len(tool['heaters']) > 0:
+                    showHeater(tool['heaters'][0],'e' + str(self.localOM['tools'].index(tool)))
 
-    # Bed
-    if len(status['heat']['bedHeaters']) > 0:
-        if status['heat']['bedHeaters'][0] != -1:
-            showHeater(status['heat']['bedHeaters'][0],'bed')
-    # Chamber
-    if len(status['heat']['chamberHeaters']) > 0:
-        if status['heat']['chamberHeaters'][0] != -1:
-            showHeater(status['heat']['chamberHeaters'][0],'chamber')
-    # Extruders
-    if len(status['tools']) > 0:
-        for tool in status['tools']:
-            if len(tool['heaters']) > 0:
-                showHeater(tool['heaters'][0],'e' + str(status['tools'].index(tool)))
+    def updateCNC(self):
+        print(' | CNC output not yet implemented')
 
-def updateCNC(status):
-    print(' | CNC output not yet implemented')
-
-def updateLaser(status):
-    print(' | Laser output not yet implemented')
+    def updateLaser(self):
+        print(' | Laser output not yet implemented')

@@ -1,5 +1,5 @@
 from RRFconfig import port,baud
-from outputTXT import outputRRF,updateOutput
+from outputTXT import outputRRF
 
 from serial import Serial
 from time import sleep,time           # <---- CPython: for micropython use ticks_ms and ticks_diff directly
@@ -288,6 +288,6 @@ while True:
                 OMrequest(key,'vnd99')
             else:
                 OMrequest(key,'fnd99')
-    updateOutput(out.localOM,machineMode)
+    out.updateOutput()
     collect()
     sleep(updateTime/1000)
