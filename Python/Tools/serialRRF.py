@@ -38,7 +38,7 @@ from gc import collect
 '''
 
 # A global dict. structure of the all OM keys we see when running state and update checks
-status = {'state':{'status':'undefined'},'seqs':None}
+localOM = {'state':{'status':'undefined'},'seqs':None}
 
 # Basic time between updates (ms)
 updateTime = 1000
@@ -112,7 +112,7 @@ def OMrequest(OMkey,OMflags):
         return a if b is None else b
 
     # Using a global here saves memory. ??
-    global status
+    global localOM
 
     # Construct the command (no newline)
     cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
@@ -166,7 +166,7 @@ def OMrequest(OMkey,OMflags):
             # invalid JSON, skip to next line
             print('Invalid JSON:',line)
             continue
-        # Update global status structure
+        # Update localOM data
         if 'result' in payload.keys():
             if payload['result'] == None:
                 # if reult is None the key doesnt exist
@@ -175,10 +175,10 @@ def OMrequest(OMkey,OMflags):
                 # We have a valid result, store it
                 if 'v' in OMflags:
                     # Verbose output replaces the existing key
-                    status[payload['key']] = payload['result']
+                    localOM[payload['key']] = payload['result']
                 else:
                     # Frequent updates just refresh the existing key
-                    status[payload['key']] = merge(status[payload['key']],payload['result'])
+                    localOM[payload['key']] = merge(localOM[payload['key']],payload['result'])
         else:
             # Valid JSON but no 'result' data in it
             return False
@@ -186,15 +186,15 @@ def OMrequest(OMkey,OMflags):
     return True
 
 def seqRequest():
-    # Send a 'seqs' request to the OM, updates status and returns
+    # Send a 'seqs' request to the OM, updates localOM and returns
     # a list of keys where the sequence number has changed
     global OMseqcounter
     changed=[]
     if OMrequest('seqs','fnd99'):
         for key in out.verboseKeys[machineMode]:
-            if OMseqcounter[key] != status['seqs'][key]:
+            if OMseqcounter[key] != localOM['seqs'][key]:
                 changed.append(key)
-                OMseqcounter[key] = status['seqs'][key]
+                OMseqcounter[key] = localOM['seqs'][key]
     else:
         print('Sequence key request failed')
     return changed
@@ -235,29 +235,29 @@ if firmwareRequest():
 else:
     commsFail('failed to get Firmware string')
 
-# request the boards, status and seqs keys
+# request the boards, state and seqs keys
 for key in ['boards','state','seqs']:
     if not OMrequest(key,'vnd99'):
         commsFail('failed to accqire "' + key + '" data')
 
 # Determine SBC mode
-if status['seqs'] == None:
+if localOM['seqs'] == None:
     SBCmode = True
     print('RRF controller is in SBC mode')
 else:
     SBCmode = False
-    OMseqcounter = status['seqs']
+    OMseqcounter = localOM['seqs']
     print('RRF controller is standalone')
 
 # Determine and record the machine mode (FFF,CNC or Laser)
-machineMode = status['state']['machineMode']
+machineMode = localOM['state']['machineMode']
 if machineMode in out.verboseKeys.keys():
     print(machineMode + ' machine mode detected')
 else:
     restartNow('we currently do not support "' + machineMode + '" controller mode, sorry.')
 
 # Record the curret uptime for the board.
-upTime = status['state']['upTime']
+upTime = localOM['state']['upTime']
 
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
@@ -272,13 +272,13 @@ while True:
     # Do a full 'state' tree update
     if OMrequest('state','vnd99'):
         # test for uptime or machineMode changes and reboot as needed
-        if status['state']['machineMode'] != machineMode:
+        if localOM['state']['machineMode'] != machineMode:
             restartNow('machine mode has changed')
-        if status['state']['upTime'] < upTime:
+        if localOM['state']['upTime'] < upTime:
             restartNow('RRF controller rebooted')
         else:
             # Record the curret uptime for the board.
-            upTime = status['state']['upTime']
+            upTime = localOM['state']['upTime']
     else:
         print('Failed to fetch machine state')
         sleep(updateTime/10000)  # re-try after 1/10th of update time
@@ -294,6 +294,6 @@ while True:
                 OMrequest(key,'vnd99')
             else:
                 OMrequest(key,'fnd99')
-    updateOutput(status,machineMode)
+    updateOutput(localOM,machineMode)
     collect()
     sleep(updateTime/1000)
