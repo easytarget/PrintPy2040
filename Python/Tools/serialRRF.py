@@ -1,5 +1,6 @@
 from RRFconfig import port,baud
-from outputTXT import updateOutput,OMstatuskeys,OMupdatekeys
+from outputTXT import outputRRF,updateOutput
+
 from serial import Serial
 from time import sleep,time           # <---- CPython: for micropython use ticks_ms and ticks_diff directly
 from json import loads
@@ -46,6 +47,8 @@ rrfWait = updateTime / 2
 
 # string of valid ascii chars for JSON response body
 jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
+
+
 
 # Do a minimum drama restart/reboot
 def restartNow(why):
@@ -188,7 +191,7 @@ def seqRequest():
     global OMseqcounter
     changed=[]
     if OMrequest('seqs','fnd99'):
-        for key in OMstatuskeys[machineMode]:
+        for key in out.verboseKeys[machineMode]:
             if OMseqcounter[key] != status['seqs'][key]:
                 changed.append(key)
                 OMseqcounter[key] = status['seqs'][key]
@@ -217,47 +220,50 @@ def firmwareRequest():
 
 print('serialRRF is starting')
 
+# Get output device
+out = outputRRF(refresh=0.5)
+
 # Init RRF connection
 try:
     rrf = Serial(port,baud,timeout=(rrfWait/1000))
 except:
     hardwareFail('UART/serial could not be initialised')
 
-print('Checking for connected controller\n> M115')
+print('checking for connected controller\n> M115')
 if firmwareRequest():
     print('serialRRF is connected')
 else:
-    commsFail('Failed to get Firmware string')
+    commsFail('failed to get Firmware string')
 
 # request the boards, status and seqs keys
 for key in ['boards','state','seqs']:
     if not OMrequest(key,'vnd99'):
-        commsFail('Failed to accqire "' + key + '" data')
+        commsFail('failed to accqire "' + key + '" data')
 
 # Determine SBC mode
 if status['seqs'] == None:
     SBCmode = True
-    print('Controller is in SBC mode')
+    print('RRF controller is in SBC mode')
 else:
     SBCmode = False
     OMseqcounter = status['seqs']
-    print('Controller is standalone')
+    print('RRF controller is standalone')
 
 # Determine and record the machine mode (FFF,CNC or Laser)
 machineMode = status['state']['machineMode']
-if machineMode in OMstatuskeys.keys():
+if machineMode in out.verboseKeys.keys():
     print(machineMode + ' machine mode detected')
 else:
-    restartNow('We currently do not support "' + machineMode + '" controller mode, sorry.')
+    restartNow('we currently do not support "' + machineMode + '" controller mode, sorry.')
 
 # Record the curret uptime for the board.
 upTime = status['state']['upTime']
 
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
-for key in OMstatuskeys[machineMode]:
+for key in out.verboseKeys[machineMode]:
     if not OMrequest(key,'vnd99'):
-        commsFail('Failed to accqire initial "' + key + '" data')
+        commsFail('failed to accqire initial "' + key + '" data')
 
 # MAIN LOOP
 
@@ -267,9 +273,9 @@ while True:
     if OMrequest('state','vnd99'):
         # test for uptime or machineMode changes and reboot as needed
         if status['state']['machineMode'] != machineMode:
-            restartNow('Machine mode has chaanged')
+            restartNow('machine mode has changed')
         if status['state']['upTime'] < upTime:
-            restartNow('Controller rebooted')
+            restartNow('RRF controller rebooted')
         else:
             # Record the curret uptime for the board.
             upTime = status['state']['upTime']
@@ -279,11 +285,11 @@ while True:
         continue
 
     if SBCmode:
-        for key in OMstatuskeys[machineMode]:
+        for key in out.verboseKeys[machineMode]:
             OMrequest(key,'vnd99')
     else:
         fullupdatelist = seqRequest()
-        for key in set(OMupdatekeys[machineMode]).union(fullupdatelist):
+        for key in set(out.frequentKeys[machineMode]).union(fullupdatelist):
             if key in fullupdatelist:
                 OMrequest(key,'vnd99')
             else:

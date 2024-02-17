@@ -11,14 +11,20 @@ from sys import exit
 #  - We also get 'boards' during startup to determine the machine mode
 # All other keys need to be specified below on a per-mode basis
 
-# keys to verbose update on startup and when seqs change
-OMstatuskeys = {'FFF':['heat','tools','job','boards','network'],
-                'CNC':['job','boards','network'],
-                'Laser':['job','boards','network']}
-# subset of keys to frequent update independent of seqs
-OMupdatekeys = {'FFF':['heat','job','boards'],
-                'CNC':['job','boards'],
-                'Laser':['job','boards']}
+
+class outputRRF:
+    # keys to verbose update on startup and when seqs change
+    verboseKeys = {'FFF':['heat','tools','job','boards','network'],
+                    'CNC':['job','boards','network'],
+                    'Laser':['job','boards','network']}
+    # subset of keys to frequent update independent of seqs
+    frequentKeys = {'FFF':['heat','job','boards'],
+                    'CNC':['job','boards'],
+                    'Laser':['job','boards']}
+
+    def __init__(self, refresh):
+        self.refresh = refresh
+        print('output is starting, refresh interval: ',self.refresh)
 
 def updateOutput(status,machineMode):
     # Human readable uptime
