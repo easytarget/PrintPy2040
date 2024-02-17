@@ -22,7 +22,8 @@ class outputRRF:
                     'CNC':['job','boards'],
                     'Laser':['job','boards']}
 
-    def __init__(self, refresh):
+    def __init__(self, initialOM, refresh):
+        self.localOM = initialOM
         self.refresh = refresh
         print('output is starting, refresh interval: ',self.refresh)
 

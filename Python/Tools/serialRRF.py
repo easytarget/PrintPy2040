@@ -37,9 +37,6 @@ from gc import collect
     https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
 '''
 
-# A global dict. structure of the all OM keys we see when running state and update checks
-localOM = {'state':{'status':'undefined'},'seqs':None}
-
 # Basic time between updates (ms)
 updateTime = 1000
 # listen timeout for replies after sending request
@@ -111,9 +108,6 @@ def OMrequest(OMkey,OMflags):
             return [merge(x, y) for x, y in zip_longest(a, b)]
         return a if b is None else b
 
-    # Using a global here saves memory. ??
-    global localOM
-
     # Construct the command (no newline)
     cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
 
@@ -175,10 +169,10 @@ def OMrequest(OMkey,OMflags):
                 # We have a valid result, store it
                 if 'v' in OMflags:
                     # Verbose output replaces the existing key
-                    localOM[payload['key']] = payload['result']
+                    out.localOM[payload['key']] = payload['result']
                 else:
                     # Frequent updates just refresh the existing key
-                    localOM[payload['key']] = merge(localOM[payload['key']],payload['result'])
+                    out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
         else:
             # Valid JSON but no 'result' data in it
             return False
@@ -192,9 +186,9 @@ def seqRequest():
     changed=[]
     if OMrequest('seqs','fnd99'):
         for key in out.verboseKeys[machineMode]:
-            if OMseqcounter[key] != localOM['seqs'][key]:
+            if OMseqcounter[key] != out.localOM['seqs'][key]:
                 changed.append(key)
-                OMseqcounter[key] = localOM['seqs'][key]
+                OMseqcounter[key] = out.localOM['seqs'][key]
     else:
         print('Sequence key request failed')
     return changed
@@ -221,7 +215,7 @@ def firmwareRequest():
 print('serialRRF is starting')
 
 # Get output device
-out = outputRRF(refresh=0.5)
+out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None}, refresh=0.5)
 
 # Init RRF connection
 try:
@@ -241,23 +235,23 @@ for key in ['boards','state','seqs']:
         commsFail('failed to accqire "' + key + '" data')
 
 # Determine SBC mode
-if localOM['seqs'] == None:
+if out.localOM['seqs'] == None:
     SBCmode = True
     print('RRF controller is in SBC mode')
 else:
     SBCmode = False
-    OMseqcounter = localOM['seqs']
+    OMseqcounter = out.localOM['seqs']
     print('RRF controller is standalone')
 
 # Determine and record the machine mode (FFF,CNC or Laser)
-machineMode = localOM['state']['machineMode']
+machineMode = out.localOM['state']['machineMode']
 if machineMode in out.verboseKeys.keys():
     print(machineMode + ' machine mode detected')
 else:
     restartNow('we currently do not support "' + machineMode + '" controller mode, sorry.')
 
 # Record the curret uptime for the board.
-upTime = localOM['state']['upTime']
+upTime = out.localOM['state']['upTime']
 
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
@@ -272,13 +266,13 @@ while True:
     # Do a full 'state' tree update
     if OMrequest('state','vnd99'):
         # test for uptime or machineMode changes and reboot as needed
-        if localOM['state']['machineMode'] != machineMode:
+        if out.localOM['state']['machineMode'] != machineMode:
             restartNow('machine mode has changed')
-        if localOM['state']['upTime'] < upTime:
+        if out.localOM['state']['upTime'] < upTime:
             restartNow('RRF controller rebooted')
         else:
             # Record the curret uptime for the board.
-            upTime = localOM['state']['upTime']
+            upTime = out.localOM['state']['upTime']
     else:
         print('Failed to fetch machine state')
         sleep(updateTime/10000)  # re-try after 1/10th of update time
@@ -294,6 +288,6 @@ while True:
                 OMrequest(key,'vnd99')
             else:
                 OMrequest(key,'fnd99')
-    updateOutput(localOM,machineMode)
+    updateOutput(out.localOM,machineMode)
     collect()
     sleep(updateTime/1000)
