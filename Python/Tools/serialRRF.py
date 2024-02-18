@@ -1,6 +1,9 @@
-from RRFconfig import port,baud
+try:
+    from RRFconfig import devices,baud
+except ModuleNotFoundError:
+    from RRFconfigExample import devices,baud
+    print('!! Using default config from RRFconfigExample.py')  # nag
 from outputTXT import outputRRF
-
 from serial import Serial
 from time import sleep,time           # <---- CPython: for micropython use ticks_ms and ticks_diff directly
 from json import loads
@@ -68,9 +71,9 @@ def commsFail(why):
 # Used for critical hardware errors during initialisation
 def hardwareFail(why):
     print('A Critical Hardware error has occured!')
-    print('Do a full power off/on cycle and check wiring etc..:\n' + why + '\n')
+    print('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
     quit()     #  <----  CPython, just exit...`
-    # Micropython; hang...
+    # Micropython; hang... ? maybe wait for button press to restart
     #while True:  # loop forever
     #    sleep(60)
 
@@ -211,14 +214,22 @@ def firmwareRequest():
 
 print('serialRRF is starting')
 
-# Get output device
-out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None}, refresh=0.5)
+# Get output/display device
+out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None})
 
-# Init RRF connection
-try:
-    rrf = Serial(port,baud,timeout=(rrfWait/1000))
-except:
-    hardwareFail('UART/serial could not be initialised')
+# Init RRF USB/serial connection
+rrf = None
+for device in devices:
+    try:
+        rrf = Serial(device,baud,timeout=(rrfWait/1000))
+    except:
+        print('device "' + device + '" not available')
+    else:
+        print('device "' + device + '" available')
+        break
+
+if not rrf:
+    hardwareFail('USB/serial could not be initialised')
 
 print('checking for connected controller\n> M115')
 if firmwareRequest():

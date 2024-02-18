@@ -22,10 +22,9 @@ class outputRRF:
                     'CNC':['job','boards'],
                     'Laser':['job','boards']}
 
-    def __init__(self, initialOM, refresh):
+    def __init__(self, initialOM):
         self.localOM = initialOM
-        self.refresh = refresh
-        print('output is starting, refresh interval: ',self.refresh)
+        print('output is starting')
 
     def updateOutput(self):
         # Human readable uptime
