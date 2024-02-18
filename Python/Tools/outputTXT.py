@@ -126,7 +126,7 @@ class outputRRF:
                     showHeater(tool['heaters'][0],'e' + str(self.localOM['tools'].index(tool)))
 
     def updateCNC(self):
-        print(' | CNC output not yet implemented')
+        print(' | CNC output not yet implemented',end='')
 
     def updateLaser(self):
-        print(' | Laser output not yet implemented')
+        print(' | Laser output not yet implemented',end='')

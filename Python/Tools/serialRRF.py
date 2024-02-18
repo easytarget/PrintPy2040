@@ -144,11 +144,8 @@ def OMrequest(OMkey,OMflags):
                     if (notJSON[-2:] == 'ok'):
                         break
 
-    if notJSON[-2:] != 'ok':
-        print('Timed out waiting for "ok": ',cmd, notJSON)
-
     if len(response) == 0:
-        print("No sensible response from: ",cmd, notJSON)
+        print('No sensible response from "',cmd,'" :: ',notJSON)
         return False
 
     # Process Json candidate lines
