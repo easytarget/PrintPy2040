@@ -1,6 +1,0 @@
-'''
-    Copy this file as `RRFconfig.py`, and
-    then edit the serial port path and baud rate there.
-'''
-port = '/dev/ttyACM0'
-baud = 57600
