@@ -1,17 +1,17 @@
 try:
-    from RRFconfig import devices,baud
+    from RRFconfig import devices,baud,rawLog,nonJsonLog
 except ModuleNotFoundError:
-    from RRFconfigExample import devices,baud
+    from RRFconfigExample import devices,baud,rawLog,nonJsonLog
     print('!! Using default config from RRFconfigExample.py')  # nag
 from outputTXT import outputRRF
 from serial import Serial
-from time import sleep,time           # <---- CPython: for micropython use ticks_ms and ticks_diff directly
+from time import sleep,time,localtime  # <---- CPython: for micropython use ticks_ms and ticks_diff directly
 from json import loads
 from itertools import zip_longest
-from sys import exit,executable,argv # <---- CPython
+from sys import exit,executable,argv   # <---- CPython
 from functools import reduce
-from os import execv                  # <---- CPython
-#from machine import reset            # MicroPython
+from os import execv                   # <---- CPython
+#from machine import reset             # MicroPython
 from gc import collect
 
 '''
@@ -47,7 +47,6 @@ rrfWait = updateTime / 2
 
 # string of valid ascii chars for JSON response body
 jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
-
 
 
 # Do a minimum drama restart/reboot
@@ -129,6 +128,8 @@ def OMrequest(OMkey,OMflags):
             char = rrf.read(1).decode('ascii')
         except UnicodeDecodeError:
             char = None
+        if rawLog and (char != None):
+            rawLogFile.write(char)
         if char:
             if char in jsonChars:
                 if char == '{':
@@ -146,7 +147,8 @@ def OMrequest(OMkey,OMflags):
                         maybeJSON = ""
                     if (notJSON[-2:] == 'ok'):
                         break
-
+    if nonJsonLog:
+        nonJsonLogFile.write(notJSON + '\n')
     if len(response) == 0:
         print('No sensible response from "',cmd,'" :: ',notJSON)
         return False
@@ -230,6 +232,28 @@ for device in devices:
 
 if not rrf:
     hardwareFail('USB/serial could not be initialised')
+
+# Debug Logging
+start = localtime()
+startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
+startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
+startText = '=== Starting: ' + startDate + ' ' + startTime + '\n'
+print('starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+
+if rawLog:
+    try:
+        rawLogFile = open(rawLog, "a")
+        print('raw data being logged to: ', rawLog)
+        rawLogFile.write(startText)
+    except Exception as error:
+        print('logging of raw data failed: ', error)
+if nonJsonLog:
+    try:
+        nonJsonLogFile = open(nonJsonLog, "a")
+        print('non-JSON data being logged to: ', nonJsonLog)
+        nonJsonLogFile.write(startText)
+    except Exception as error:
+        print('logging of non-JSON data failed: ', error)
 
 print('checking for connected controller\n> M115')
 if firmwareRequest():
