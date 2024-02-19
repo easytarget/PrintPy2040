@@ -48,14 +48,14 @@ class outputRRF:
 
         # Overall Status
         r = ""
-        r += 'status:' + self.localOM['state']['status']
-        r += ' | uptime:' + dhms(self.localOM['state']['upTime'])
+        r += 'status: ' + self.localOM['state']['status']
+        r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])
         if self.localOM['state']['status'] in ['updating','starting']:
             # placeholder for display splash while starting or updating..
             r += '  | Please wait'
             return r
         r += self.updateCommon()
-        if self.localOM['state']['status'] == 'DEBUGoff':
+        if self.localOM['state']['status'] == 'off':
             pass   # Placeholder for display off code etc..
         else:
             # this is where we show mode-specific data
@@ -76,7 +76,12 @@ class outputRRF:
         r = ' | Vin: %.1f' % self.localOM['boards'][0]['vIn']['current']
         r += ' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current']
         if len(self.localOM['network']['interfaces']) > 0:
-            r += ' | ' + self.localOM['network']['interfaces'][0]['type']+ ':' + self.localOM['network']['interfaces'][0]['state']
+            for interface in self.localOM['network']['interfaces']:
+                r += ' | ' + interface['type'] + ': '
+                if interface['state'] != 'active':
+                    r += interface['state']
+                else:
+                    r += interface['actualIP']
         return r
 
     def updateJob(self):
@@ -108,7 +113,7 @@ class outputRRF:
         # M117 messages
         r = ''
         if self.localOM['state']['displayMessage']:
-            r += ' | message:', self.localOM['state']['displayMessage']
+            r += ' | message: ' +  self.localOM['state']['displayMessage']
         # M291 messages
         if self.localOM['state']['messageBox']:
             if self.localOM['state']['messageBox']['mode'] == 0:
@@ -116,7 +121,7 @@ class outputRRF:
             else:
                 r += ' | query: '
             if self.localOM['state']['messageBox']['title']:
-                r += '==' + self.localOM['state']['messageBox']['title'] + ' == '
+                r += '== ' + self.localOM['state']['messageBox']['title'] + ' == '
             r += self.localOM['state']['messageBox']['message']
         return r
 
