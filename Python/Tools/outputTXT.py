@@ -8,9 +8,7 @@ from sys import exit
 # These are the only key sets in the OM we are interested in
 # We will always get 'state' at the start of the loop
 #  - We get 'seqs' each loop unless in SBC mode
-#  - We also get 'boards' during startup to determine the machine mode
-# All other keys need to be specified below on a per-mode basis
-
+# All other keys need to be specified below
 
 class outputRRF:
     # keys to verbose update on startup and when seqs change

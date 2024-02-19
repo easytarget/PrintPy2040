@@ -262,7 +262,7 @@ else:
     commsFail('failed to get Firmware string')
 
 # request the boards, state and seqs keys
-for key in ['boards','state','seqs']:
+for key in ['state','seqs']:
     if not OMrequest(key,'vnd99'):
         commsFail('failed to accqire "' + key + '" data')
 
