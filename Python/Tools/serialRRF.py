@@ -54,30 +54,28 @@ jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
 
 # Do a minimum drama restart/reboot
 def restartNow(why):
-    print('Restarting: ' + why + '\n')
+    print('Restarting: ' + why)
     execv(executable, ['python'] + argv)   #  <----  CPython
     # Micropython; reboot module
     #reset()
 
 # Handle (transient) serial or comms errors; needs expansion ;-)
 def commsFail(why):
-    print('Communications error: ' + why + '\nWaiting for Controller to respond.\n')
-    while True:
-        # Re-check the comms port (M115) looking for life..
-        sleep_ms(6000)
-        print('>',end='')
-        if firmwareRequest():
-            print()
-            restartNow('Communications lost then re-established')
+    print('Communications error: ' + why +'\nRestarting in ',end='')
+    # Pause for 10 seconds, then restart
+    for c in range(10,0,-1):
+        print(c,end=' ',flush=True)
+        sleep_ms(1000)
+    print()
+    restartNow('Communications lost')
 
-# Used for critical hardware errors during initialisation
+# Used for critical hardware errors during initialisation on MCU's
+# Unused in Cpython
 def hardwareFail(why):
-    print('A Critical Hardware error has occured!')
+    print('A critical hardware error has occured!')
     print('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
-    quit()     #  <----  CPython, just exit...`
-    # Micropython; hang... ? maybe wait for button press to restart
-    #while True:  # loop forever
-    #    sleep_ms(60000)
+    while True:  # loop forever
+        sleep_ms(60000)
 
 # Time functions to emulate micropython time lib (formally utime)
 def ticks_ms():
@@ -95,8 +93,8 @@ def sendGcode(code):
     #print('SEND: ', code, chksum)
     try:
         rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
-    except OSError:
-        print('Connection Failed')
+    except:
+        print('Write Failed')
         return False
     try:
         rrf.flush()
@@ -107,7 +105,6 @@ def sendGcode(code):
 
 # Handle a request to the OM
 def OMrequest(OMkey,OMflags):
-
     # Recursive/iterative merge of dict/list structures.
     # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
     def merge(a, b):
@@ -137,6 +134,8 @@ def OMrequest(OMkey,OMflags):
             char = rrf.read(1).decode('ascii')
         except UnicodeDecodeError:
             char = None
+        except:
+            commsFail('Serial/UART failed: Cannot read from controller')
         if rawLog and (char != None):
             rawLogFile.write(char)
         if char:
@@ -210,7 +209,7 @@ def firmwareRequest():
     try:
         rrf.write(b'\n')
     except:
-        hardwareFail('Failed to write during comms start, UART/serial hardware error?')
+        commsFail('Failed to write during comms start, UART/serial hardware error?')
     _ = rrf.read()
     sendGcode('M115')
     response = rrf.read_until(b"ok").decode('ascii')
@@ -237,6 +236,7 @@ for device in devices:
         print('device "' + device + '" not available')
     else:
         print('device "' + device + '" available')
+        sleep_ms(100)   # settle time
         break
 
 if not rrf:
