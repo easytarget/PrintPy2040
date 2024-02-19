@@ -4,13 +4,16 @@ except ModuleNotFoundError:
     from RRFconfigExample import devices,baud,rawLog,nonJsonLog
     print('!! Using default config from RRFconfigExample.py')  # nag
 from outputTXT import outputRRF
+
+#from machine import UART as Serial # ??? micropython ? 
 from serial import Serial
-from time import sleep,time,localtime  # <---- CPython: for micropython use ticks_ms and ticks_diff directly
+#from time import sleep_ms,ticks_ms,ticks_diff,localtime  # microPython
+from time import sleep,time,localtime  # CPython: for micropython also drop local time function defs
 from json import loads
 from itertools import zip_longest
-from sys import exit,executable,argv   # <---- CPython
+from sys import executable,argv        # CPython
 from functools import reduce
-from os import execv                   # <---- CPython
+from os import execv                   # CPython
 #from machine import reset             # MicroPython
 from gc import collect
 
@@ -61,7 +64,7 @@ def commsFail(why):
     print('Communications error: ' + why + '\nWaiting for Controller to respond.\n')
     while True:
         # Re-check the comms port (M115) looking for life..
-        sleep(6)
+        sleep_ms(6000)
         print('>',end='')
         if firmwareRequest():
             print()
@@ -74,11 +77,17 @@ def hardwareFail(why):
     quit()     #  <----  CPython, just exit...`
     # Micropython; hang... ? maybe wait for button press to restart
     #while True:  # loop forever
-    #    sleep(60)
+    #    sleep_ms(60000)
 
-# CPython only: Replace this with micropython inbuilt ticks_ms))(
+# Time functions to emulate micropython time lib (formally utime)
 def ticks_ms():
     return int(time() * 1000)
+def ticks_diff(first,second):
+    # This should 'just work' in CPython3+
+    # int's can be as 'long' as they need to be
+    return int(first-second)
+def sleep_ms(ms):
+    sleep(ms/1000)
 
 # send a gcode+chksum then block until it is sent, or error
 def sendGcode(code):
@@ -123,7 +132,7 @@ def OMrequest(OMkey,OMflags):
     nest = 0;
     maybeJSON = ''
     notJSON = ''
-    while ((ticks_ms()-requestTime) < rrfWait):  # CPython; for micropython use ticks_diff()
+    while (ticks_diff(ticks_ms(),requestTime) < rrfWait):
         try:
             char = rrf.read(1).decode('ascii')
         except UnicodeDecodeError:
@@ -309,7 +318,7 @@ while True:
             upTime = out.localOM['state']['upTime']
     else:
         print('Failed to fetch machine state')
-        sleep(updateTime/10000)  # re-try after 1/10th of update time
+        sleep_ms(updateTime/10)  # re-try after 1/10th of update time
         continue
 
     if SBCmode:
@@ -323,5 +332,9 @@ while True:
             else:
                 OMrequest(key,'fnd99')
     out.updateOutput()
+    #print(out.updateOutput())
+    # Request cycle ended, garbagecollect and wait for next update start
     collect()
-    sleep(updateTime/1000)
+    while ticks_diff(ticks_ms(),begin) < updateTime:
+        # Look for input: output toggle? System Status? Wifi Toggle? log(s) toggle?
+        sleep_ms(1)
