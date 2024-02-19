@@ -231,7 +231,9 @@ for device in devices:
         break
 
 if not rrf:
-    hardwareFail('USB/serial could not be initialised')
+    # Loop looking for a serial device
+    # For micropython we should stop here since no UART == a serious fail.
+    restartNow('USB/serial could not be initialised')
 
 # Debug Logging
 start = localtime()
