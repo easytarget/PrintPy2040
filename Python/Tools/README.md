@@ -7,7 +7,9 @@ Implement a ObjectModel based fetch/update/display cycle in Python, basically a 
   * By default just an example text/console output class is provided
 * Supports multiple machine modes (currently: `FFF`, `CNC` and `Laser`)
 * Requires `pyserial`
-  * Install your distros pyserial package: `sudo apt install python-serial` etc., `pip install --user pyserial`, or use a virtualenv (advanced users).
+  * Install your distros pyserial package: eg: `sudo apt install python-serial`, or `pip install --user pyserial`, or use a virtualenv (advanced users).
+  * On linux make sure your user is in the 'dialout' group to access the devices
+  * There is no reason why this wont run on Windows, but I have not tried this. You will need a Python 3 install with pyserial, and change the device path to the windows equivalent.
 * Notes:
   * CPython; but I am trying to keep all the logic and data handling simple and low-memory for running on microPython.
     * Non micropython standard libs are discouraged unless they have a easy micropython equivalent/local lib.
