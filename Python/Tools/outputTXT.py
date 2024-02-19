@@ -47,116 +47,127 @@ class outputRRF:
             return days+hrs+mins+secs
 
         # Overall Status
-        print('status:',self.localOM['state']['status'], end='')
-        print(' | uptime:',dhms(self.localOM['state']['upTime']), end='')
+        r = ""
+        r += 'status:' + self.localOM['state']['status']
+        r += ' | uptime:' + dhms(self.localOM['state']['upTime'])
         if self.localOM['state']['status'] in ['updating','starting']:
             # placeholder for display splash while starting or updating..
-            print(' | Please wait')
-            return
-        self.updateCommon()
+            r += '  | Please wait'
+            return r
+        r += self.updateCommon()
         if self.localOM['state']['status'] == 'DEBUGoff':
             pass   # Placeholder for display off code etc..
         else:
             # this is where we show mode-specific data
             if self.localOM['state']['machineMode'] == 'FFF':
-                self.updateFFF()
+                r += self.updateFFF()
             elif self.localOM['state']['machineMode']  == 'CNC':
-                self.updateAxes()
-                self.updateCNC()
+                r += self.updateAxes()
+                r += self.updateCNC()
             elif self.localOM['state']['machineMode']  == 'Laser':
-                self.updateAxes()
-                self.updateLaser()
-            self.updateJob()
-        self.updateMessages()
-        print()
+                r += self.updateAxes()
+                r += self.updateLaser()
+            r += self.updateJob()
+        r += self.updateMessages()
+        return r
 
     def updateCommon(self):
-        # Voltage
-        print(' | Vin: %.1f' % self.localOM['boards'][0]['vIn']['current'],end='')
-        # MCU temp
-        print(' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current'],end='')
-        # Network
+        # common items to always show
+        r = ' | Vin: %.1f' % self.localOM['boards'][0]['vIn']['current']
+        r += ' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current']
         if len(self.localOM['network']['interfaces']) > 0:
-            print(' | network:', self.localOM['network']['interfaces'][0]['state'],end='')
-        return True
+            r += ' | ' + self.localOM['network']['interfaces'][0]['type']+ ':' + self.localOM['network']['interfaces'][0]['state']
+        return r
 
     def updateJob(self):
-            # Job progress
-            if self.localOM['job']['build']:
-                try:
-                    percent = self.localOM['job']['filePosition'] / self.localOM['job']['file']['size'] * 100
-                except ZeroDivisionError:  # file size can be 0 as the job starts
-                    percent = 0
-                print(' | progress:', "%.1f" % percent,end='%')
+        # Job progress
+        r = ''
+        if self.localOM['job']['build']:
+            try:
+                percent = self.localOM['job']['filePosition'] / self.localOM['job']['file']['size'] * 100
+            except ZeroDivisionError:  # file size can be 0 as the job starts
+                percent = 0
+            r += ' | progress:' + "%.1f" % percent + '%'
+        return r
 
     def updateAxes(self):
         # Display all configured axes and homed state.
         # TODO: Show workspace in use and adjust reported axis position to suit
         #       Currently we show Machine Position, not workspace relative
-        print(' | axes:',end='')
+        r = ' | axes:'
         if self.localOM['move']['axes']:
             for axis in self.localOM['move']['axes']:
                 if axis['visible']:
                     if axis['homed']:
-                       print(' ' + axis['letter'] + ':' + str(axis['machinePosition']),end='')
+                       r += ' ' + axis['letter'] + ':' + str(axis['machinePosition'])
                     else:
-                       print(' ' + axis['letter'] + ':?',end='')
+                       r += ' ' + axis['letter'] + ':?'
+        return r
 
     def updateMessages(self):
         # M117 messages
+        r = ''
         if self.localOM['state']['displayMessage']:
-            print(' | message:', self.localOM['state']['displayMessage'],end='')
+            r += ' | message:', self.localOM['state']['displayMessage']
         # M291 messages
         if self.localOM['state']['messageBox']:
             if self.localOM['state']['messageBox']['mode'] == 0:
-                print(' | info: ',end='')
+                r += ' | info: '
             else:
-                print(' | query: ',end='')
+                r += ' | query: '
             if self.localOM['state']['messageBox']['title']:
-                print('==', self.localOM['state']['messageBox']['title'],end=' == ')
-            print(self.localOM['state']['messageBox']['message'],end='')
+                r += '==' + self.localOM['state']['messageBox']['title'] + ' == '
+            r += self.localOM['state']['messageBox']['message']
+        return r
 
     def updateFFF(self):
         # For FFF mode we want to show the Heater states
         def showHeater(number,name):
+            r = ''
             if self.localOM['heat']['heaters'][number]['state'] == 'fault':
-                print(' | ' + name + ': FAULT',end='')
+                r += ' | ' + name + ': FAULT'
             else:
-                print(' | ' + name + ':', '%.1f' % self.localOM['heat']['heaters'][number]['current'],end='')
+                r += ' | ' + name + ':' + '%.1f' % self.localOM['heat']['heaters'][number]['current']
                 if self.localOM['heat']['heaters'][number]['state'] == 'active':
-                    print(' (%.1f)' % self.localOM['heat']['heaters'][number]['active'],end='')
+                    r += ' (%.1f)' % self.localOM['heat']['heaters'][number]['active']
                 elif self.localOM['heat']['heaters'][number]['state'] == 'standby':
-                    print(' (%.1f)' % self.localOM['heat']['heaters'][number]['standby'],end='')
+                    r += ' (%.1f)' % self.localOM['heat']['heaters'][number]['standby']
+            return r
 
+        r = ''
         # Bed
         if len(self.localOM['heat']['bedHeaters']) > 0:
             if self.localOM['heat']['bedHeaters'][0] != -1:
-                showHeater(self.localOM['heat']['bedHeaters'][0],'bed')
+                r += showHeater(self.localOM['heat']['bedHeaters'][0],'bed')
         # Chamber
         if len(self.localOM['heat']['chamberHeaters']) > 0:
             if self.localOM['heat']['chamberHeaters'][0] != -1:
-                showHeater(self.localOM['heat']['chamberHeaters'][0],'chamber')
+                r += showHeater(self.localOM['heat']['chamberHeaters'][0],'chamber')
         # Extruders
         if len(self.localOM['tools']) > 0:
             for tool in self.localOM['tools']:
                 if len(tool['heaters']) > 0:
-                    showHeater(tool['heaters'][0],'e' + str(self.localOM['tools'].index(tool)))
+                    r += showHeater(tool['heaters'][0],'e' + str(self.localOM['tools'].index(tool)))
+        return r
 
     def updateCNC(self):
         def showSpindle(name,spindle):
-            print(' | ' + name + ': ',end='')
+            r = ' | ' + name + ': '
             if self.localOM['spindles'][spindle]['state'] == 'stopped':
-                print('stopped',end='')
+                r += 'stopped'
             elif self.localOM['spindles'][spindle]['state'] == 'forward':
-                print('fwd:', str(self.localOM['spindles'][spindle]['current']),end='rpm')
+                r += 'fwd:' + str(self.localOM['spindles'][spindle]['current']) + 'rpm'
             elif self.localOM['spindles'][spindle]['state'] == 'reverse':
-                print('rev:', str(self.localOM['spindles'][spindle]['current']),end='rpm')
+                r += 'rev:' + str(self.localOM['spindles'][spindle]['current']) + 'rpm'
+            return r
 
         # Display spindle state, direction and speed
+        r = ''
         if len(self.localOM['tools']) > 0:
             for tool in self.localOM['tools']:
                 if tool['spindle'] != -1:
-                    showSpindle(tool['name'],tool['spindle'])
+                    r += showSpindle(tool['name'],tool['spindle'])
+        return r
 
 
     def updateLaser(self):
@@ -165,4 +176,4 @@ class outputRRF:
             pwm = str(self.localOM['move']['currentMove']['laserPwm'])
         else:
             pwm = 'not configured'
-        print(' | laser PWM: ' + pwm,end='')
+        return ' | laser PWM: ' + pwm

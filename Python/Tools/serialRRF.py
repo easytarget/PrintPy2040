@@ -331,8 +331,7 @@ while True:
                 OMrequest(key,'vnd99')
             else:
                 OMrequest(key,'fnd99')
-    out.updateOutput()
-    #print(out.updateOutput())
+    print(out.updateOutput())
     # Request cycle ended, garbagecollect and wait for next update start
     collect()
     while ticks_diff(ticks_ms(),begin) < updateTime:
