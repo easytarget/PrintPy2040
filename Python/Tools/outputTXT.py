@@ -92,14 +92,17 @@ class outputRRF:
                 print(' | progress:', "%.1f" % percent,end='%')
 
     def updateAxes(self):
-        # Display all configured axes.
+        # Display all configured axes and homed state.
         # TODO: Show workspace in use and adjust reported axis position to suit
         #       Currently we show Machine Position, not workspace relative
         print(' | axes:',end='')
         if self.localOM['move']['axes']:
             for axis in self.localOM['move']['axes']:
                 if axis['visible']:
-                    print(' ' + axis['letter'] + ':' + str(axis['machinePosition']),end='')
+                    if axis['homed']:
+                       print(' ' + axis['letter'] + ':' + str(axis['machinePosition']),end='')
+                    else:
+                       print(' ' + axis['letter'] + ':?',end='')
 
     def updateMessages(self):
         # M117 messages
