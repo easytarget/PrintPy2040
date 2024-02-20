@@ -55,9 +55,8 @@ jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
 # Do a minimum drama restart/reboot
 def restartNow(why):
     print('Restarting: ' + why)
-    execv(executable, ['python'] + argv)   #  <----  CPython
-    # Micropython; reboot module
-    #reset()
+    execv(executable, ['python'] + argv)   #  CPython
+    #reset() # Micropython; reboot module
 
 # Handle (transient) serial or comms errors; needs expansion ;-)
 def commsFail(why):
