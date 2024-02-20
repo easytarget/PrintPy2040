@@ -19,6 +19,7 @@ class handleOM:
         self.rrf = rrf
         self.rawLog = rawLog
         self.nonJsonLog = nonJsonLog
+        self.seqs = {}
         # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
         print('OMhandler is starting')
@@ -29,8 +30,10 @@ class handleOM:
         # absorb whatever is in our buffer
         if self.rrf.in_waiting > 0:
             junk = self.rrf.read().decode('ascii')
-            self.rawLog.write(junk)
-            self.nonJsonLog.write(junk)
+            if self.rawLog:
+                self.rawLog.write(junk)
+            if self.nonJsonLog:
+                self.nonJsonLog.write(junk)
         # Now send our command (+ checksum)
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
@@ -146,15 +149,29 @@ class handleOM:
         # If we got here; we had a successful cycle
         return True
 
-    def seqRequest(self, out, OMseqcounter, machineMode):
+    def _seqRequest(self, out, machineMode):
         # Send a 'seqs' request to the OM, updates localOM and returns
         # a list of keys where the sequence number has changed
         changed=[]
         if self.request(out,'seqs','fnd99'):
             for key in out.verboseKeys[machineMode]:
-                if OMseqcounter[key] != out.localOM['seqs'][key]:
+                if self.seqs[key] != out.localOM['seqs'][key]:
                     changed.append(key)
-                    OMseqcounter[key] = out.localOM['seqs'][key]
+                    self.seqs[key] = out.localOM['seqs'][key]
         else:
             print('Sequence key request failed')
         return changed
+
+    def update(self, out, machineMode, SBCmode):
+        if SBCmode:
+            for key in out.verboseKeys[machineMode]:
+                self.request(out,key,'vnd99')
+        else:
+            fullupdatelist = self._seqRequest(out, machineMode)
+            for key in set(out.frequentKeys[machineMode]).union(fullupdatelist):
+                if key in fullupdatelist:
+                    print('*',end='')  # debug
+                    self.request(out,key,'vnd99')
+                else:
+                    print('.',end='')  # debug
+                    self.request(out,key,'fnd99')

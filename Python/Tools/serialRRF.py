@@ -46,10 +46,6 @@ from os import execv                   # CPython
     https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
 '''
 
-
-# string of valid ascii chars for JSON response body
-jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
-
 # Do a minimum drama restart/reboot
 def restartNow(why):
     print('Restarting: ' + why)
@@ -143,7 +139,6 @@ if OM.firmwareRequest():
 else:
     commsFail('failed to get Firmware string')
 
-
 # request the initial state and seqs keys
 for key in ['state','seqs']:
     if not OM.request(out,key,'vnd99'):
@@ -155,7 +150,7 @@ if out.localOM['seqs'] == None:
     print('RRF controller is in SBC mode')
 else:
     SBCmode = False
-    OMseqcounter = out.localOM['seqs']
+    OM.seqs = out.localOM['seqs']
     print('RRF controller is standalone')
 
 # Determine and record the machine mode (FFF,CNC or Laser)
@@ -175,7 +170,7 @@ for key in out.verboseKeys[machineMode]:
         commsFail('failed to accqire initial "' + key + '" data')
 
 '''
-    Simple main loop to begin with
+    Main loop
 '''
 while True:
     begin = ticks_ms()
@@ -194,18 +189,8 @@ while True:
         sleep_ms(config.updateTime/10)  # re-try after 1/10th of update time
         continue
 
-    if SBCmode:
-        for key in out.verboseKeys[machineMode]:
-            OM.request(out,key,'vnd99')
-    else:
-        fullupdatelist = OM.seqRequest(out,OMseqcounter,machineMode)
-        for key in set(out.frequentKeys[machineMode]).union(fullupdatelist):
-            if key in fullupdatelist:
-                #print('*',end='')  # debug
-                OM.request(out,key,'vnd99')
-            else:
-                #print('.',end='')  # debug
-                OM.request(out,key,'fnd99')
+    # Update keys
+    OM.update(out, machineMode, SBCmode)
 
     # output the results
     print(out.updateOutput())
