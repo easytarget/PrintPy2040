@@ -1,4 +1,4 @@
-from sys import exit
+from time import time
 
 '''
     This is a TEXT (REPL/console) output class for serialRRF
@@ -20,8 +20,9 @@ class outputRRF:
                     'CNC':['spindles','tools','move','job','boards'],
                     'Laser':['move','job','boards']}
 
-    def __init__(self, initialOM):
+    def __init__(self, initialOM, log=None):
         self.localOM = initialOM
+        self.log = log
         print('output is starting')
 
     def updateOutput(self):
@@ -45,33 +46,34 @@ class outputRRF:
                 mins = ''
             secs = "%02.f" % s
             return days+hrs+mins+secs
-
         # Overall Status
-        r = ""
-        r += 'status: ' + self.localOM['state']['status']
+        r = 'status: ' + self.localOM['state']['status']
         r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])
         if self.localOM['state']['status'] in ['updating','starting']:
             # placeholder for display splash while starting or updating..
-            r += '  | Please wait'
+            r += ' | please wait'
             return r
-        r += self.updateCommon()
+        r += self._updateCommon()
         if self.localOM['state']['status'] == 'off':
             pass   # Placeholder for display off code etc..
         else:
             # this is where we show mode-specific data
             if self.localOM['state']['machineMode'] == 'FFF':
-                r += self.updateFFF()
+                r += self._updateFFF()
             elif self.localOM['state']['machineMode']  == 'CNC':
-                r += self.updateAxes()
-                r += self.updateCNC()
+                r += self._updateAxes()
+                r += self._updateCNC()
             elif self.localOM['state']['machineMode']  == 'Laser':
-                r += self.updateAxes()
-                r += self.updateLaser()
-            r += self.updateJob()
-        r += self.updateMessages()
+                r += self._updateAxes()
+                r += self._updateLaser()
+            r += self._updateJob()
+        r += self._updateMessages()
+        # Return reults
+        if self.log:
+            self.log.write('[' + str(int(time())) + '] ' + r + '\n')
         return r
 
-    def updateCommon(self):
+    def _updateCommon(self):
         # common items to always show
         r = ' | Vin: %.1f' % self.localOM['boards'][0]['vIn']['current']
         r += ' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current']
@@ -84,7 +86,7 @@ class outputRRF:
                     r += interface['actualIP']
         return r
 
-    def updateJob(self):
+    def _updateJob(self):
         # Job progress
         r = ''
         if self.localOM['job']['build']:
@@ -95,7 +97,7 @@ class outputRRF:
             r += ' | progress: ' + "%.1f%%" % percent
         return r
 
-    def updateAxes(self):
+    def _updateAxes(self):
         # Display all configured axes and homed state.
         ws = self.localOM['move']['workplaceNumber']
         r = ' | axes: W' + str(ws + 1)
@@ -116,7 +118,7 @@ class outputRRF:
                 r += ' (' + m[:-1] + ')'
         return r
 
-    def updateMessages(self):
+    def _updateMessages(self):
         # M117 messages
         r = ''
         if self.localOM['state']['displayMessage']:
@@ -132,7 +134,7 @@ class outputRRF:
             r += self.localOM['state']['messageBox']['message']
         return r
 
-    def updateFFF(self):
+    def _updateFFF(self):
         # For FFF mode we want to show the Heater states
         def showHeater(number,name):
             r = ''
@@ -162,7 +164,7 @@ class outputRRF:
                     r += showHeater(tool['heaters'][0],'e' + str(self.localOM['tools'].index(tool)))
         return r
 
-    def updateCNC(self):
+    def _updateCNC(self):
         def showSpindle(name,spindle):
             r = ' | ' + name + ': '
             if self.localOM['spindles'][spindle]['state'] == 'stopped':
@@ -182,7 +184,7 @@ class outputRRF:
         return r
 
 
-    def updateLaser(self):
+    def _updateLaser(self):
         # Show laser info; unfortunately not much to show; no seperate laser 'tool'
         if self.localOM['move']['currentMove']['laserPwm'] != None:
             pwm = '%.0f%%' % (self.localOM['move']['currentMove']['laserPwm'] * 100)

@@ -1,21 +1,27 @@
+# Import our config and local classes
 try:
-    from RRFconfig import devices,baud,rawLog,nonJsonLog
+    from RRFconfig import config
 except ModuleNotFoundError:
-    from RRFconfigExample import devices,baud,rawLog,nonJsonLog
+    from RRFconfigExample import config
     print('!! Using default config from RRFconfigExample.py')  # nag
 from outputTXT import outputRRF
 
-#from machine import UART as Serial # ??? micropython ? 
+# Common classes between CPython and microPython
+from json import loads
+from gc import collect
+
+# Libs that need to change between between CPython an microPython
+#from machine import UART              # microPython
 from serial import Serial
 #from time import sleep_ms,ticks_ms,ticks_diff,localtime  # microPython
-from time import sleep,time,localtime  # CPython: for micropython also drop local time function defs
-from json import loads
-from itertools import zip_longest
+from time import sleep,time,localtime  # CPython: for microPython also drop local time function defs
 from sys import executable,argv        # CPython
-from functools import reduce
 from os import execv                   # CPython
-#from machine import reset             # MicroPython
-from gc import collect
+#from machine import reset             # microPython
+
+# CPython standard libs that need to be provided locally for microPython
+from itertools import zip_longest
+from functools import reduce
 
 '''
     This is intended to be run on a desktop system (CPython, not microPython)
@@ -43,8 +49,10 @@ from gc import collect
     https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
 '''
 
+
 # Basic time between updates (ms)
 updateTime = 1000
+
 # listen timeout for replies after sending request
 rrfWait = updateTime / 2
 
@@ -136,7 +144,7 @@ def OMrequest(OMkey,OMflags):
         except:
             commsFail('Serial/UART failed: Cannot read from controller')
         if rawLog and (char != None):
-            rawLogFile.write(char)
+            rawLog.write(char)
         if char:
             if char in jsonChars:
                 if char == '{':
@@ -155,7 +163,7 @@ def OMrequest(OMkey,OMflags):
                     if (notJSON[-2:] == 'ok'):
                         break
     if nonJsonLog:
-        nonJsonLogFile.write(notJSON + '\n')
+        nonJsonLog.write(notJSON + '\n')
     if len(response) == 0:
         print('No sensible response from "',cmd,'" :: ',notJSON)
         return False
@@ -218,19 +226,51 @@ def firmwareRequest():
     return True
 
 '''
-    Simple control loop to begin with
+    Init
 '''
 
-print('serialRRF is starting')
+# Basic info
+start = localtime()
+startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
+startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
+startText = '=== Starting: ' + startDate + ' ' + startTime + '\n'
 
+print('serialRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+
+# Debug Logging
+rawLog = None
+if config.rawLog:
+    try:
+        rawLog = open(config.rawLog, "a")
+        print('raw data being logged to: ', config.rawLog)
+        rawLog.write(startText)
+    except Exception as error:
+        print('logging of raw data failed: ', error)
+nonJsonLog = None
+if config.nonJsonLog:
+    try:
+        nonJsonLog = open(config.nonJsonLog, "a")
+        print('non-JSON data being logged to: ', config.nonJsonLog)
+        nonJsonLog.write(startText)
+    except Exception as error:
+        print('logging of non-JSON data failed: ', error)
+outputLog = None
+if config.outputLog:
+    try:
+        outputLog = open(config.outputLog, "a")
+        print('output being logged to: ', config.outputLog)
+        outputLog.write(startText)
+    except Exception as error:
+        print('logging of output failed: ', error)
 # Get output/display device
-out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None})
+out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None},log=outputLog)
 
 # Init RRF USB/serial connection
 rrf = None
-for device in devices:
+for device in config.devices:
     try:
-        rrf = Serial(device,baud,timeout=(rrfWait/1000))
+        # microPython: replace following with UART init
+        rrf = Serial(device,config.baud,timeout=(rrfWait/1000))
     except:
         print('device "' + device + '" not available')
     else:
@@ -242,28 +282,6 @@ if not rrf:
     # Loop looking for a serial device
     # For micropython we should stop here since no UART == a serious fail.
     restartNow('USB/serial could not be initialised')
-
-# Debug Logging
-start = localtime()
-startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
-startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
-startText = '=== Starting: ' + startDate + ' ' + startTime + '\n'
-print('starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
-
-if rawLog:
-    try:
-        rawLogFile = open(rawLog, "a")
-        print('raw data being logged to: ', rawLog)
-        rawLogFile.write(startText)
-    except Exception as error:
-        print('logging of raw data failed: ', error)
-if nonJsonLog:
-    try:
-        nonJsonLogFile = open(nonJsonLog, "a")
-        print('non-JSON data being logged to: ', nonJsonLog)
-        nonJsonLogFile.write(startText)
-    except Exception as error:
-        print('logging of non-JSON data failed: ', error)
 
 print('checking for connected controller\n> M115')
 if firmwareRequest():
@@ -301,8 +319,9 @@ for key in out.verboseKeys[machineMode]:
     if not OMrequest(key,'vnd99'):
         commsFail('failed to accqire initial "' + key + '" data')
 
-# MAIN LOOP
-
+'''
+    Simple main loop to begin with
+'''
 while True:
     begin = ticks_ms()
     # Do a full 'state' tree update
@@ -330,7 +349,10 @@ while True:
                 OMrequest(key,'vnd99')
             else:
                 OMrequest(key,'fnd99')
+
+    # output the results
     print(out.updateOutput())
+
     # Request cycle ended, garbagecollect and wait for next update start
     collect()
     while ticks_diff(ticks_ms(),begin) < updateTime:
