@@ -69,8 +69,8 @@ def restartNow(why):
 # Handle (transient) serial or comms errors; needs expansion ;-)
 def commsFail(why):
     print('Communications error: ' + why +'\nRestarting in ',end='')
-    # Pause for 10 seconds, then restart
-    for c in range(10,0,-1):
+    # Pause for 8 seconds, then restart
+    for c in range(8,0,-1):
         print(c,end=' ',flush=True)
         sleep_ms(1000)
     print()
@@ -211,13 +211,15 @@ def seqRequest():
     return changed
 
 def firmwareRequest():
-    # Use M115 to (re)establish comms andv erify firmware
-    # Needs some logic to cover failures..
+    # Use M115 to (re)establish comms and verify firmware
     try:
         rrf.write(b'\n')
     except:
         commsFail('Failed to write during comms start, UART/serial hardware error?')
-    _ = rrf.read()
+    # (USB) serial buffer can be dirty after a restart
+    while len(rrf.readline()) > 0:
+        sleep_ms(50)
+    # Send the M115 info request and look for a sensible reply
     sendGcode('M115')
     response = rrf.read_until(b"ok").decode('ascii')
     print(response)
