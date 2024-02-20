@@ -2,7 +2,7 @@ from sys import exit
 
 '''
     This is a TEXT (REPL/console) output class for serialRRF
-    It will later be adapted for I2C displas etc
+    It will later be adapted for I2C displays etc
 '''
 
 # These are the only key sets in the OM we are interested in
@@ -92,21 +92,28 @@ class outputRRF:
                 percent = self.localOM['job']['filePosition'] / self.localOM['job']['file']['size'] * 100
             except ZeroDivisionError:  # file size can be 0 as the job starts
                 percent = 0
-            r += ' | progress:' + "%.1f" % percent + '%'
+            r += ' | progress: ' + "%.1f%%" % percent
         return r
 
     def updateAxes(self):
         # Display all configured axes and homed state.
-        # TODO: Show workspace in use and adjust reported axis position to suit
-        #       Currently we show Machine Position, not workspace relative
-        r = ' | axes:'
+        ws = self.localOM['move']['workplaceNumber']
+        r = ' | axes: W' + str(ws + 1)
+        m = ''      # machine pos
+        offset = False   # are we offset from Machine Pos?
         if self.localOM['move']['axes']:
             for axis in self.localOM['move']['axes']:
                 if axis['visible']:
+                    r += ' ' + axis['letter']
                     if axis['homed']:
-                       r += ' ' + axis['letter'] + ':' + str(axis['machinePosition'])
+                       r += ':' + "%.2f" % (axis['machinePosition'] - axis['workplaceOffsets'][ws])
+                       m += axis['letter'] + ':' + "%.2f" % (axis['machinePosition']) + ' '
+                       if axis['workplaceOffsets'][ws] != 0:
+                           offset = True
                     else:
-                       r += ' ' + axis['letter'] + ':?'
+                       r += ':?'
+            if offset:
+                r += ' (' + m[:-1] + ')'
         return r
 
     def updateMessages(self):
@@ -132,7 +139,7 @@ class outputRRF:
             if self.localOM['heat']['heaters'][number]['state'] == 'fault':
                 r += ' | ' + name + ': FAULT'
             else:
-                r += ' | ' + name + ':' + '%.1f' % self.localOM['heat']['heaters'][number]['current']
+                r += ' | ' + name + ': ' + '%.1f' % self.localOM['heat']['heaters'][number]['current']
                 if self.localOM['heat']['heaters'][number]['state'] == 'active':
                     r += ' (%.1f)' % self.localOM['heat']['heaters'][number]['active']
                 elif self.localOM['heat']['heaters'][number]['state'] == 'standby':
@@ -178,7 +185,7 @@ class outputRRF:
     def updateLaser(self):
         # Show laser info; unfortunately not much to show; no seperate laser 'tool'
         if self.localOM['move']['currentMove']['laserPwm'] != None:
-            pwm = str(self.localOM['move']['currentMove']['laserPwm'])
+            pwm = '%.0f%%' % (self.localOM['move']['currentMove']['laserPwm'] * 100)
         else:
             pwm = 'not configured'
-        return ' | laser PWM: ' + pwm
+        return ' | laser: ' + pwm
