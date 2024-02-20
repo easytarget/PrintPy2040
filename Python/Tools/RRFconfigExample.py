@@ -15,6 +15,11 @@ class config():
     baud = 57600
 
     '''
+         Basic time between update cycles (ms)
+    '''
+    updateTime = 1000
+
+    '''
         Debug logging. replace "None" with "'filename.log'" to enable.
         rawLog     = an unprocessed log of all incoming serial data as a bytearray
         nonJsonLog = same as the raw log, but with all potential JSON blocks
