@@ -5,7 +5,7 @@ except ModuleNotFoundError:
     from RRFconfigExample import config
     print('!! Using default config from RRFconfigExample.py')  # nag
 from outputTXT import outputRRF
-from handleOM import sendGcode,OMrequest,seqRequest
+from handleOM import handleOM
 
 # Common classes between CPython and microPython
 from gc import collect
@@ -74,23 +74,6 @@ def hardwareFail(why):
     while True:  # loop forever
         sleep_ms(60000)
 
-def firmwareRequest():
-    # Use M115 to (re)establish comms and verify firmware
-    try:
-        rrf.write(b'\n')
-    except:
-        commsFail('Failed to write during comms start, UART/serial hardware error?')
-    # (USB) serial buffer can be dirty after a restart
-    while len(rrf.readline()) > 0:
-        sleep_ms(50)
-    # Send the M115 info request and look for a sensible reply
-    sendGcode(rrf,'M115')
-    response = rrf.read_until(b"ok").decode('ascii')
-    print(response)
-    if not 'RepRapFirmware' in response:
-        return False
-    return True
-
 '''
     Init
 '''
@@ -146,21 +129,24 @@ for device in config.devices:
         print('device "' + device + '" available')
         sleep_ms(100)   # settle time
         break
-
 if not rrf:
     # Loop looking for a serial device
     # For micropython we should stop here since no UART == a serious fail.
     restartNow('USB/serial could not be initialised')
 
+# start the OM handler
+OM = handleOM(rrf, rawLog, nonJsonLog)
+
 print('checking for connected controller\n> M115')
-if firmwareRequest():
+if OM.firmwareRequest():
     print('serialRRF is connected')
 else:
     commsFail('failed to get Firmware string')
 
+
 # request the initial state and seqs keys
 for key in ['state','seqs']:
-    if not OMrequest(out,rrf,key,'vnd99',rawLog,nonJsonLog):
+    if not OM.request(out,key,'vnd99'):
         commsFail('failed to accqire "' + key + '" data')
 
 # Determine SBC mode
@@ -185,7 +171,7 @@ upTime = out.localOM['state']['upTime']
 # Get initial data set
 # - in future decide what we are getting via the mode (FFF vs CNC vs laser)
 for key in out.verboseKeys[machineMode]:
-    if not OMrequest(out,rrf,key,'vnd99',rawLog,nonJsonLog):
+    if not OM.request(out,key,'vnd99'):
         commsFail('failed to accqire initial "' + key + '" data')
 
 '''
@@ -194,7 +180,7 @@ for key in out.verboseKeys[machineMode]:
 while True:
     begin = ticks_ms()
     # Do a full 'state' tree update
-    if OMrequest(out,rrf,'state','vnd99',rawLog,nonJsonLog):
+    if OM.request(out,'state','vnd99'):
         # test for uptime or machineMode changes and reboot as needed
         if out.localOM['state']['machineMode'] != machineMode:
             restartNow('machine mode has changed')
@@ -210,14 +196,16 @@ while True:
 
     if SBCmode:
         for key in out.verboseKeys[machineMode]:
-            OMrequest(out,rrf,key,'vnd99',rawLog,nonJsonLog)
+            OM.request(out,key,'vnd99')
     else:
-        fullupdatelist = seqRequest(out,rrf,OMseqcounter,rawLog,nonJsonLog,machineMode)
+        fullupdatelist = OM.seqRequest(out,OMseqcounter,machineMode)
         for key in set(out.frequentKeys[machineMode]).union(fullupdatelist):
             if key in fullupdatelist:
-                OMrequest(out,rrf,key,'vnd99',rawLog,nonJsonLog)
+                #print('*',end='')  # debug
+                OM.request(out,key,'vnd99')
             else:
-                OMrequest(out,rrf,key,'fnd99',rawLog,nonJsonLog)
+                #print('.',end='')  # debug
+                OM.request(out,key,'fnd99')
 
     # output the results
     print(out.updateOutput())
