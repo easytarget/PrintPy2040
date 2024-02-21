@@ -30,10 +30,9 @@ class handleOM:
         a serial/bitstream interface
     '''
 
-    def __init__(self, rrf, rawLog=None, nonJsonLog=None):
+    def __init__(self, rrf, rawLog=None):
         self.rrf = rrf
         self.rawLog = rawLog
-        self.nonJsonLog = nonJsonLog
         self.seqs = None
         self.machineMode = 'unavailable'
         # string of valid ascii chars for JSON response body
@@ -52,8 +51,6 @@ class handleOM:
             junk = self.rrf.read().decode('ascii')
             if self.rawLog:
                 self.rawLog.write(junk)
-            if self.nonJsonLog:
-                self.nonJsonLog.write(junk)
         # Now send our command (+ checksum)
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
@@ -68,8 +65,6 @@ class handleOM:
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
-        if self.nonJsonLog:
-            self.nonJsonLog.write("\n> " + code + "*" + str(chksum) + "\n")
         return True
 
     def firmwareRequest(self):
@@ -83,8 +78,6 @@ class handleOM:
         print(response)
         if self.rawLog:
             self.rawLog.write(response + '\n')
-        if self.nonJsonLog:
-            self.nonJsonLog.write(junk)
         if not 'RepRapFirmware' in response:
             return False
         return True
@@ -136,13 +129,11 @@ class handleOM:
                         nest -= 1
                     if nest == 0:
                         if maybeJSON:
-                            notJSON = '{...}' + notJSON  # helps debug
+                            #notJSON = '{...}' + notJSON  # helps debug
                             response.append(maybeJSON)
                             maybeJSON = ""
                         if (notJSON[-2:] == 'ok'):
                             break
-        if self.nonJsonLog:
-            self.nonJsonLog.write(notJSON + '\n')
         if len(response) == 0:
             #print('No sensible response from "',cmd,'" :: ',notJSON)
             return False
@@ -220,11 +211,11 @@ class handleOM:
             verboseList = self._seqRequest(out)
             for key in ['state'] + out.omKeys[self.machineMode]:
                 if key in verboseList:
-                    print('*',end='')  # debug
+                    #print('*',end='')  # debug
                     if not self._request(out,key,'vnd99'):
                         nofail = False;
                 else:
-                    print('.',end='')  # debug
+                    #print('.',end='')  # debug
                     if not self._request(out,key,'fnd99'):
                         nofail = False;
         return nofail

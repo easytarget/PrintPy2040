@@ -87,16 +87,6 @@ if config.rawLog:
         rawLog.write(startText)
     except Exception as error:
         print('logging of raw data failed: ', error)
-
-nonJsonLog = None
-if config.nonJsonLog:
-    try:
-        nonJsonLog = open(config.nonJsonLog, "a")
-        print('non-JSON data being logged to: ', config.nonJsonLog)
-        nonJsonLog.write(startText)
-    except Exception as error:
-        print('logging of non-JSON data failed: ', error)
-
 outputLog = None
 if config.outputLog:
     try:
@@ -127,7 +117,7 @@ if not rrf:
     restartNow('USB/serial could not be initialised')
 
 # start the OM handler
-OM = handleOM(rrf, rawLog, nonJsonLog)
+OM = handleOM(rrf, rawLog)
 
 # check for a valid response to a firmware version query
 print('checking for connected RRF controller')

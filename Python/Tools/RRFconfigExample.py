@@ -22,11 +22,8 @@ class config():
     '''
         Debug logging. replace "None" with "'filename.log'" to enable.
         rawLog     = an unprocessed log of all incoming serial data as a bytearray
-        nonJsonLog = same as the raw log, but with all potential JSON blocks
-                     replaced with '{...}' as a placeholder
         outputLog  = Log file for output module, the example TXT output class
                      sends it's output there as well as to the console.
     '''
     rawLog = None
-    nonJsonLog = None
     outputLog = None
