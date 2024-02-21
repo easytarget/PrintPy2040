@@ -13,7 +13,7 @@ Implement a ObjectModel based fetch/update/display cycle in Python, basically a 
 * Notes:
   * CPython; but I am trying to keep all the logic and data handling simple and low-memory for running on microPython.
     * Non micropython standard libs are discouraged unless they have a easy micropython equivalent/local lib.
-    * All times are in MS (micropython uses 'utime' for it's time base)
+    * All times are in `ms` (micropython uses `int(ms)` for it's timing basics rather than `float(seconds)`)
   * Tested and developed on a RaspberryPI connected to my Duet2 wifi via USB/serial
   * See comment in RRFconfigExample.py for configuring connection details
     * Defaults to `/dev/ttyACM[01]`, `57600` baud; use `M575 P0 S2` in your `config.g` if this is not already configured.

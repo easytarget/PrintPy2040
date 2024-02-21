@@ -6,8 +6,7 @@ from time import time
 '''
 
 # These are the only key sets in the OM we are interested in
-# We will always get 'state' at the start of the loop
-#  - We get 'seqs' each loop unless in SBC mode
+# We will always get the 'state' key at the start of the loop
 # All other keys need to be specified below
 
 class outputRRF:
@@ -22,7 +21,7 @@ class outputRRF:
         print('output is starting')
 
     def updateOutput(self):
-        # Human readable uptime
+        # A local function to provide human readable uptime
         def dhms(t):
             d = int(t / 86400)
             h = int((t / 3600) % 24)
@@ -42,6 +41,7 @@ class outputRRF:
                 mins = ''
             secs = "%02.f" % s
             return days+hrs+mins+secs
+
         # Overall Status
         r = 'status: ' + self.localOM['state']['status']
         r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])
@@ -131,7 +131,7 @@ class outputRRF:
         return r
 
     def _updateFFF(self):
-        # For FFF mode we want to show the Heater states
+        # a local function to return state and temperature details for a heater
         def showHeater(number,name):
             r = ''
             if self.localOM['heat']['heaters'][number]['state'] == 'fault':
@@ -145,6 +145,7 @@ class outputRRF:
             return r
 
         r = ''
+        # For FFF mode we want to show iall the Heater states
         # Bed
         if len(self.localOM['heat']['bedHeaters']) > 0:
             if self.localOM['heat']['bedHeaters'][0] != -1:
@@ -161,6 +162,7 @@ class outputRRF:
         return r
 
     def _updateCNC(self):
+        # a local function to return spindle name + state, direction and speed
         def showSpindle(name,spindle):
             r = ' | ' + name + ': '
             if self.localOM['spindles'][spindle]['state'] == 'stopped':
@@ -171,7 +173,7 @@ class outputRRF:
                 r += 'rev:' + str(self.localOM['spindles'][spindle]['current']) + 'rpm'
             return r
 
-        # Display spindle state, direction and speed
+        # Show details for all configured spindles
         r = ''
         if len(self.localOM['tools']) > 0:
             for tool in self.localOM['tools']:
@@ -179,9 +181,8 @@ class outputRRF:
                     r += showSpindle(tool['name'],tool['spindle'])
         return r
 
-
     def _updateLaser(self):
-        # Show laser info; unfortunately not much to show; no seperate laser 'tool'
+        # Show laser info; not much to show since there is no seperate laser 'tool' (yet)
         if self.localOM['move']['currentMove']['laserPwm'] != None:
             pwm = '%.0f%%' % (self.localOM['move']['currentMove']['laserPwm'] * 100)
         else:
