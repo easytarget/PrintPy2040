@@ -25,9 +25,9 @@ def commsFail(why):
 
 class handleOM:
     '''
-        Object Model communications tools class
+        Object Model communications tools class provides
         specific functions used to fetch and process OM keys via
-        a serial/bitstream interface
+        a serial/stream interface
     '''
 
     def __init__(self, rrf, rawLog=None):
@@ -55,13 +55,11 @@ class handleOM:
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
         except:
-            print('Serial write failed')
-            return False
+            commsFail('Serial write failed')
         try:
             self.rrf.flush()
         except:
-            print('Serial write buffer flush failed')
-            return False
+            commsFail('Serial write buffer flush failed')
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
