@@ -104,7 +104,7 @@ rrf = None
 for device in config.devices:
     try:
         # microPython: replace following with UART init
-        rrf = Serial(device,config.baud,timeout=config.updateTime/1000)
+        rrf = Serial(device,config.baud,timeout=config.timeout)
     except:
         print('device "' + device + '" not available')
     else:

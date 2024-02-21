@@ -68,12 +68,12 @@ class handleOM:
     def firmwareRequest(self):
         # Use M115 to (re-establish comms and verify firmware
         # Send the M115 info request and look for a sensible reply
-        print('> M115\n> ',end='')
+        print('> M115\n>> ',end='')
         self.rrf.write(b'\n')
         if not self.sendGcode('M115'):
             return False
         response = self.rrf.read_until(b"ok").decode('ascii')
-        print(response)
+        print(response.replace('\n','\n>> '))
         if self.rawLog:
             self.rawLog.write(response + '\n')
         if not 'RepRapFirmware' in response:
