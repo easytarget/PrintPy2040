@@ -12,17 +12,6 @@ from os import execv                   # CPython
 from itertools import zip_longest
 from functools import reduce
 
-# Handle serial or comms errors
-def commsFail(why):
-    print('Communications error: ' + why +'\nRestarting in ',end='')
-    # Pause for 8 seconds, then restart
-    for c in range(8,0,-1):
-        print(c,end=' ',flush=True)
-        sleep_ms(1000)
-    print()
-    execv(executable, ['python'] + argv)   #  CPython
-    #reset() # Micropython; reboot module
-
 class handleOM:
     '''
         Object Model communications tools class provides
@@ -30,8 +19,9 @@ class handleOM:
         a serial/stream interface
     '''
 
-    def __init__(self, rrf, rawLog=None):
+    def __init__(self, rrf, config, rawLog=None):
         self.rrf = rrf
+        self.config = config
         self.rawLog = rawLog
         self.seqs = None
         self.machineMode = 'unavailable'
@@ -46,7 +36,7 @@ class handleOM:
         try:
             waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
         except:
-            commsFail("Failed to flush input buffer")
+            self._commsFail("Failed to flush input buffer")
         if waiting > 0:
             junk = self.rrf.read().decode('ascii')
             if self.rawLog:
@@ -55,11 +45,11 @@ class handleOM:
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
         except:
-            commsFail('Serial write failed')
+            self._commsFail('Serial write failed')
         try:
             self.rrf.flush()
         except:
-            commsFail('Serial write buffer flush failed')
+            self._commsFail('Serial write buffer flush failed')
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
@@ -80,8 +70,19 @@ class handleOM:
             return False
         return True
 
+    # Handle serial or comms errors
+    def _commsFail(self,why):
+        print('Communications error: ' + why +'\nRestarting in ',end='')
+        # Pause for a few seconds, then restart
+        for c in range(self.config.rebootDelay,0,-1):
+            print(c,end=' ',flush=True)
+            sleep_ms(1000)
+        print()
+        execv(executable, ['python'] + argv)   #  CPython
+        #reset() # Micropython; reboot module
+
     # Handle a request to the OM
-    def _request(self, out, OMkey, OMflags, timeout=250):
+    def _request(self, out, OMkey, OMflags):
         # Recursive/iterative merge of dict/list structures.
         # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
         def merge(a, b):
@@ -98,7 +99,7 @@ class handleOM:
         cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
         # Send the M409 command to RRF
         if not self.sendGcode(cmd):
-            commsFail('Serial/UART failed: Cannot write to controller')
+            self._commsFail('Serial/UART failed: Cannot write to controller')
             return False
         requestTime = ticks_ms()
         # And wait for a response
@@ -106,13 +107,13 @@ class handleOM:
         nest = 0;
         maybeJSON = ''
         notJSON = ''
-        while (ticks_diff(ticks_ms(),requestTime) < timeout):
+        while (ticks_diff(ticks_ms(),requestTime) < self.config.requestTimeout):
             try:
                 char = self.rrf.read(1).decode('ascii')
             except UnicodeDecodeError:
                 char = None
             except:
-                commsFail('Serial/UART failed: Cannot read from controller')
+                self._commsFail('Serial/UART failed: Cannot read from controller')
             if self.rawLog and (char != None):
                 self.rawLog.write(char)
             if char:
@@ -146,18 +147,15 @@ class handleOM:
                 continue
             # Update localOM data
             if 'result' in payload.keys():
+                # M409 may legitimately return an empty key, only process keys with contents
                 if payload['result'] != None:
                     # We have a result, store it
-                    if 'v' in OMflags:
-                        # Verbose output replaces the existing key
-                        out.localOM[payload['key']] = payload['result']
-                    else:
+                    if 'f' in OMflags:
                         # Frequent updates just refresh the existing key
                         out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
-                else:
-                    # empty result, only fail if key is not in seqs, M409 may legitimately return an empty key.
-                    if payload['key'] not in self.seqs:
-                        return False
+                    else:
+                        # Verbose output replaces the existing key
+                        out.localOM[payload['key']] = payload['result']
             else:
                 # Valid JSON but no 'result' data in it
                 return False
@@ -181,7 +179,7 @@ class handleOM:
         # request the initial iseqs and state keys
         for key in ['seqs','state']:
             if not self._request(out,key,'vnd99'):
-                commsFail('failed to accqire initial "' + key + '" data')
+                self._commsFail('failed to accqire initial "' + key + '" data')
         # Machine Mode
         self.machineMode = out.localOM['state']['machineMode']
         # Determine SBC mode
@@ -194,7 +192,7 @@ class handleOM:
         # Get initial data set
         for key in out.omKeys[self.machineMode]:
             if not self._request(out,key,'vnd99'):
-                commsFail('failed to accqire initial "' + key + '" data')
+                self._commsFail('failed to accqire initial "' + key + '" data')
         return self.machineMode
 
     def update(self, out):
@@ -202,6 +200,7 @@ class handleOM:
         if self.seqs == None:
             # SBC mode; do a verbose update of all keys
             for key in ['state'] + out.omKeys[self.machineMode]:
+                #print('#',end='')  # debug
                 if not self._request(out,key,'vnd99'):
                     nofail = False;
         else:

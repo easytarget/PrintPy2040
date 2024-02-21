@@ -49,8 +49,8 @@ from os import execv                   # CPython
 # Do a minimum drama restart/reboot
 def restartNow(why):
     print('Error: ' + why +'\nRestarting in ',end='')
-    # Pause for 8 seconds, then restart
-    for c in range(8,0,-1):
+    # Pause for a few seconds, then restart
+    for c in range(config.rebootDelay,0,-1):
         print(c,end=' ',flush=True)
         sleep_ms(1000)
     print()
@@ -97,7 +97,7 @@ if config.outputLog:
         print('logging of output failed: ', error)
 
 # Get output/display device
-out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None},log=outputLog)
+out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None}, log=outputLog)
 
 # Init RRF USB/serial connection
 rrf = None
@@ -117,7 +117,7 @@ if not rrf:
     restartNow('USB/serial could not be initialised')
 
 # start the OM handler
-OM = handleOM(rrf, rawLog)
+OM = handleOM(rrf, config, rawLog)
 
 # check for a valid response to a firmware version query
 print('checking for connected RRF controller')

@@ -12,15 +12,22 @@ class config():
         baud    = Serial baud rate; should match the setting used in the config.g
                   `M575` command used to enable the serial or usb port.
         timeout = Read blocking timeout in float(seconds), returns after this even with no data
-                  (should be a a few hundred ms, unless your card/serial is verrrry slow.)
+                  (should be a a few hundred ms, unless your controller is verrrry slow.)
     '''
     devices = ['/dev/ttyACM0','/dev/ttyACM1']
     baud = 57600
     timeout = 0.2
+
     '''
-         Basic time between update cycles (ms)
+        Basic time between update cycles (ms)
+        updateTime = Basic time between update cycles (ms)
+        requestTimeout = maximum time to spend waiting for response after sending request
+                         (can be much longer than the blocking timeout above)
+        rebootDelay = Countdown in seconds when auto-restarting/rebooting
     '''
     updateTime = 1000
+    requestTimeout = updateTime*0.66
+    rebootDelay = 8
 
     '''
         Logging Config:
@@ -31,9 +38,3 @@ class config():
     '''
     rawLog = None
     outputLog = None
-
-class handlerConfig:
-    '''
-        Defines timeouts for the handler query/response mechanism
-    '''
-    pass
