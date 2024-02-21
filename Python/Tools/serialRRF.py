@@ -145,7 +145,7 @@ sleep_ms(1000)  # helps the controller 'settle' after reboots etc.
 machineMode = OM.firstRequest(out)
 
 # Check the machine mode (FFF,CNC or Laser)
-if machineMode in out.verboseKeys.keys():
+if machineMode in out.omKeys.keys():
     print(machineMode + ' machine mode detected')
 else:
     restartNow('we currently do not support "' + machineMode + '" controller mode, sorry.')

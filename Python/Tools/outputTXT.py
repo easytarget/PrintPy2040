@@ -11,14 +11,10 @@ from time import time
 # All other keys need to be specified below
 
 class outputRRF:
-    # keys to verbose update on startup and when seqs change
-    verboseKeys = {'FFF':['heat','tools','job','boards','network'],
-                    'CNC':['spindles','tools','move','job','boards','network'],
-                    'Laser':['move','job','boards','network']}
-    # subset of keys to frequent update independent of seqs
-    frequentKeys = {'FFF':['heat','job','boards'],
-                    'CNC':['spindles','tools','move','job','boards'],
-                    'Laser':['move','job','boards']}
+    # ObjectModel keys for each supported mode
+    omKeys = {'FFF':['heat','tools','job','boards','network'],
+              'CNC':['spindles','tools','move','job','boards','network'],
+            'Laser':['move','job','boards','network']}
 
     def __init__(self, initialOM, log=None):
         self.localOM = initialOM

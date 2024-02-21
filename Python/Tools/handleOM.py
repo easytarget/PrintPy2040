@@ -81,6 +81,10 @@ class handleOM:
             return False
         response = self.rrf.read_until(b"ok").decode('ascii')
         print(response)
+        if self.rawLog:
+            self.rawLog.write(response + '\n')
+        if self.nonJsonLog:
+            self.nonJsonLog.write(junk)
         if not 'RepRapFirmware' in response:
             return False
         return True
@@ -153,17 +157,18 @@ class handleOM:
                 continue
             # Update localOM data
             if 'result' in payload.keys():
-                if payload['result'] == None:
-                    # if reult is None the key doesnt exist
-                    return False
-                else:
-                    # We have a valid result, store it
+                if payload['result'] != None:
+                    # We have a result, store it
                     if 'v' in OMflags:
                         # Verbose output replaces the existing key
                         out.localOM[payload['key']] = payload['result']
                     else:
                         # Frequent updates just refresh the existing key
                         out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
+                else:
+                    # empty result, only fail if key is not in seqs, M409 may legitimately return an empty key.
+                    if payload['key'] not in self.seqs:
+                        return False
             else:
                 # Valid JSON but no 'result' data in it
                 return False
@@ -175,7 +180,7 @@ class handleOM:
         # a list of keys where the sequence number has changed
         changed=[]
         if self._request(out,'seqs','fnd99'):
-            for key in ['state'] + out.verboseKeys[self.machineMode]:
+            for key in ['state'] + out.omKeys[self.machineMode]:
                 if self.seqs[key] != out.localOM['seqs'][key]:
                     changed.append(key)
                     self.seqs[key] = out.localOM['seqs'][key]
@@ -198,7 +203,7 @@ class handleOM:
             print('RRF controller is standalone')
             self.seqs = out.localOM['seqs']
         # Get initial data set
-        for key in out.verboseKeys[self.machineMode]:
+        for key in out.omKeys[self.machineMode]:
             if not self._request(out,key,'vnd99'):
                 commsFail('failed to accqire initial "' + key + '" data')
         return self.machineMode
@@ -207,13 +212,13 @@ class handleOM:
         nofail = True  # track (soft) failures
         if self.seqs == None:
             # SBC mode; do a verbose update of all keys
-            for key in ['state'] + out.verboseKeys[self.machineMode]:
+            for key in ['state'] + out.omKeys[self.machineMode]:
                 if not self._request(out,key,'vnd99'):
                     nofail = False;
         else:
             # seqs mode; only update frequent data unless seqs have changed
             verboseList = self._seqRequest(out)
-            for key in ['state'] + out.frequentKeys[self.machineMode]:
+            for key in ['state'] + out.omKeys[self.machineMode]:
                 if key in verboseList:
                     print('*',end='')  # debug
                     if not self._request(out,key,'vnd99'):
