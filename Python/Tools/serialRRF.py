@@ -48,22 +48,18 @@ from os import execv                   # CPython
 
 # Do a minimum drama restart/reboot
 def restartNow(why):
-    print('Restarting: ' + why)
-    execv(executable, ['python'] + argv)   #  CPython
-    #reset() # Micropython; reboot module
-
-# Handle (transient) serial or comms errors; needs expansion ;-)
-def commsFail(why):
-    print('Communications error: ' + why +'\nRestarting in ',end='')
+    print('Error: ' + why +'\nRestarting in ',end='')
     # Pause for 8 seconds, then restart
     for c in range(8,0,-1):
         print(c,end=' ',flush=True)
         sleep_ms(1000)
     print()
-    restartNow('Communications lost')
+    execv(executable, ['python'] + argv)   #  CPython
+    #reset() # Micropython; reboot module
 
 # Used for critical hardware errors during initialisation on MCU's
-# Unused in Cpython
+# Unused in Cpython, instead we soft-fail, restart and try again.
+# - in microPython we will be harsher with hardware errors
 def hardwareFail(why):
     print('A critical hardware error has occured!')
     print('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
@@ -133,28 +129,22 @@ if not rrf:
 # start the OM handler
 OM = handleOM(rrf, rawLog, nonJsonLog)
 
-print('checking for connected controller\n> M115')
-if OM.firmwareRequest():
-    print('serialRRF is connected')
-else:
-    commsFail('failed to get Firmware string')
+# check for a valid response to a firmware version query
+print('checking for connected RRF controller')
+retries = 10
+while not OM.firmwareRequest():
+    retries -= 1
+    if retries == 0:
+        restartNow('Failing to get Firmware string during startup')
+    print('Failed to get Firmware string, retrying in 1s')
+    sleep_ms(1000)
+print('serialRRF is connected')
+sleep_ms(1000)  # helps the controller 'settle' after reboots etc.
 
-# request the initial state and seqs keys
-for key in ['state','seqs']:
-    if not OM.request(out,key,'vnd99'):
-        commsFail('failed to accqire "' + key + '" data')
+# Do the initial state and seq fetch
+machineMode = OM.firstRequest(out)
 
-# Determine SBC mode
-if out.localOM['seqs'] == None:
-    SBCmode = True
-    print('RRF controller is in SBC mode')
-else:
-    SBCmode = False
-    OM.seqs = out.localOM['seqs']
-    print('RRF controller is standalone')
-
-# Determine and record the machine mode (FFF,CNC or Laser)
-machineMode = out.localOM['state']['machineMode']
+# Check the machine mode (FFF,CNC or Laser)
 if machineMode in out.verboseKeys.keys():
     print(machineMode + ' machine mode detected')
 else:
@@ -163,19 +153,13 @@ else:
 # Record the curret uptime for the board.
 upTime = out.localOM['state']['upTime']
 
-# Get initial data set
-# - in future decide what we are getting via the mode (FFF vs CNC vs laser)
-for key in out.verboseKeys[machineMode]:
-    if not OM.request(out,key,'vnd99'):
-        commsFail('failed to accqire initial "' + key + '" data')
-
 '''
     Main loop
 '''
 while True:
     begin = ticks_ms()
-    # Do a full 'state' tree update
-    if OM.request(out,'state','vnd99'):
+    # Do a OM update
+    if OM.update(out):
         # test for uptime or machineMode changes and reboot as needed
         if out.localOM['state']['machineMode'] != machineMode:
             restartNow('machine mode has changed')
@@ -188,13 +172,8 @@ while True:
         print('Failed to fetch machine state')
         sleep_ms(config.updateTime/10)  # re-try after 1/10th of update time
         continue
-
-    # Update keys
-    OM.update(out, machineMode, SBCmode)
-
     # output the results
     print(out.updateOutput())
-
     # Request cycle ended, garbagecollect and wait for next update start
     collect()
     while ticks_diff(ticks_ms(),begin) < config.updateTime:

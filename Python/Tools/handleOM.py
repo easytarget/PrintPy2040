@@ -1,12 +1,27 @@
 # Common classes between CPython and microPython
 from json import loads
 
-#from time import ticks_ms,ticks_diff  # microPython
+#from time import sleep_ms,ticks_ms,ticks_diff  # microPython
 from timeStubs import sleep_ms,ticks_ms,ticks_diff  # CPython
+
+#from machine import reset             # microPython
+from sys import executable,argv        # CPython
+from os import execv                   # CPython
 
 # CPython standard libs that need to be provided locally for microPython
 from itertools import zip_longest
 from functools import reduce
+
+# Handle serial or comms errors
+def commsFail(why):
+    print('Communications error: ' + why +'\nRestarting in ',end='')
+    # Pause for 8 seconds, then restart
+    for c in range(8,0,-1):
+        print(c,end=' ',flush=True)
+        sleep_ms(1000)
+    print()
+    execv(executable, ['python'] + argv)   #  CPython
+    #reset() # Micropython; reboot module
 
 class handleOM:
     '''
@@ -19,7 +34,8 @@ class handleOM:
         self.rrf = rrf
         self.rawLog = rawLog
         self.nonJsonLog = nonJsonLog
-        self.seqs = {}
+        self.seqs = None
+        self.machineMode = 'unavailable'
         # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
         print('OMhandler is starting')
@@ -28,7 +44,11 @@ class handleOM:
     def sendGcode(self, code):
         chksum = reduce(lambda x, y: x ^ y, map(ord, code))
         # absorb whatever is in our buffer
-        if self.rrf.in_waiting > 0:
+        try:
+            waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
+        except:
+            commsFail("Failed to flush input buffer")
+        if waiting > 0:
             junk = self.rrf.read().decode('ascii')
             if self.rawLog:
                 self.rawLog.write(junk)
@@ -38,13 +58,12 @@ class handleOM:
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
         except:
-            print('Write Failed')
+            print('Serial write failed')
             return False
-        # wait for it to be sent
         try:
             self.rrf.flush()
         except:
-            print('Flush Failed')
+            print('Serial write buffer flush failed')
             return False
         # log what we sent
         if self.rawLog:
@@ -54,25 +73,27 @@ class handleOM:
         return True
 
     def firmwareRequest(self):
-        # Use M115 to (re)establish comms and verify firmware
+        # Use M115 to (re-establish comms and verify firmware
         # Send the M115 info request and look for a sensible reply
+        print('> M115\n> ',end='')
         self.rrf.write(b'\n')
         if not self.sendGcode('M115'):
             return False
         response = self.rrf.read_until(b"ok").decode('ascii')
+        print(response)
         if not 'RepRapFirmware' in response:
             return False
-        print(response)
         return True
 
     # Handle a request to the OM
-    def request(self, out, OMkey, OMflags, timeout=250):
+    def _request(self, out, OMkey, OMflags, timeout=250):
         # Recursive/iterative merge of dict/list structures.
         # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
         def merge(a, b):
             if isinstance(a, dict) and isinstance(b, dict):
                 d = dict(a)
                 d.update({k: merge(a.get(k, None), b[k]) for k in b})
+
                 return d
             if isinstance(a, list) and isinstance(b, list):
                 return [merge(x, y) for x, y in zip_longest(a, b)]
@@ -149,12 +170,12 @@ class handleOM:
         # If we got here; we had a successful cycle
         return True
 
-    def _seqRequest(self, out, machineMode):
+    def _seqRequest(self, out):
         # Send a 'seqs' request to the OM, updates localOM and returns
         # a list of keys where the sequence number has changed
         changed=[]
-        if self.request(out,'seqs','fnd99'):
-            for key in out.verboseKeys[machineMode]:
+        if self._request(out,'seqs','fnd99'):
+            for key in ['state'] + out.verboseKeys[self.machineMode]:
                 if self.seqs[key] != out.localOM['seqs'][key]:
                     changed.append(key)
                     self.seqs[key] = out.localOM['seqs'][key]
@@ -162,16 +183,43 @@ class handleOM:
             print('Sequence key request failed')
         return changed
 
-    def update(self, out, machineMode, SBCmode):
-        if SBCmode:
-            for key in out.verboseKeys[machineMode]:
-                self.request(out,key,'vnd99')
+    def firstRequest(self,out):
+        # request the initial iseqs and state keys
+        for key in ['seqs','state']:
+            if not self._request(out,key,'vnd99'):
+                commsFail('failed to accqire initial "' + key + '" data')
+        # Machine Mode
+        self.machineMode = out.localOM['state']['machineMode']
+        # Determine SBC mode
+        if (out.localOM['seqs'] == None) or (len(out.localOM['seqs']) == 0):
+            print('RRF controller is in SBC mode')
+            self.seqs = None
         else:
-            fullupdatelist = self._seqRequest(out, machineMode)
-            for key in set(out.frequentKeys[machineMode]).union(fullupdatelist):
-                if key in fullupdatelist:
+            print('RRF controller is standalone')
+            self.seqs = out.localOM['seqs']
+        # Get initial data set
+        for key in out.verboseKeys[self.machineMode]:
+            if not self._request(out,key,'vnd99'):
+                commsFail('failed to accqire initial "' + key + '" data')
+        return self.machineMode
+
+    def update(self, out):
+        nofail = True  # track (soft) failures
+        if self.seqs == None:
+            # SBC mode; do a verbose update of all keys
+            for key in ['state'] + out.verboseKeys[self.machineMode]:
+                if not self._request(out,key,'vnd99'):
+                    nofail = False;
+        else:
+            # seqs mode; only update frequent data unless seqs have changed
+            verboseList = self._seqRequest(out)
+            for key in ['state'] + out.frequentKeys[self.machineMode]:
+                if key in verboseList:
                     print('*',end='')  # debug
-                    self.request(out,key,'vnd99')
+                    if not self._request(out,key,'vnd99'):
+                        nofail = False;
                 else:
                     print('.',end='')  # debug
-                    self.request(out,key,'fnd99')
+                    if not self._request(out,key,'fnd99'):
+                        nofail = False;
+        return nofail
