@@ -44,7 +44,7 @@ class handleOM:
                 self._commsFail("Failed to flush input buffer")
             if self.rawLog:
                 self.rawLog.write(junk)
-        # Now send our command (+ checksum)
+        # send command (+ checksum)
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
         except:
@@ -66,16 +66,21 @@ class handleOM:
         except:
             self._commsFail('M115 initial serial write failed')
         self.sendGcode('M115')
-        try:
-            response = self.rrf.read_until(b"ok").decode('ascii')
-        except:
-            self._commsFail("Failed to read M115 response")
+        # wait looking for a response
+        response = ''
+        sent = ticks_ms()
+        while ticks_diff(ticks_ms(),sent) < self.config.fwCheckTimeout:
+            try:
+                response += self.rrf.read().decode('ascii')
+            except:
+                self._commsFail("Failed to read M115 response")
         print(response.replace('\n','\n>> '))
         if self.rawLog:
             self.rawLog.write(response + '\n')
-        if not 'RepRapFirmware' in response:
-            return False
-        return True
+        if 'RepRapFirmware' in response:
+            # Ideally expand to add more checks, eg version.
+            return True
+        return False
 
     # Handle serial or comms errors
     def _commsFail(self,why):
@@ -201,10 +206,10 @@ class handleOM:
         return changed
 
     def firstRequest(self,out):
-        # request the initial iseqs and state keys
+        # request the initial seqs and state keys
         for key in ['seqs','state']:
             if not self._request(out,key,'vnd99'):
-                self._commsFail('failed to accqire initial "' + key + '" data')
+                self._commsFail('failed to acqire initial "' + key + '" data')
         # Machine Mode
         self.machineMode = out.localOM['state']['machineMode']
         # Determine SBC mode
@@ -217,7 +222,7 @@ class handleOM:
         # Get initial data set
         for key in out.omKeys[self.machineMode]:
             if not self._request(out,key,'vnd99'):
-                self._commsFail('failed to accqire initial "' + key + '" data')
+                self._commsFail('failed to acqire initial "' + key + '" data')
         return self.machineMode
 
     def update(self, out):
