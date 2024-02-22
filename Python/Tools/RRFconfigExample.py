@@ -19,7 +19,7 @@ class config():
     timeout = 0.2
 
     '''
-        Basic time between update cycles (ms)
+        Timing and timeout config:
         updateTime = Basic time between update cycles (ms)
         requestTimeout = maximum time to spend waiting for response after sending request
                          (can be much longer than the blocking timeout above)
