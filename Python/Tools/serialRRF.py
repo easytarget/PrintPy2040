@@ -140,7 +140,7 @@ if machineMode in out.omKeys.keys():
 else:
     restartNow('we currently do not support "' + machineMode + '" controller mode, sorry.')
 
-# Record the curret uptime for the board.
+# Record the current uptime for the board.
 upTime = out.localOM['state']['upTime']
 
 '''
