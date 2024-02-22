@@ -42,7 +42,7 @@ class outputRRF:
             secs = "%02.f" % s
             return days+hrs+mins+secs
 
-        # Overall Status
+        # Construct results string
         r = 'status: ' + self.localOM['state']['status']
         r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])
         if self.localOM['state']['status'] in ['updating','starting']:
@@ -53,7 +53,7 @@ class outputRRF:
         if self.localOM['state']['status'] == 'off':
             pass   # Placeholder for display off code etc..
         else:
-            # this is where we show mode-specific data
+            r += self._updateJob()
             if self.localOM['state']['machineMode'] == 'FFF':
                 r += self._updateFFF()
             elif self.localOM['state']['machineMode']  == 'CNC':
@@ -62,9 +62,8 @@ class outputRRF:
             elif self.localOM['state']['machineMode']  == 'Laser':
                 r += self._updateAxes()
                 r += self._updateLaser()
-            r += self._updateJob()
         r += self._updateMessages()
-        # Return reults
+        # Return results
         if self.log:
             self.log.write('[' + str(int(time())) + '] ' + r + '\n')
         return r
@@ -94,24 +93,24 @@ class outputRRF:
         return r
 
     def _updateAxes(self):
-        # Display all configured axes and homed state.
+        # Display all configured axes workplace and machine position, plus state.
         ws = self.localOM['move']['workplaceNumber']
         r = ' | axes: W' + str(ws + 1)
         m = ''      # machine pos
-        offset = False   # are we offset from Machine Pos?
+        offset = False   # workspace offset from Machine Pos?
         if self.localOM['move']['axes']:
             for axis in self.localOM['move']['axes']:
                 if axis['visible']:
-                    r += ' ' + axis['letter']
                     if axis['homed']:
-                       r += ':' + "%.2f" % (axis['machinePosition'] - axis['workplaceOffsets'][ws])
-                       m += axis['letter'] + ':' + "%.2f" % (axis['machinePosition']) + ' '
+                       r += ' ' + axis['letter'] + ':' + "%.2f" % (axis['machinePosition'] - axis['workplaceOffsets'][ws])
+                       m += ' ' + axis['letter'] + ':' + "%.2f" % (axis['machinePosition'])
                        if axis['workplaceOffsets'][ws] != 0:
                            offset = True
                     else:
-                       r += ':?'
+                       r += ' ' + axis['letter'] + ':?'
+                       m += ' ' + axis['letter'] + ':?'
             if offset:
-                r += ' (' + m[:-1] + ')'
+                r += ' (' + m[1:] + ')'
         return r
 
     def _updateMessages(self):
@@ -145,7 +144,7 @@ class outputRRF:
             return r
 
         r = ''
-        # For FFF mode we want to show iall the Heater states
+        # For FFF mode we want to show all the Heater states
         # Bed
         if len(self.localOM['heat']['bedHeaters']) > 0:
             if self.localOM['heat']['bedHeaters'][0] != -1:

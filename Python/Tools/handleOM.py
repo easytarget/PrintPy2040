@@ -36,33 +36,40 @@ class handleOM:
         try:
             waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
         except:
-            self._commsFail("Failed to flush input buffer")
+            self._commsFail("Failed to query length of input buffer")
         if waiting > 0:
-            junk = self.rrf.read().decode('ascii')
+            try:
+                junk = self.rrf.read().decode('ascii')
+            except:
+                self._commsFail("Failed to flush input buffer")
             if self.rawLog:
                 self.rawLog.write(junk)
         # Now send our command (+ checksum)
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
         except:
-            self._commsFail('Serial write failed')
+            self._commsFail('Gcode serial write failed')
         try:
             self.rrf.flush()
         except:
-            self._commsFail('Serial write buffer flush failed')
+            self._commsFail('Gcode serial write buffer flush failed')
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
-        return True
 
     def firmwareRequest(self):
         # Use M115 to (re-establish comms and verify firmware
         # Send the M115 info request and look for a sensible reply
         print('> M115\n>> ',end='')
-        self.rrf.write(b'\n')
-        if not self.sendGcode('M115'):
-            return False
-        response = self.rrf.read_until(b"ok").decode('ascii')
+        try:
+            self.rrf.write(b'\n')
+        except:
+            self._commsFail('M115 initial serial write failed')
+        self.sendGcode('M115')
+        try:
+            response = self.rrf.read_until(b"ok").decode('ascii')
+        except:
+            self._commsFail("Failed to read M115 response")
         print(response.replace('\n','\n>> '))
         if self.rawLog:
             self.rawLog.write(response + '\n')
@@ -81,37 +88,35 @@ class handleOM:
         execv(executable, ['python'] + argv)   #  CPython
         #reset() # Micropython; reboot module
 
-    # Handle a request to the OM
+    # Handle a request cycle to the OM
     def _request(self, out, OMkey, OMflags):
         '''
-            This is the main request send/recieve code, it sends a OM key request to the
+            This is the main request send/recieve function, it sends a OM key request to the
             controller and returns True when a valid response was recieved, False otherwise.
         '''
-        # Local function for recursive/iterative merge of dict/list structures.
-        # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
-        def merge(a, b):
-            if isinstance(a, dict) and isinstance(b, dict):
-                d = dict(a)
-                d.update({k: merge(a.get(k, None), b[k]) for k in b})
-
-                return d
-            if isinstance(a, list) and isinstance(b, list):
-                return [merge(x, y) for x, y in zip_longest(a, b)]
-            return a if b is None else b
-
-        # Construct the command (no newline)
-        cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
-        # Send the M409 command to RRF
-        if not self.sendGcode(cmd):
-            self._commsFail('Serial/UART failed: Cannot write to controller')
+        response = self._query(OMkey, OMflags)
+        if len(response) == 0:
             return False
-        requestTime = ticks_ms()
+        else:
+            return self._updateOM(out,response)
+
+    # send query and await response
+    def _query(self, OMkey, OMflags):
+        '''
+            Sends a query and waits for response data,
+            returns a list of response lines, or None
+        '''
+        # Construct the M409 command
+        cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
+        # Send the command to RRF
+        self.sendGcode(cmd)
         # And wait for a response
+        requestTime = ticks_ms()
         response = []
         nest = 0;
         maybeJSON = ''
         notJSON = ''
-        # look for responses within the timeout period
+        # only look for responses within the requestTimeout period
         while (ticks_diff(ticks_ms(),requestTime) < self.config.requestTimeout):
             # Read a character, tolerate and ignore decoder errors
             try:
@@ -141,9 +146,22 @@ class handleOM:
                         # if we see 'ok' outside of a JSON block break immediately from wait loop
                         if (notJSON[-2:] == 'ok'):
                             break
-        if len(response) == 0:
-            #print('No sensible response from "',cmd,'" :: ',notJSON)
-            return False
+        return response
+
+    def _updateOM(self,out,response):
+        # Merge or replace the local OM copy with results from the query
+
+        # A Local function for recursive/iterative merge of dict/list structures.
+        # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
+        def merge(a, b):
+            if isinstance(a, dict) and isinstance(b, dict):
+                d = dict(a)
+                d.update({k: merge(a.get(k, None), b[k]) for k in b})
+                return d
+            if isinstance(a, list) and isinstance(b, list):
+                return [merge(x, y) for x, y in zip_longest(a, b)]
+            return a if b is None else b
+
         # Process Json candidate lines
         for line in response:
             # Load as a json data structure
@@ -158,7 +176,7 @@ class handleOM:
                 # M409 may legitimately return an empty key, only process keys with contents
                 if payload['result'] != None:
                     # We have a result, store it
-                    if 'f' in OMflags:
+                    if 'f' in payload['flags']:
                         # Frequent updates just refresh the existing key
                         out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
                     else:
@@ -167,7 +185,6 @@ class handleOM:
             else:
                 # Valid JSON but no 'result' data in it
                 return False
-        # If we got here; we had a successful cycle
         return True
 
     def _seqRequest(self, out):
