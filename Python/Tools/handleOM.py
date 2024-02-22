@@ -29,58 +29,6 @@ class handleOM:
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
         print('OMhandler is starting')
 
-    # send a gcode+chksum then block until it is sent, or error
-    def sendGcode(self, code):
-        chksum = reduce(lambda x, y: x ^ y, map(ord, code))
-        # absorb whatever is in our buffer
-        try:
-            waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
-        except:
-            self._commsFail("Failed to query length of input buffer")
-        if waiting > 0:
-            try:
-                junk = self.rrf.read().decode('ascii')
-            except:
-                self._commsFail("Failed to flush input buffer")
-            if self.rawLog:
-                self.rawLog.write(junk)
-        # send command (+ checksum)
-        try:
-            self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
-        except:
-            self._commsFail('Gcode serial write failed')
-        try:
-            self.rrf.flush()
-        except:
-            self._commsFail('Gcode serial write buffer flush failed')
-        # log what we sent
-        if self.rawLog:
-            self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
-
-    def firmwareRequest(self):
-        # Use M115 to (re-establish comms and verify firmware
-        # Send the M115 info request and look for a sensible reply
-        print('> M115\n>> ',end='')
-        try:
-            self.rrf.write(b'\n')
-        except:
-            self._commsFail('M115 initial serial write failed')
-        self.sendGcode('M115')
-        # wait looking for a response
-        response = ''
-        sent = ticks_ms()
-        while ticks_diff(ticks_ms(),sent) < self.config.fwCheckTimeout:
-            try:
-                response += self.rrf.read().decode('ascii')
-            except:
-                self._commsFail("Failed to read M115 response")
-        print(response.replace('\n','\n>> '))
-        if self.rawLog:
-            self.rawLog.write(response + '\n')
-        if 'RepRapFirmware' in response:
-            # Ideally expand to add more checks, eg version.
-            return True
-        return False
 
     # Handle serial or comms errors
     def _commsFail(self,why):
@@ -156,9 +104,9 @@ class handleOM:
     def _updateOM(self,out,response):
         # Merge or replace the local OM copy with results from the query
 
-        # A Local function for recursive/iterative merge of dict/list structures.
-        # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
         def merge(a, b):
+            # A Local function for recursive/iterative merge of dict/list structures.
+            # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
             if isinstance(a, dict) and isinstance(b, dict):
                 d = dict(a)
                 d.update({k: merge(a.get(k, None), b[k]) for k in b})
@@ -205,6 +153,59 @@ class handleOM:
             print('Sequence key request failed')
         return changed
 
+    def sendGcode(self, code):
+        # send a gcode+chksum then block until it is sent, or error
+        chksum = reduce(lambda x, y: x ^ y, map(ord, code))
+        # absorb whatever is in our buffer
+        try:
+            waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
+        except:
+            self._commsFail("Failed to query length of input buffer")
+        if waiting > 0:
+            try:
+                junk = self.rrf.read().decode('ascii')
+            except:
+                self._commsFail("Failed to flush input buffer")
+            if self.rawLog:
+                self.rawLog.write(junk)
+        # send command (+ checksum)
+        try:
+            self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
+        except:
+            self._commsFail('Gcode serial write failed')
+        try:
+            self.rrf.flush()
+        except:
+            self._commsFail('Gcode serial write buffer flush failed')
+        # log what we sent
+        if self.rawLog:
+            self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
+
+    def firmwareRequest(self):
+        # Use M115 to (re-establish comms and verify firmware
+        # Send the M115 info request and look for a sensible reply
+        print('> M115\n>> ',end='')
+        try:
+            self.rrf.write(b'\n')
+        except:
+            self._commsFail('M115 initial serial write failed')
+        self.sendGcode('M115')
+        # wait looking for a response
+        response = ''
+        sent = ticks_ms()
+        while ticks_diff(ticks_ms(),sent) < self.config.fwCheckTimeout:
+            try:
+                response += self.rrf.read().decode('ascii')
+            except:
+                self._commsFail("Failed to read M115 response")
+        print(response.replace('\n','\n>> '))
+        if self.rawLog:
+            self.rawLog.write(response + '\n')
+        if 'RepRapFirmware' in response:
+            # Ideally expand to add more checks, eg version.
+            return True
+        return False
+
     def firstRequest(self,out):
         # request the initial seqs and state keys
         for key in ['seqs','state']:
@@ -214,11 +215,7 @@ class handleOM:
         self.machineMode = out.localOM['state']['machineMode']
         # Determine SBC mode
         if (out.localOM['seqs'] == None) or (len(out.localOM['seqs']) == 0):
-            print('RRF controller is in SBC mode')
-            self.seqs = None
-        else:
-            print('RRF controller is standalone')
-            self.seqs = out.localOM['seqs']
+            self._commsFail('no sequence data available')
         # Get initial data set
         for key in out.omKeys[self.machineMode]:
             if not self._request(out,key,'vnd99'):
@@ -226,23 +223,16 @@ class handleOM:
         return self.machineMode
 
     def update(self, out):
-        nofail = True  # track (soft) failures
-        if self.seqs == None:
-            # SBC mode; do a verbose update of all keys
-            for key in ['state'] + out.omKeys[self.machineMode]:
-                #print('#',end='')  # debug
+        # Do an update cycle; get new data and update localOM
+        success = True  # track (soft) failures
+        verboseList = self._seqRequest(out)
+        for key in ['state'] + out.omKeys[self.machineMode]:
+            if key in verboseList:
+                #print('*',end='')  # debug
                 if not self._request(out,key,'vnd99'):
-                    nofail = False;
-        else:
-            # seqs mode; only update frequent data unless seqs have changed
-            verboseList = self._seqRequest(out)
-            for key in ['state'] + out.omKeys[self.machineMode]:
-                if key in verboseList:
-                    #print('*',end='')  # debug
-                    if not self._request(out,key,'vnd99'):
-                        nofail = False;
-                else:
-                    #print('.',end='')  # debug
-                    if not self._request(out,key,'fnd99'):
-                        nofail = False;
-        return nofail
+                    success = False;
+            else:
+                #print('.',end='')  # debug
+                if not self._request(out,key,'fnd99'):
+                    success = False;
+        return success
