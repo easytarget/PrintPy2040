@@ -74,7 +74,7 @@ def hardwareFail(why):
 start = localtime()
 startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
 startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
-startText = '=== Starting: ' + startDate + ' ' + startTime + '\n'
+startText = '\n=== Starting: ' + startDate + ' ' + startTime + '\n'
 
 print('serialRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
@@ -114,7 +114,7 @@ for device in config.devices:
 if not rrf:
     # Loop looking for a serial device
     # For micropython we should stop here since no UART == a serious fail.
-    restartNow('USB/serial could not be initialised')
+    restartNow('No USB/serial device found')
 
 # start the OM handler
 OM = handleOM(rrf, config, rawLog)
@@ -126,7 +126,7 @@ while not OM.firmwareRequest():
     retries -= 1
     if retries == 0:
         restartNow('Failing to get Firmware string during startup')
-    print('Failed to get Firmware string, retrying in 1s')
+    print('Failed to get Firmware string, retrying')
     sleep_ms(1000)
 print('serialRRF is connected')
 sleep_ms(1000)  # helps the controller 'settle' after reboots etc.
