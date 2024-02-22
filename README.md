@@ -13,6 +13,7 @@
 
 ## Case
 The case needs care when slicing and printing, some of the clearances are very tight. use a slicer with adaptive layer height features to make sure the screens and PCB's fit correctly.
+
 ![Case Render](Case/front.png) ![Case Render](Case/rear.png)
 
 ## Wiring
