@@ -201,8 +201,9 @@ class handleOM:
         print(response.replace('\n','\n>> '))
         if self.rawLog:
             self.rawLog.write(response + '\n')
+        # A basic test to see if we have an RRF firmware
+        # - Ideally expand to add more checks, eg version.
         if 'RepRapFirmware' in response:
-            # Ideally expand to add more checks, eg version.
             return True
         return False
 
@@ -216,6 +217,8 @@ class handleOM:
         # Determine SBC mode
         if (out.localOM['seqs'] == None) or (len(out.localOM['seqs']) == 0):
             self._commsFail('no sequence data available')
+        else:
+            self.seqs = out.localOM['seqs']
         # Get initial data set
         for key in out.omKeys[self.machineMode]:
             if not self._request(out,key,'vnd99'):
