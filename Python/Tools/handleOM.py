@@ -83,7 +83,11 @@ class handleOM:
 
     # Handle a request to the OM
     def _request(self, out, OMkey, OMflags):
-        # Recursive/iterative merge of dict/list structures.
+        '''
+            This is the main request send/recieve code, it sends a OM key request to the
+            controller and returns True when a valid response was recieved, False otherwise.
+        '''
+        # Local function for recursive/iterative merge of dict/list structures.
         # https://stackoverflow.com/questions/19378143/python-merging-two-arbitrary-data-structures#1
         def merge(a, b):
             if isinstance(a, dict) and isinstance(b, dict):
@@ -107,15 +111,18 @@ class handleOM:
         nest = 0;
         maybeJSON = ''
         notJSON = ''
+        # look for responses within the timeout period
         while (ticks_diff(ticks_ms(),requestTime) < self.config.requestTimeout):
+            # Read a character, tolerate and ignore decoder errors
             try:
                 char = self.rrf.read(1).decode('ascii')
             except UnicodeDecodeError:
                 char = None
             except:
                 self._commsFail('Serial/UART failed: Cannot read from controller')
-            if self.rawLog and (char != None):
+            if self.rawLog and char:
                 self.rawLog.write(char)
+            # for each char classify as either 'possibly in json block' or not.
             if char:
                 if char in self.jsonChars:
                     if char == '{':
@@ -131,6 +138,7 @@ class handleOM:
                             #notJSON = '{...}' + notJSON  # helps debug
                             response.append(maybeJSON)
                             maybeJSON = ""
+                        # if we see 'ok' outside of a JSON block break immediately from wait loop
                         if (notJSON[-2:] == 'ok'):
                             break
         if len(response) == 0:
