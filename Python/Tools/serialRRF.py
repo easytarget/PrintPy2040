@@ -116,8 +116,8 @@ if not rrf:
     # For micropython we should stop here since no UART == a serious fail.
     restartNow('No USB/serial device found')
 
-# start the OM handler
-OM = handleOM(rrf, config, rawLog)
+# create the OM handler
+OM = handleOM(rrf, config, rawLog, hardFail=False)
 
 # check for a valid response to a firmware version query
 print('checking for connected RRF controller')

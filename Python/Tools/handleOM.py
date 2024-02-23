@@ -19,11 +19,11 @@ class handleOM:
         a serial/stream interface
     '''
 
-    def __init__(self, rrf, config, hardFail=True, rawLog=None):
+    def __init__(self, rrf, config, rawLog=None, hardFail=True):
         self.rrf = rrf
         self.config = config
-        self.hardFail = hardFail
         self.rawLog = rawLog
+        self.hardFail = hardFail
         self.seqs = None
         self.machineMode = 'unavailable'
         # string of valid ascii chars for JSON response body
@@ -32,7 +32,7 @@ class handleOM:
 
 
     # Handle serial or comms errors
-    def _commsFail(self,why,error=None):
+    def _commsFail(self,why,error):
         print('Communications error: ' + why)
         print('>>> ' + str(error).replace('\n','\n>>> '))
         if self.hardFail:
