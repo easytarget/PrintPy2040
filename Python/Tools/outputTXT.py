@@ -31,14 +31,11 @@ class outputRRF:
                 days = str(d)  + ':'
             else:
                 days = ''
-            if h > 0:
+            if h > 0 or d > 0:
                 hrs = str(h)  + ':'
             else:
                 hrs = ''
-            if m > 0:
-                mins = "%02.f" % m + ':'
-            else:
-                mins = ''
+            mins = "%02.f" % m + ':'
             secs = "%02.f" % s
             return days+hrs+mins+secs
 
