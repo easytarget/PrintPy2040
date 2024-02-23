@@ -17,6 +17,23 @@ class serialOM:
         Object Model communications tools class provides
         specific functions used to fetch and process OM keys via
         a serial/stream interface
+
+        arguments:
+            rrf : a 'raw' serial stream or similar
+            config:  config object with:
+                config.rebootDelay
+                config.fwCheckTimeout
+                config.requestTimeout
+            rawLog:  File object for the raw log, or None
+            restartOnFail:  What to do on a failure <-- will be depreciated
+
+        provides:
+            sendGcode(code):
+            firmwareRequest():
+            firstRequest(out):
+            update(out):
+            getResponse(cmd):
+
     '''
 
     def __init__(self, rrf, config, rawLog=None, restartOnFail=False):
@@ -28,11 +45,10 @@ class serialOM:
         self.machineMode = 'unavailable'
         # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
-        print('jsonChars : ',self.jsonChars)
         print('serialOM is starting')
 
-
     # Handle serial or comms errors
+    # TODO; remove this and raise an exception.. (and define one first!)
     def _commsFail(self,why,error):
         print('Communications error: ' + why)
         print('>>> ' + str(error).replace('\n','\n>>> '))
@@ -48,7 +64,6 @@ class serialOM:
             # Micropython; reboot module
             #reset()
         else:
-            # TODO; raise an exception.. (and define one first!)
             print('Exiting')
             exit(1)
 
