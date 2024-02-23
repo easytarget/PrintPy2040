@@ -1,6 +1,6 @@
 ## Test tools:
 
-### `serialRRF.py`
+### `logRRF.py`
 Implement a ObjectModel based fetch/update/display cycle in Python, basically a prototype for the 'heart' of PrintPy
 * Uses `M409` commands to query the ObjectModel, parses the responses to a Dictionary structure for output
 * Output is a seperate python class, easy to adapt for alternate displays
