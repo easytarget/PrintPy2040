@@ -103,12 +103,12 @@ class outputRRF:
                 if axis['visible']:
                     if axis['homed']:
                        r += ' ' + axis['letter'] + ':' + "%.2f" % (axis['machinePosition'] - axis['workplaceOffsets'][ws])
-                       m += ' ' + axis['letter'] + ':' + "%.2f" % (axis['machinePosition'])
+                       m += ' ' + "%.2f" % (axis['machinePosition'])
                        if axis['workplaceOffsets'][ws] != 0:
                            offset = True
                     else:
                        r += ' ' + axis['letter'] + ':?'
-                       m += ' ' + axis['letter'] + ':?'
+                       m += ' ?'
             if offset:
                 r += ' (' + m[1:] + ')'
         return r
@@ -167,9 +167,9 @@ class outputRRF:
             if self.localOM['spindles'][spindle]['state'] == 'stopped':
                 r += 'stopped'
             elif self.localOM['spindles'][spindle]['state'] == 'forward':
-                r += 'fwd:' + str(self.localOM['spindles'][spindle]['current']) + 'rpm'
+                r += '+' + str(self.localOM['spindles'][spindle]['current'])
             elif self.localOM['spindles'][spindle]['state'] == 'reverse':
-                r += 'rev:' + str(self.localOM['spindles'][spindle]['current']) + 'rpm'
+                r += '-' + str(self.localOM['spindles'][spindle]['current'])
             return r
 
         # Show details for all configured spindles
