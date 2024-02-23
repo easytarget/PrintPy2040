@@ -133,12 +133,9 @@ sleep_ms(1000)  # helps the controller 'settle' after reboots etc.
 
 # Do the initial state and seq fetch
 machineMode = OM.firstRequest(out)
-
-# Check the machine mode (FFF,CNC or Laser)
-if machineMode in out.omKeys.keys():
-    print(machineMode + ' machine mode detected')
-else:
-    restartNow('we currently do not support "' + machineMode + '" controller mode, sorry.')
+if machineMode == None:
+    restartNow('Failed to fetch initial data sets.')
+print(machineMode + ' machine mode detected')
 
 # Record the current uptime for the board.
 upTime = out.localOM['state']['upTime']

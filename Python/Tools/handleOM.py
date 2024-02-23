@@ -5,7 +5,7 @@ from json import loads
 from timeStubs import sleep_ms,ticks_ms,ticks_diff  # CPython
 
 #from machine import reset             # microPython
-from sys import executable,argv        # CPython
+from sys import executable,argv,exit   # CPython
 from os import execv                   # CPython
 
 # CPython standard libs that need to be provided locally for microPython
@@ -19,9 +19,10 @@ class handleOM:
         a serial/stream interface
     '''
 
-    def __init__(self, rrf, config, rawLog=None):
+    def __init__(self, rrf, config, hardFail=True, rawLog=None):
         self.rrf = rrf
         self.config = config
+        self.hardFail = hardFail
         self.rawLog = rawLog
         self.seqs = None
         self.machineMode = 'unavailable'
@@ -31,15 +32,21 @@ class handleOM:
 
 
     # Handle serial or comms errors
-    def _commsFail(self,why):
-        print('Communications error: ' + why +'\nRestarting in ',end='')
-        # Pause for a few seconds, then restart
-        for c in range(self.config.rebootDelay,0,-1):
-            print(c,end=' ',flush=True)
-            sleep_ms(1000)
-        print()
-        execv(executable, ['python'] + argv)   #  CPython
-        #reset() # Micropython; reboot module
+    def _commsFail(self,why,error=None):
+        print('Communications error: ' + why)
+        print('>>> ' + str(error).replace('\n','\n>>> '))
+        if self.hardFail:
+            print('Exiting')
+            exit(1)
+        else:
+            print('Restarting in ',end='')
+            # Pause for a few seconds, then restart
+            for c in range(self.config.rebootDelay,0,-1):
+                print(c,end=' ',flush=True)
+                sleep_ms(1000)
+            print()
+            execv(executable, ['python'] + argv)   #  CPython
+            #reset() # Micropython; reboot module
 
     # Handle a request cycle to the OM
     def _request(self, out, OMkey, OMflags):
@@ -51,7 +58,7 @@ class handleOM:
         if len(response) == 0:
             return False
         else:
-            return self._updateOM(out,response)
+            return self._updateOM(out,response,OMkey)
 
     # send query and await response
     def _query(self, OMkey, OMflags):
@@ -76,8 +83,8 @@ class handleOM:
                 char = self.rrf.read(1).decode('ascii')
             except UnicodeDecodeError:
                 char = None
-            except:
-                self._commsFail('Serial/UART failed: Cannot read from controller')
+            except Exception as error:
+                self._commsFail('Serial/UART failed: Cannot read from controller',error)
             if self.rawLog and char:
                 self.rawLog.write(char)
             # for each char classify as either 'possibly in json block' or not.
@@ -101,7 +108,7 @@ class handleOM:
                             break
         return response
 
-    def _updateOM(self,out,response):
+    def _updateOM(self,out,response,OMkey):
         # Merge or replace the local OM copy with results from the query
 
         def merge(a, b):
@@ -116,6 +123,7 @@ class handleOM:
             return a if b is None else b
 
         # Process Json candidate lines
+        success = False
         for line in response:
             # Load as a json data structure
             try:
@@ -125,20 +133,28 @@ class handleOM:
                 print('Invalid JSON:',line)
                 continue
             # Update localOM data
-            if 'result' in payload.keys():
-                # M409 may legitimately return an empty key, only process keys with contents
-                if payload['result'] != None:
-                    # We have a result, store it
-                    if 'f' in payload['flags']:
-                        # Frequent updates just refresh the existing key
-                        out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
-                    else:
-                        # Verbose output replaces the existing key
-                        out.localOM[payload['key']] = payload['result']
-            else:
+            if 'key' not in payload.keys():
+                # Valid JSON but no 'key' data in it
+                continue
+            elif payload['key'] != OMkey:
+                # Valid JSON but not for the key we requested
+                continue
+            elif 'result' not in payload.keys():
                 # Valid JSON but no 'result' data in it
-                return False
-        return True
+                continue
+            # We have a result, store it
+            if 'f' in payload['flags']:
+                # Frequent updates just refresh the existing key as needed
+                if payload['result'] != None:
+                    out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
+                # M409 may legitimately return an empty key when getting frequent data
+                success = True
+            else:
+                # Verbose output replaces the existing key if a result is supplied
+                if payload['result'] != None:
+                    out.localOM[payload['key']] = payload['result']
+                    success = True
+        return success
 
     def _seqRequest(self, out):
         # Send a 'seqs' request to the OM, updates localOM and returns
@@ -159,24 +175,24 @@ class handleOM:
         # absorb whatever is in our buffer
         try:
             waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
-        except:
-            self._commsFail("Failed to query length of input buffer")
+        except Exception as error:
+            self._commsFail("Failed to query length of input buffer",error)
         if waiting > 0:
             try:
                 junk = self.rrf.read().decode('ascii')
-            except:
-                self._commsFail("Failed to flush input buffer")
+            except Exception as error:
+                self._commsFail("Failed to flush input buffer",error)
             if self.rawLog:
                 self.rawLog.write(junk)
         # send command (+ checksum)
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
-        except:
-            self._commsFail('Gcode serial write failed')
+        except Exception as error:
+            self._commsFail('Gcode serial write failed',error)
         try:
             self.rrf.flush()
-        except:
-            self._commsFail('Gcode serial write buffer flush failed')
+        except Exception as error:
+            self._commsFail('Gcode serial write buffer flush failed',error)
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
@@ -187,8 +203,8 @@ class handleOM:
         print('> M115\n>> ',end='')
         try:
             self.rrf.write(b'\n')
-        except:
-            self._commsFail('M115 initial serial write failed')
+        except Exception as error:
+            self._commsFail('M115 initial serial write failed',error)
         self.sendGcode('M115')
         # wait looking for a response
         response = ''
@@ -196,8 +212,8 @@ class handleOM:
         while ticks_diff(ticks_ms(),sent) < self.config.fwCheckTimeout:
             try:
                 response += self.rrf.read().decode('ascii')
-            except:
-                self._commsFail("Failed to read M115 response")
+            except Exception as error:
+                self._commsFail("Failed to read M115 response",error)
         print(response.replace('\n','\n>> '))
         if self.rawLog:
             self.rawLog.write(response + '\n')
@@ -211,18 +227,24 @@ class handleOM:
         # request the initial seqs and state keys
         for key in ['seqs','state']:
             if not self._request(out,key,'vnd99'):
-                self._commsFail('failed to acqire initial "' + key + '" data')
+                print('failed to acqire initial "' + key + '" data')
+                return None
         # Machine Mode
         self.machineMode = out.localOM['state']['machineMode']
+        if self.machineMode not in out.omKeys.keys():
+            print('We do not know how to process machine mode: ' + str(self.machineMode))
+            return None
         # Determine SBC mode
         if (out.localOM['seqs'] == None) or (len(out.localOM['seqs']) == 0):
-            self._commsFail('no sequence data available')
+            print('no sequence data available')
+            return None
         else:
             self.seqs = out.localOM['seqs']
         # Get initial data set
         for key in out.omKeys[self.machineMode]:
             if not self._request(out,key,'vnd99'):
-                self._commsFail('failed to acqire initial "' + key + '" data')
+                print('failed to acqire initial "' + key + '" data')
+                return None
         return self.machineMode
 
     def update(self, out):
