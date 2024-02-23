@@ -60,33 +60,35 @@ class serialOM:
         '''
         # Construct the M409 command
         cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
-        queryResponse = self.getReply(cmd)
+        queryResponse = self.getResponse(cmd)
         jsonResponse = self._onlyJson(queryResponse)
         if len(jsonResponse) == 0:
             return False
         else:
             return self._updateOM(out,jsonResponse,OMkey)
 
-    def _onlyJSON(self,queryResponse):
+    def _onlyJson(self,queryResponse):
         # return JSON candidates from the query response
+        if len(queryResponse) == 0:
+            return []
         jsonResponse = []
         nest = 0
-        for line in queryResponse or []:
+        for line in queryResponse:
             json = ''
             for char in line or '':
                 if char == '{':
                     nest += 1
                 if nest > 0 :
                     json += char
-                if char == '}'
+                if char == '}':
                     nest -= 1
                     if nest <0:
                         break
                     elif nest == 0:
-                        jsonResponse += json
+                        jsonResponse.append(json)
                         json = ''
+        #print('\nJSON Response: ',jsonResponse)
         return jsonResponse
-        print('\nJSON Response: ',jsonResponse)
 
     def _updateOM(self,out,response,OMkey):
         # Merge or replace the local OM copy with results from the query
@@ -268,17 +270,13 @@ class serialOM:
             if self.rawLog and char:
                 self.rawLog.write(char)
             # store valid characters
-            print('?',end='')
             if char in self.jsonChars:
-                print('.',end='')
                 line += char
             elif char == '\n':
-                print('+',end='')
-                queryResponse += line
+                queryResponse.append(line)
                 # if we see 'ok' at the line end break immediately from wait loop
                 if (line[-2:] == 'ok'):
                     break
                 line = ''
-        print('\nQuery Response: ',queryResponse)
         return queryResponse
 
