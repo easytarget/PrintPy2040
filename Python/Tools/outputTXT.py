@@ -1,7 +1,7 @@
 from time import time
 
 '''
-    This is a TEXT (REPL/console) output class for serialRRF
+    This is a TEXT (REPL/console) output class for logRRF
     It will later be adapted for I2C displays etc
 '''
 

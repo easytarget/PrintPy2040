@@ -12,41 +12,45 @@ from os import execv                   # CPython
 from itertools import zip_longest
 from functools import reduce
 
-class handleOM:
+class serialOM:
     '''
         Object Model communications tools class provides
         specific functions used to fetch and process OM keys via
         a serial/stream interface
     '''
 
-    def __init__(self, rrf, config, rawLog=None, hardFail=True):
+    def __init__(self, rrf, config, rawLog=None, restartOnFail=False):
         self.rrf = rrf
         self.config = config
         self.rawLog = rawLog
-        self.hardFail = hardFail
+        self.restartOnFail = restartOnFail
         self.seqs = None
         self.machineMode = 'unavailable'
         # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
-        print('OMhandler is starting')
+        print('jsonChars : ',self.jsonChars)
+        print('serialOM is starting')
 
 
     # Handle serial or comms errors
     def _commsFail(self,why,error):
         print('Communications error: ' + why)
         print('>>> ' + str(error).replace('\n','\n>>> '))
-        if self.hardFail:
-            print('Exiting')
-            exit(1)
-        else:
+        if self.restartOnFail:
             print('Restarting in ',end='')
-            # Pause for a few seconds, then restart
+            # Pause for a few seconds
             for c in range(self.config.rebootDelay,0,-1):
                 print(c,end=' ',flush=True)
                 sleep_ms(1000)
             print()
-            execv(executable, ['python'] + argv)   #  CPython
-            #reset() # Micropython; reboot module
+            # CPython; restart with original arguments
+            execv(executable, ['python'] + argv)
+            # Micropython; reboot module
+            #reset()
+        else:
+            # TODO; raise an exception.. (and define one first!)
+            print('Exiting')
+            exit(1)
 
     # Handle a request cycle to the OM
     def _request(self, out, OMkey, OMflags):
@@ -54,59 +58,35 @@ class handleOM:
             This is the main request send/recieve function, it sends a OM key request to the
             controller and returns True when a valid response was recieved, False otherwise.
         '''
-        response = self._query(OMkey, OMflags)
-        if len(response) == 0:
-            return False
-        else:
-            return self._updateOM(out,response,OMkey)
-
-    # send query and await response
-    def _query(self, OMkey, OMflags):
-        '''
-            Sends a query and waits for response data,
-            returns a list of response lines, or None
-        '''
         # Construct the M409 command
         cmd = 'M409 F"' + OMflags + '" K"' + OMkey + '"'
-        # Send the command to RRF
-        self.sendGcode(cmd)
-        # And wait for a response
-        requestTime = ticks_ms()
-        response = []
-        nest = 0;
-        maybeJSON = ''
-        notJSON = ''
-        # only look for responses within the requestTimeout period
-        while (ticks_diff(ticks_ms(),requestTime) < self.config.requestTimeout):
-            # Read a character, tolerate and ignore decoder errors
-            try:
-                char = self.rrf.read(1).decode('ascii')
-            except UnicodeDecodeError:
-                char = None
-            except Exception as error:
-                self._commsFail('Serial/UART failed: Cannot read from controller',error)
-            if self.rawLog and char:
-                self.rawLog.write(char)
-            # for each char classify as either 'possibly in json block' or not.
-            if char:
-                if char in self.jsonChars:
-                    if char == '{':
-                        nest += 1
-                    if nest > 0:
-                        maybeJSON = maybeJSON + char
-                    else:
-                        notJSON = notJSON + char
-                    if char == '}':
-                        nest -= 1
-                    if nest == 0:
-                        if maybeJSON:
-                            #notJSON = '{...}' + notJSON  # helps debug
-                            response.append(maybeJSON)
-                            maybeJSON = ""
-                        # if we see 'ok' outside of a JSON block break immediately from wait loop
-                        if (notJSON[-2:] == 'ok'):
-                            break
-        return response
+        queryResponse = self.getReply(cmd)
+        jsonResponse = self._onlyJson(queryResponse)
+        if len(jsonResponse) == 0:
+            return False
+        else:
+            return self._updateOM(out,jsonResponse,OMkey)
+
+    def _onlyJSON(self,queryResponse):
+        # return JSON candidates from the query response
+        jsonResponse = []
+        nest = 0
+        for line in queryResponse or []:
+            json = ''
+            for char in line or '':
+                if char == '{':
+                    nest += 1
+                if nest > 0 :
+                    json += char
+                if char == '}'
+                    nest -= 1
+                    if nest <0:
+                        break
+                    elif nest == 0:
+                        jsonResponse += json
+                        json = ''
+        return jsonResponse
+        print('\nJSON Response: ',jsonResponse)
 
     def _updateOM(self,out,response,OMkey):
         # Merge or replace the local OM copy with results from the query
@@ -198,6 +178,9 @@ class handleOM:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
 
     def firmwareRequest(self):
+
+        # TODO: re-write this to use 'getResponse' !!!!!
+
         # Use M115 to (re-establish comms and verify firmware
         # Send the M115 info request and look for a sensible reply
         print('> M115\n>> ',end='')
@@ -261,3 +244,41 @@ class handleOM:
                 if not self._request(out,key,'fnd99'):
                     success = False;
         return success
+
+    def getResponse(self, cmd):
+        '''
+            Sends a query and waits for response data,
+            returns a list of response lines, or None
+        '''
+        # Send the command to RRF
+        self.sendGcode(cmd)
+        # And wait for a response
+        requestTime = ticks_ms()
+        queryResponse = []
+        line = ''
+        # only look for responses within the requestTimeout period
+        while (ticks_diff(ticks_ms(),requestTime) < self.config.requestTimeout):
+            # Read a character, tolerate and ignore decoder errors
+            try:
+                char = self.rrf.read(1).decode('ascii')
+            except UnicodeDecodeError:
+                char = None
+            except Exception as error:
+                self._commsFail('Serial/UART failed: Cannot read from controller',error)
+            if self.rawLog and char:
+                self.rawLog.write(char)
+            # store valid characters
+            print('?',end='')
+            if char in self.jsonChars:
+                print('.',end='')
+                line += char
+            elif char == '\n':
+                print('+',end='')
+                queryResponse += line
+                # if we see 'ok' at the line end break immediately from wait loop
+                if (line[-2:] == 'ok'):
+                    break
+                line = ''
+        print('\nQuery Response: ',queryResponse)
+        return queryResponse
+

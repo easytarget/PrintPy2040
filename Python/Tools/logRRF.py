@@ -5,7 +5,7 @@ except ModuleNotFoundError:
     from RRFconfigExample import config
     print('!! Using default config from RRFconfigExample.py')  # nag
 from outputTXT import outputRRF
-from handleOM import handleOM
+from serialOM import serialOM
 
 # Common classes between CPython and microPython
 from gc import collect
@@ -76,7 +76,7 @@ startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
 startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
 startText = '\n=== Starting: ' + startDate + ' ' + startTime + '\n'
 
-print('serialRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+print('logRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
 # Debug Logging
 rawLog = None
@@ -117,7 +117,7 @@ if not rrf:
     restartNow('No USB/serial device found')
 
 # create the OM handler
-OM = handleOM(rrf, config, rawLog, hardFail=False)
+OM = serialOM(rrf, config, rawLog, restartOnFail=False)
 
 # check for a valid response to a firmware version query
 print('checking for connected RRF controller')
@@ -128,7 +128,7 @@ while not OM.firmwareRequest():
         restartNow('Failing to get Firmware string during startup')
     print('Failed to get Firmware string, retrying')
     sleep_ms(1000)
-print('serialRRF is connected')
+print('logRRF is connected')
 sleep_ms(1000)  # helps the controller 'settle' after reboots etc.
 
 # Do the initial state and seq fetch
