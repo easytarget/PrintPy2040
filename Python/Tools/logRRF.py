@@ -117,7 +117,7 @@ if not rrf:
     restartNow('No USB/serial device found')
 
 # create the OM handler
-OM = serialOM(rrf, config, rawLog, restartOnFail=False)
+OM = serialOM(rrf, config, rawLog, restartOnFail=True)
 
 # check for a valid response to a firmware version query
 print('checking for connected RRF controller')
