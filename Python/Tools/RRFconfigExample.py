@@ -22,14 +22,12 @@ class config():
         Timing and timeout config:
         updateTime = Basic time between update cycles (ms)
         requestTimeout = maximum time to spend waiting for response after sending request
-                         (can be much longer than the blocking timeout above)
+                         (can be much longer than the serial blocking timeout above)
         rebootDelay = Countdown in seconds when auto-restarting/rebooting
-        fwCheckTimeout = delay after sending M115 to collect (all) response
     '''
     updateTime = 1000
     requestTimeout = updateTime*0.66
     rebootDelay = 8
-    fwCheckTimeout = 1000
 
     '''
         Logging Config:

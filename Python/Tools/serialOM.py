@@ -4,6 +4,7 @@ from json import loads
 #from time import sleep_ms,ticks_ms,ticks_diff  # microPython
 from timeStubs import sleep_ms,ticks_ms,ticks_diff  # CPython
 
+# SoftFail stuff; depreciated
 #from machine import reset             # microPython
 from sys import executable,argv,exit   # CPython
 from os import execv                   # CPython
@@ -19,56 +20,76 @@ class serialOM:
         a serial/stream interface
 
         arguments:
-            rrf : a 'raw' serial stream or similar
-            config:  config object with:
-                config.rebootDelay
-                config.fwCheckTimeout
-                config.requestTimeout
-            rawLog:  File object for the raw log, or None
-            restartOnFail:  What to do on a failure <-- will be depreciated
+            rrf :           Serial stream or similar
+            requestTimeout: Timeout for response after sending a request (ms)
+            rawLog:         File object for the raw log, or None
+            quiet:          Print messages on startup and when soft errors are encountered
 
         provides:
             sendGcode(code):
-            firmwareRequest():
-            firstRequest(out):
-            update(out):
             getResponse(cmd):
+            update():
 
     '''
 
-    def __init__(self, rrf, config, rawLog=None, restartOnFail=False):
+    def __init__(self, rrf, omKeys, requestTimeout=500, rawLog=None, quiet=False):
         self.rrf = rrf
-        self.config = config
+        self.omKeys = omKeys
+        self.requestTimeout = requestTimeout
         self.rawLog = rawLog
-        self.restartOnFail = restartOnFail
+        self.loud = not quiet
+        self.defaultModel = {'state':{'status':'unknown'},'seqs':None}
+        self.model = self.defaultModel
         self.seqs = None
         self.machineMode = 'unavailable'
+        self.uptime = -1
         # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
-        print('serialOM is starting')
+        if self.loud:
+            print('serialOM is starting')
+        # check for a valid response to a firmware version query
+        if self.loud:
+            print('checking for connected RRF controller')
+        retries = 10
+        while not self._firmwareRequest():
+            retries -= 1
+            if retries == 0:
+                if self.loud:
+                    print('Failed to get a sensible response from controller')
+                return None
+            if self.loud:
+                print('failed..retrying')
+            sleep_ms(self.requestTimeout)
+        print('controller is connected')
+        sleep_ms(self.requestTimeout)  # helps the controller 'settle' after reboots etc.
+
+        if self.loud:
+            print('Making initial data set request')
+        self.machineMode = self._firstRequest()
+        if self.machineMode == None:
+            if self.loud:
+                print('Failed to obtain initial data set')
+            return None
 
     # Handle serial or comms errors
+    # depreciated
     # TODO; remove this and raise an exception.. (and define one first!)
     def _commsFail(self,why,error):
         print('Communications error: ' + why)
         print('>>> ' + str(error).replace('\n','\n>>> '))
-        if self.restartOnFail:
-            print('Restarting in ',end='')
-            # Pause for a few seconds
-            for c in range(self.config.rebootDelay,0,-1):
-                print(c,end=' ',flush=True)
-                sleep_ms(1000)
-            print()
-            # CPython; restart with original arguments
-            execv(executable, ['python'] + argv)
-            # Micropython; reboot module
-            #reset()
-        else:
-            print('Exiting')
-            exit(1)
+        print('Restarting in ',end='')
+        # Pause for a few seconds
+        for c in range(8,0,-1):
+            print(c,end=' ',flush=True)
+            sleep_ms(1000)
+        print()
+        # CPython; restart with original arguments
+        execv(executable, ['python'] + argv)
+        # Micropython; reboot module
+        #reset()
 
     # Handle a request cycle to the OM
-    def _request(self, out, OMkey, OMflags):
+    def _request(self, OMkey, OMflags):
         '''
             This is the main request send/recieve function, it sends a OM key request to the
             controller and returns True when a valid response was recieved, False otherwise.
@@ -80,7 +101,7 @@ class serialOM:
         if len(jsonResponse) == 0:
             return False
         else:
-            return self._updateOM(out,jsonResponse,OMkey)
+            return self._updateOM(jsonResponse,OMkey)
 
     def _onlyJson(self,queryResponse):
         # return JSON candidates from the query response
@@ -102,10 +123,9 @@ class serialOM:
                     elif nest == 0:
                         jsonResponse.append(json)
                         json = ''
-        #print('\nJSON Response: ',jsonResponse)
         return jsonResponse
 
-    def _updateOM(self,out,response,OMkey):
+    def _updateOM(self,response,OMkey):
         # Merge or replace the local OM copy with results from the query
 
         def merge(a, b):
@@ -127,7 +147,8 @@ class serialOM:
                 payload = loads(line)
             except:
                 # invalid JSON, print and skip to next line
-                print('Invalid JSON:',line)
+                if self.loud:
+                    print('Invalid JSON:',line)
                 continue
             # Update localOM data
             if 'key' not in payload.keys():
@@ -143,28 +164,96 @@ class serialOM:
             if 'f' in payload['flags']:
                 # Frequent updates just refresh the existing key as needed
                 if payload['result'] != None:
-                    out.localOM[payload['key']] = merge(out.localOM[payload['key']],payload['result'])
+                    self.model[payload['key']] = merge(self.model[payload['key']],payload['result'])
                 # M409 may legitimately return an empty key when getting frequent data
                 success = True
             else:
                 # Verbose output replaces the existing key if a result is supplied
                 if payload['result'] != None:
-                    out.localOM[payload['key']] = payload['result']
+                    self.model[payload['key']] = payload['result']
                     success = True
         return success
 
-    def _seqRequest(self, out):
+    def _firstRequest(self):
+        # request the initial seqs and state keys
+        for key in ['seqs','state']:
+            if not self._request(key,'vnd99'):
+                if self.loud:
+                    print('failed to acqire initial "' + key + '" data')
+                return None
+        # Machine Mode
+        self.machineMode = self.model['state']['machineMode']
+        if self.machineMode not in self.omKeys.keys():
+            if self.loud:
+                print('We do not know how to process machine mode: ' + str(self.machineMode))
+            return None
+        # Determine SBC mode
+        if (self.model['seqs'] == None) or (len(self.model['seqs']) == 0):
+            if self.loud:
+                print('no sequence data available')
+            return None
+        else:
+            self.seqs = self.model['seqs']
+        # Get initial data set
+        for key in self.omKeys[self.machineMode]:
+            if not self._request(key,'vnd99'):
+                if self.loud:
+                    print('failed to acqire initial "' + key + '" data')
+                return None
+        return self.machineMode
+
+    #TODO
+    def _statusRequest(self):
+        # send status request
+        # handle machine mode and uptime changes
+        #  if error return False
+        return True
+
+    def _seqRequest(self):
         # Send a 'seqs' request to the OM, updates localOM and returns
         # a list of keys where the sequence number has changed
         changed=[]
-        if self._request(out,'seqs','fnd99'):
-            for key in ['state'] + out.omKeys[self.machineMode]:
-                if self.seqs[key] != out.localOM['seqs'][key]:
+        if self._request('seqs','fnd99'):
+            for key in ['state'] + self.omKeys[self.machineMode]:
+                if self.seqs[key] != self.model['seqs'][key]:
                     changed.append(key)
-                    self.seqs[key] = out.localOM['seqs'][key]
+                    self.seqs[key] = self.model['seqs'][key]
         else:
-            print('Sequence key request failed')
+            if self.loud:
+                print('Sequence key request failed')
         return changed
+
+    def _firmwareRequest(self):
+
+        # TODO: re-write this to use 'getResponse' !!!!!
+
+        # Use M115 to (re-establish comms and verify firmware
+        # Send the M115 info request and look for a sensible reply
+        if self.loud:
+            print('> M115\n>> ',end='')
+        try:
+            self.rrf.write(b'\n')
+        except Exception as error:
+            self._commsFail('M115 initial serial write failed',error)
+        self.sendGcode('M115')
+        # wait looking for a response
+        response = ''
+        timeout = self.requestTimeout * 2
+        sent = ticks_ms()
+        while ticks_diff(ticks_ms(),sent) < timeout:
+            try:
+                response += self.rrf.read().decode('ascii')
+            except Exception as error:
+                self._commsFail("Failed to read M115 response",error)
+        if self.loud:
+            print(response.replace('\n','\n>> '))
+        if self.rawLog:
+            self.rawLog.write(response + '\n')
+        # A basic test to see if we have an RRF firmware
+        # - Ideally expand to add more checks, eg version.
+        if 'RepRapFirmware' in response:
+            return True
+        return False
 
     def sendGcode(self, code):
         # send a gcode+chksum then block until it is sent, or error
@@ -194,72 +283,22 @@ class serialOM:
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
 
-    def firmwareRequest(self):
-
-        # TODO: re-write this to use 'getResponse' !!!!!
-
-        # Use M115 to (re-establish comms and verify firmware
-        # Send the M115 info request and look for a sensible reply
-        print('> M115\n>> ',end='')
-        try:
-            self.rrf.write(b'\n')
-        except Exception as error:
-            self._commsFail('M115 initial serial write failed',error)
-        self.sendGcode('M115')
-        # wait looking for a response
-        response = ''
-        sent = ticks_ms()
-        while ticks_diff(ticks_ms(),sent) < self.config.fwCheckTimeout:
-            try:
-                response += self.rrf.read().decode('ascii')
-            except Exception as error:
-                self._commsFail("Failed to read M115 response",error)
-        print(response.replace('\n','\n>> '))
-        if self.rawLog:
-            self.rawLog.write(response + '\n')
-        # A basic test to see if we have an RRF firmware
-        # - Ideally expand to add more checks, eg version.
-        if 'RepRapFirmware' in response:
-            return True
-        return False
-
-    def firstRequest(self,out):
-        # request the initial seqs and state keys
-        for key in ['seqs','state']:
-            if not self._request(out,key,'vnd99'):
-                print('failed to acqire initial "' + key + '" data')
-                return None
-        # Machine Mode
-        self.machineMode = out.localOM['state']['machineMode']
-        if self.machineMode not in out.omKeys.keys():
-            print('We do not know how to process machine mode: ' + str(self.machineMode))
-            return None
-        # Determine SBC mode
-        if (out.localOM['seqs'] == None) or (len(out.localOM['seqs']) == 0):
-            print('no sequence data available')
-            return None
-        else:
-            self.seqs = out.localOM['seqs']
-        # Get initial data set
-        for key in out.omKeys[self.machineMode]:
-            if not self._request(out,key,'vnd99'):
-                print('failed to acqire initial "' + key + '" data')
-                return None
-        return self.machineMode
-
-    def update(self, out):
+    def update(self):
         # Do an update cycle; get new data and update localOM
         success = True  # track (soft) failures
-        verboseList = self._seqRequest(out)
-        for key in ['state'] + out.omKeys[self.machineMode]:
+        # TODO: do the 'state' request first
+        verboseList = self._seqRequest()
+        for key in ['state'] + self.omKeys[self.machineMode]:
             if key in verboseList:
                 #print('*',end='')  # debug
-                if not self._request(out,key,'vnd99'):
+                if not self._request(key,'vnd99'):
                     success = False;
             else:
                 #print('.',end='')  # debug
-                if not self._request(out,key,'fnd99'):
+                if not self._request(key,'fnd99'):
                     success = False;
+        # TODO this will be moved to _statusRequest()
+        self.machineMode = self.model['state']['machineMode']
         return success
 
     def getResponse(self, cmd):
@@ -274,7 +313,7 @@ class serialOM:
         queryResponse = []
         line = ''
         # only look for responses within the requestTimeout period
-        while (ticks_diff(ticks_ms(),requestTime) < self.config.requestTimeout):
+        while (ticks_diff(ticks_ms(),requestTime) < self.requestTimeout):
             # Read a character, tolerate and ignore decoder errors
             try:
                 char = self.rrf.read(1).decode('ascii')
@@ -294,4 +333,3 @@ class serialOM:
                     break
                 line = ''
         return queryResponse
-

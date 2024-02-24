@@ -15,12 +15,12 @@ class outputRRF:
               'CNC':['spindles','tools','move','job','boards','network'],
             'Laser':['move','job','boards','network']}
 
-    def __init__(self, initialOM, log=None):
-        self.localOM = initialOM
+    def __init__(self, log=None):
         self.log = log
+        self.localOM = None
         print('output is starting')
 
-    def updateOutput(self):
+    def updateOutput(self,model):
         # A local function to provide human readable uptime
         def dhms(t):
             d = int(t / 86400)
@@ -39,6 +39,13 @@ class outputRRF:
             secs = "%02.f" % s
             return days+hrs+mins+secs
 
+        # Copy passed data to local copy (for refreshes etc)
+        if model == None:
+            if self.localOM == None:
+                # No data == no viable output
+                return('No data available')
+        else:
+            self.localOM = model
         # Construct results string
         r = 'status: ' + self.localOM['state']['status']
         r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])

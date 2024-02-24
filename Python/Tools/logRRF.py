@@ -97,7 +97,7 @@ if config.outputLog:
         print('logging of output failed: ', error)
 
 # Get output/display device
-out = outputRRF(initialOM={'state':{'status':'undefined'},'seqs':None}, log=outputLog)
+out = outputRRF(log=outputLog)
 
 # Init RRF USB/serial connection
 rrf = None
@@ -117,28 +117,20 @@ if not rrf:
     restartNow('No USB/serial device found')
 
 # create the OM handler
-OM = serialOM(rrf, config, rawLog, restartOnFail=True)
+OM = serialOM(rrf, out.omKeys, config.requestTimeout, rawLog)
 
-# check for a valid response to a firmware version query
-print('checking for connected RRF controller')
-retries = 10
-while not OM.firmwareRequest():
-    retries -= 1
-    if retries == 0:
-        restartNow('Failing to get Firmware string during startup')
-    print('Failed to get Firmware string, retrying')
-    sleep_ms(1000)
-print('logRRF is connected')
-sleep_ms(1000)  # helps the controller 'settle' after reboots etc.
+if OM == None:
+    print('borked on startup')
+    restartNow('startup error')
 
 # Do the initial state and seq fetch
-machineMode = OM.firstRequest(out)
+machineMode = OM.machineMode
 if machineMode == None:
     restartNow('Failed to fetch initial data sets.')
 print(machineMode + ' machine mode detected')
 
 # Record the current uptime for the board.
-upTime = out.localOM['state']['upTime']
+upTime = OM.model['state']['upTime']
 
 '''
     Main loop
@@ -146,21 +138,23 @@ upTime = out.localOM['state']['upTime']
 while True:
     begin = ticks_ms()
     # Do a OM update
-    if OM.update(out):
+    if OM.update():
+        # TODO: move these into serialOM, dont bother user here...
         # test for uptime or machineMode changes and reboot as needed
-        if out.localOM['state']['machineMode'] != machineMode:
-            restartNow('machine mode has changed')
-        elif out.localOM['state']['upTime'] < upTime:
+        if OM.machineMode != machineMode:
+            print('machine mode has changed')
+            machineMode = OM.machineMode
+        elif OM.model['state']['upTime'] < upTime:
             restartNow('RRF controller rebooted')
         else:
             # Record the latest uptime for the board.
-            upTime = out.localOM['state']['upTime']
+            upTime = OM.model['state']['upTime']
     else:
         print('Failed to fetch machine state')
         sleep_ms(config.updateTime/10)  # re-try after 1/10th of update time
         continue
     # output the results
-    print(out.updateOutput())
+    print(out.updateOutput(OM.model))
     # Request cycle ended, garbagecollect and wait for next update start
     collect()
     while ticks_diff(ticks_ms(),begin) < config.updateTime:
