@@ -224,36 +224,23 @@ class serialOM:
         return changed
 
     def _firmwareRequest(self):
-
-        # TODO: re-write this to use 'getResponse' !!!!!
-
         # Use M115 to (re-establish comms and verify firmware
         # Send the M115 info request and look for a sensible reply
         if self.loud:
-            print('> M115\n>> ',end='')
-        try:
-            self.rrf.write(b'\n')
-        except Exception as error:
-            self._commsFail('M115 initial serial write failed',error)
-        self.sendGcode('M115')
-        # wait looking for a response
-        response = ''
-        timeout = self.requestTimeout * 2
-        sent = ticks_ms()
-        while ticks_diff(ticks_ms(),sent) < timeout:
-            try:
-                response += self.rrf.read().decode('ascii')
-            except Exception as error:
-                self._commsFail("Failed to read M115 response",error)
-        if self.loud:
-            print(response.replace('\n','\n>> '))
-        if self.rawLog:
-            self.rawLog.write(response + '\n')
-        # A basic test to see if we have an RRF firmware
-        # - Ideally expand to add more checks, eg version.
-        if 'RepRapFirmware' in response:
-            return True
-        return False
+            print('> M115')
+        response = self.getResponse('M115')
+        haveRRF = False
+        if len(response) > 0:
+            for line in response:
+                if self.loud:
+                    print('>> ' + line)
+                if self.rawLog:
+                    self.rawLog.write(line + '\n')
+                # A basic test to see if we have an RRF firmware
+                # - Ideally expand to add more checks, eg version.
+                if 'RepRapFirmware' in line:
+                    haveRRF = True
+        return haveRRF
 
     def sendGcode(self, code):
         # send a gcode+chksum then block until it is sent, or error
@@ -282,24 +269,6 @@ class serialOM:
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
-
-    def update(self):
-        # Do an update cycle; get new data and update localOM
-        success = True  # track (soft) failures
-        # TODO: do the 'state' request first
-        verboseList = self._seqRequest()
-        for key in ['state'] + self.omKeys[self.machineMode]:
-            if key in verboseList:
-                #print('*',end='')  # debug
-                if not self._request(key,'vnd99'):
-                    success = False;
-            else:
-                #print('.',end='')  # debug
-                if not self._request(key,'fnd99'):
-                    success = False;
-        # TODO this will be moved to _statusRequest()
-        self.machineMode = self.model['state']['machineMode']
-        return success
 
     def getResponse(self, cmd):
         '''
@@ -333,3 +302,21 @@ class serialOM:
                     break
                 line = ''
         return queryResponse
+
+    def update(self):
+        # Do an update cycle; get new data and update localOM
+        success = True  # track (soft) failures
+        # TODO: do the 'state' request first
+        verboseList = self._seqRequest()
+        for key in ['state'] + self.omKeys[self.machineMode]:
+            if key in verboseList:
+                #print('*',end='')  # debug
+                if not self._request(key,'vnd99'):
+                    success = False;
+            else:
+                #print('.',end='')  # debug
+                if not self._request(key,'fnd99'):
+                    success = False;
+        # TODO this will be moved to _statusRequest()
+        self.machineMode = self.model['state']['machineMode']
+        return success
