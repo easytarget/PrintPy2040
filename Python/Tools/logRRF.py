@@ -1,11 +1,11 @@
 # Import our config and local classes
+from serialOM import serialOM
+from outputTXT import outputRRF
 try:
     from RRFconfig import config
 except ModuleNotFoundError:
     from RRFconfigExample import config
     print('!! Using default config from RRFconfigExample.py')  # nag
-from outputTXT import outputRRF
-from serialOM import serialOM
 
 # Common classes between CPython and microPython
 from gc import collect
@@ -21,29 +21,10 @@ from sys import executable,argv        # CPython
 from os import execv                   # CPython
 
 '''
+    serialOM.py demo
+
     This is intended to be run on a desktop system (CPython, not microPython)
     that connects via serial or USBserial to a RRF 3.x based controller.
-
-    It will be used to create a 'framework' for extracting data from
-    RRF based systems using the ObjectModel.
-
-    We make two different types of request:
-      Status requests to read the full tree
-      Update requests that just return the frequently changing values
-    Status requests are more 'expensive' in terms of processor and data use,
-    so we only make these when we need to. The Update requests give us the
-    temperature, tool state and job progress values we need to continually
-    update.
-
-    There is a special key returned by M409; `seqs`, which returns an
-    incremental count of changes to the values /not/ returned with the
-    simple update requests. We use this key to trigger status updates
-    when necessary for all the keys we monitor. As will any 'reset' of
-    the uptime status.
-
-    See:
-    https://docs.duet3d.com/User_manual/Reference/Gcodes#m409-query-object-model
-    https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
 '''
 
 # Do a minimum drama restart/reboot
@@ -123,15 +104,6 @@ if OM == None:
     print('borked on startup')
     restartNow('startup error')
 
-# Do the initial state and seq fetch
-machineMode = OM.machineMode
-if machineMode == None:
-    restartNow('Failed to fetch initial data sets.')
-print(machineMode + ' machine mode detected')
-
-# Record the current uptime for the board.
-upTime = OM.model['state']['upTime']
-
 '''
     Main loop
 '''
@@ -139,22 +111,12 @@ while True:
     begin = ticks_ms()
     # Do a OM update
     if OM.update():
-        # TODO: move these into serialOM, dont bother user here...
-        # test for uptime or machineMode changes and reboot as needed
-        if OM.machineMode != machineMode:
-            print('machine mode has changed')
-            machineMode = OM.machineMode
-        elif OM.model['state']['upTime'] < upTime:
-            restartNow('RRF controller rebooted')
-        else:
-            # Record the latest uptime for the board.
-            upTime = OM.model['state']['upTime']
+        # output the results
+        print(out.updateOutput(OM.model))
     else:
         print('Failed to fetch machine state')
-        sleep_ms(config.updateTime/10)  # re-try after 1/10th of update time
+        sleep_ms(int(config.updateTime/10))  # re-try after 1/10th of update time
         continue
-    # output the results
-    print(out.updateOutput(OM.model))
     # Request cycle ended, garbagecollect and wait for next update start
     collect()
     while ticks_diff(ticks_ms(),begin) < config.updateTime:

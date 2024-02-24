@@ -15,9 +15,28 @@ from functools import reduce
 
 class serialOM:
     '''
-        Object Model communications tools class provides
-        specific functions used to fetch and process OM keys via
-        a serial/stream interface
+        Object Model communications tools class provides a class with
+        specific functions used to fetch and process the RRF Object Model
+        via a serial/stream interface.
+
+        We make two different types of request on a 'per key' basis:
+          Verbose status requests to read the full key
+          Frequent requests that just return the frequently changing key values
+        Verbose requests are more 'expensive' in terms of processor and data use,
+        so we only make these when we need to.
+
+        There is a special key returned by M409; `seqs`, which returns an
+        incremental count of changes to the values /not/ returned with the
+        frequent update requests. We use this key to trigger verbose updates
+        when necessary for all the keys we monitor.
+
+        If either the machine mode changes, or the uptime rolls-back we clean
+        and rebuild our local object model copy
+
+        See:
+        https://docs.duet3d.com/User_manual/Reference/Gcodes#m409-query-object-model
+        https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation
+
 
         arguments:
             rrf :           Serial stream or similar
@@ -26,9 +45,9 @@ class serialOM:
             quiet:          Print messages on startup and when soft errors are encountered
 
         provides:
-            sendGcode(code):
-            getResponse(cmd):
-            update():
+            sendGcode(code):    Sends a Gcode to controller with checksum
+            getResponse(code):  Sends a Gcode and returns the response as a list of lines
+            update():           Updates local model from the controller
 
     '''
 
@@ -40,11 +59,16 @@ class serialOM:
         self.loud = not quiet
         self.defaultModel = {'state':{'status':'unknown'},'seqs':None}
         self.model = self.defaultModel
-        self.seqs = None
+        self.seqs = {}
         self.machineMode = 'unavailable'
-        self.uptime = -1
+        self.upTime = -1
         # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
+        self.seqKeys = ['state']  # we always check 'state'
+        for mode in omKeys.keys():
+            self.seqKeys = list(set(self.seqKeys) | set(omKeys[mode]))
+        print(self.seqKeys)
+
         if self.loud:
             print('serialOM is starting')
         # check for a valid response to a firmware version query
@@ -65,10 +89,12 @@ class serialOM:
 
         if self.loud:
             print('Making initial data set request')
-        self.machineMode = self._firstRequest()
-        if self.machineMode == None:
+        if self.update():
             if self.loud:
-                print('Failed to obtain initial data set')
+                print('Connected to ObjectModel')
+        if self.machineMode == 'unavailable':
+            if self.loud:
+                print('Could not obtain initial machine state')
             return None
 
     # Handle serial or comms errors
@@ -89,7 +115,7 @@ class serialOM:
         #reset()
 
     # Handle a request cycle to the OM
-    def _request(self, OMkey, OMflags):
+    def _omRequest(self, OMkey, OMflags):
         '''
             This is the main request send/recieve function, it sends a OM key request to the
             controller and returns True when a valid response was recieved, False otherwise.
@@ -174,47 +200,52 @@ class serialOM:
                     success = True
         return success
 
-    def _firstRequest(self):
-        # request the initial seqs and state keys
-        for key in ['seqs','state']:
-            if not self._request(key,'vnd99'):
-                if self.loud:
-                    print('failed to acqire initial "' + key + '" data')
-                return None
-        # Machine Mode
-        self.machineMode = self.model['state']['machineMode']
-        if self.machineMode not in self.omKeys.keys():
-            if self.loud:
-                print('We do not know how to process machine mode: ' + str(self.machineMode))
-            return None
-        # Determine SBC mode
-        if (self.model['seqs'] == None) or (len(self.model['seqs']) == 0):
-            if self.loud:
-                print('no sequence data available')
-            return None
+    def _keyRequest(self,key,verboseList):
+        # Do an individual key request using the correct verbosity
+        if key in verboseList:
+            #print('*',end='')  # debug
+            if not self._omRequest(key,'vnd99'):
+                return False;
         else:
-            self.seqs = self.model['seqs']
-        # Get initial data set
-        for key in self.omKeys[self.machineMode]:
-            if not self._request(key,'vnd99'):
-                if self.loud:
-                    print('failed to acqire initial "' + key + '" data')
-                return None
-        return self.machineMode
-
-    #TODO
-    def _statusRequest(self):
-        # send status request
-        # handle machine mode and uptime changes
-        #  if error return False
+            #print('.',end='')  # debug
+            if not self._omRequest(key,'fnd99'):
+                 return False;
         return True
+
+    def _stateRequest(self,verboseSeqs):
+        # sends a state request
+        # handles machine mode and uptime changes
+
+        def cleanstart():
+            # clean and reset the local OM and seqs, returns full seqs list
+            self.model = self.defaultModel
+            self.seqs = {}
+            return self.seqKeys
+
+        if not self._keyRequest('state',verboseSeqs):
+            if self.loud:
+                print('"state" key request failed')
+            return False
+        verboseList = verboseSeqs
+        if self.machineMode != self.model['state']['machineMode']:
+            verboseList = cleanstart()
+        elif self.upTime > self.model['state']['upTime']:
+            verboseList = cleanstart()
+        self.upTime = self.model['state']['upTime']
+        self.machineMode = self.model['state']['machineMode']
+        return verboseList
 
     def _seqRequest(self):
         # Send a 'seqs' request to the OM, updates localOM and returns
         # a list of keys where the sequence number has changed
         changed=[]
-        if self._request('seqs','fnd99'):
-            for key in ['state'] + self.omKeys[self.machineMode]:
+        if self.seqs == {}:
+            # no previous data, start from scratch
+            for key in self.seqKeys:
+                self.seqs[key] = -1
+        # get the seqs key, note and record all changes
+        if self._omRequest('seqs','fnd99'):
+            for key in self.seqKeys:
                 if self.seqs[key] != self.model['seqs'][key]:
                     changed.append(key)
                     self.seqs[key] = self.model['seqs'][key]
@@ -306,17 +337,9 @@ class serialOM:
     def update(self):
         # Do an update cycle; get new data and update localOM
         success = True  # track (soft) failures
-        # TODO: do the 'state' request first
-        verboseList = self._seqRequest()
-        for key in ['state'] + self.omKeys[self.machineMode]:
-            if key in verboseList:
-                #print('*',end='')  # debug
-                if not self._request(key,'vnd99'):
-                    success = False;
-            else:
-                #print('.',end='')  # debug
-                if not self._request(key,'fnd99'):
-                    success = False;
-        # TODO this will be moved to _statusRequest()
-        self.machineMode = self.model['state']['machineMode']
+        verboseSeqs = self._seqRequest()
+        verboseList = self._stateRequest(verboseSeqs)
+        for key in self.omKeys[self.machineMode]:
+            if not self._keyRequest(key, verboseList):
+                success = False
         return success
