@@ -67,7 +67,8 @@ class serialOM:
         self.seqKeys = ['state']  # we always check 'state'
         for mode in omKeys.keys():
             self.seqKeys = list(set(self.seqKeys) | set(omKeys[mode]))
-        print(self.seqKeys)
+
+        # Main Init
 
         if self.loud:
             print('serialOM is starting')
@@ -79,31 +80,30 @@ class serialOM:
             retries -= 1
             if retries == 0:
                 if self.loud:
-                    print('Failed to get a sensible response from controller')
+                    print('failed to get a sensible response from controller')
                 return None
             if self.loud:
                 print('failed..retrying')
             sleep_ms(self.requestTimeout)
         print('controller is connected')
         sleep_ms(self.requestTimeout)  # helps the controller 'settle' after reboots etc.
-
         if self.loud:
-            print('Making initial data set request')
+            print('making initial data set request')
         if self.update():
             if self.loud:
-                print('Connected to ObjectModel')
+                print('connected to ObjectModel')
         if self.machineMode == 'unavailable':
             if self.loud:
-                print('Could not obtain initial machine state')
+                print('could not obtain initial machine state')
             return None
 
     # Handle serial or comms errors
     # depreciated
     # TODO; remove this and raise an exception.. (and define one first!)
     def _commsFail(self,why,error):
-        print('Communications error: ' + why)
+        print('communications error: ' + why)
         print('>>> ' + str(error).replace('\n','\n>>> '))
-        print('Restarting in ',end='')
+        print('restarting in ',end='')
         # Pause for a few seconds
         for c in range(8,0,-1):
             print(c,end=' ',flush=True)
@@ -174,7 +174,7 @@ class serialOM:
             except:
                 # invalid JSON, print and skip to next line
                 if self.loud:
-                    print('Invalid JSON:',line)
+                    print('invalid JSON:',line)
                 continue
             # Update localOM data
             if 'key' not in payload.keys():
@@ -251,7 +251,7 @@ class serialOM:
                     self.seqs[key] = self.model['seqs'][key]
         else:
             if self.loud:
-                print('Sequence key request failed')
+                print('sequence key request failed')
         return changed
 
     def _firmwareRequest(self):
