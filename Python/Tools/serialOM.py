@@ -257,8 +257,6 @@ class serialOM:
         if len(response) > 0:
             for line in response:
                 self._print('>> ' + line)
-                if self.rawLog:
-                    self.rawLog.write(line + '\n')
                 # A basic test to see if we have an RRF firmware
                 # - Ideally expand to add more checks, eg version.
                 if 'RepRapFirmware' in line:
