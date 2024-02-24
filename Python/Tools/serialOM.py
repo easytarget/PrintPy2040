@@ -40,6 +40,7 @@ class serialOM:
 
         arguments:
             rrf :           Serial stream or similar
+            omKeys:         Dictionary with a per-mode list of keys to sync
             requestTimeout: Timeout for response after sending a request (ms)
             rawLog:         File object for the raw log, or None
             quiet:          Print messages on startup and when soft errors are encountered
@@ -56,63 +57,59 @@ class serialOM:
         self.omKeys = omKeys
         self.requestTimeout = requestTimeout
         self.rawLog = rawLog
-        self.loud = not quiet
+        self.quiet = quiet
         self.defaultModel = {'state':{'status':'unknown'},'seqs':None}
         self.model = self.defaultModel
         self.seqs = {}
-        self.machineMode = 'unavailable'
+        self.machineMode = ''
         self.upTime = -1
-        # string of valid ascii chars for JSON response body
         self.jsonChars = bytearray(range(0x20,0x7F)).decode('ascii')
         self.seqKeys = ['state']  # we always check 'state'
         for mode in omKeys.keys():
             self.seqKeys = list(set(self.seqKeys) | set(omKeys[mode]))
 
         # Main Init
-
-        if self.loud:
-            print('serialOM is starting')
+        self._print('serialOM is starting')
         # check for a valid response to a firmware version query
-        if self.loud:
-            print('checking for connected RRF controller')
+        self._print('checking for connected RRF controller')
         retries = 10
         while not self._firmwareRequest():
             retries -= 1
             if retries == 0:
-                if self.loud:
-                    print('failed to get a sensible response from controller')
-                return None
-            if self.loud:
-                print('failed..retrying')
+                self._print('failed to get a sensible M115 response from controller')
+                return
+            self._print('failed..retrying')
             sleep_ms(self.requestTimeout)
-        print('controller is connected')
-        sleep_ms(self.requestTimeout)  # helps the controller 'settle' after reboots etc.
-        if self.loud:
-            print('making initial data set request')
+        self._print('controller is connected')
+        sleep_ms(self.requestTimeout)
+        # Do initial update to fill local model`
+        self._print('making initial data set request')
         if self.update():
-            if self.loud:
-                print('connected to ObjectModel')
-        if self.machineMode == 'unavailable':
-            if self.loud:
-                print('could not obtain initial machine state')
-            return None
+            self._print('connected to ObjectModel')
+        if self.machineMode == '':
+            self._print('failed to obtain initial machine state')
 
     # Handle serial or comms errors
     # depreciated
     # TODO; remove this and raise an exception.. (and define one first!)
     def _commsFail(self,why,error):
-        print('communications error: ' + why)
-        print('>>> ' + str(error).replace('\n','\n>>> '))
-        print('restarting in ',end='')
+        self._print('communications error: ' + why)
+        self._print('>>> ' + str(error).replace('\n','\n>>> '))
+        self._print('restarting in ',end='')
         # Pause for a few seconds
         for c in range(8,0,-1):
-            print(c,end=' ',flush=True)
+            self._print(c,end=' ',flush=True)
             sleep_ms(1000)
-        print()
+        self._print()
         # CPython; restart with original arguments
         execv(executable, ['python'] + argv)
         # Micropython; reboot module
         #reset()
+
+    # To print, or not print, that is the question.
+    def _print(self, *args, **kwargs):
+        if not self.quiet:
+            print(*args, **kwargs)
 
     # Handle a request cycle to the OM
     def _omRequest(self, OMkey, OMflags):
@@ -173,8 +170,7 @@ class serialOM:
                 payload = loads(line)
             except:
                 # invalid JSON, print and skip to next line
-                if self.loud:
-                    print('invalid JSON:',line)
+                self._print('invalid JSON:',line)
                 continue
             # Update localOM data
             if 'key' not in payload.keys():
@@ -223,8 +219,7 @@ class serialOM:
             return self.seqKeys
 
         if not self._keyRequest('state',verboseSeqs):
-            if self.loud:
-                print('"state" key request failed')
+            self._print('"state" key request failed')
             return False
         verboseList = verboseSeqs
         if self.machineMode != self.model['state']['machineMode']:
@@ -244,27 +239,24 @@ class serialOM:
             for key in self.seqKeys:
                 self.seqs[key] = -1
         # get the seqs key, note and record all changes
-        if self._omRequest('seqs','fnd99'):
+        if self._omRequest('seqs','vnd99'):
             for key in self.seqKeys:
                 if self.seqs[key] != self.model['seqs'][key]:
                     changed.append(key)
                     self.seqs[key] = self.model['seqs'][key]
         else:
-            if self.loud:
-                print('sequence key request failed')
+            self._print('sequence key request failed')
         return changed
 
     def _firmwareRequest(self):
         # Use M115 to (re-establish comms and verify firmware
         # Send the M115 info request and look for a sensible reply
-        if self.loud:
-            print('> M115')
+        self._print('> M115')
         response = self.getResponse('M115')
         haveRRF = False
         if len(response) > 0:
             for line in response:
-                if self.loud:
-                    print('>> ' + line)
+                self._print('>> ' + line)
                 if self.rawLog:
                     self.rawLog.write(line + '\n')
                 # A basic test to see if we have an RRF firmware

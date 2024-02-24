@@ -27,14 +27,19 @@ from os import execv                   # CPython
     that connects via serial or USBserial to a RRF 3.x based controller.
 '''
 
+# local print function so we can suppress info messages.
+def pp(*args, **kwargs):
+    if not config.quiet:
+        print(*args, **kwargs)
+
 # Do a minimum drama restart/reboot
 def restartNow(why):
-    print('Error: ' + why +'\nRestarting in ',end='')
+    pp('Error: ' + why +'\nRestarting in ',end='')
     # Pause for a few seconds, then restart
     for c in range(config.rebootDelay,0,-1):
-        print(c,end=' ',flush=True)
+        pp(c,end=' ',flush=True)
         sleep_ms(1000)
-    print()
+    pp()
     execv(executable, ['python'] + argv)   #  CPython
     #reset() # Micropython; reboot module
 
@@ -42,8 +47,8 @@ def restartNow(why):
 # Unused in Cpython, instead we soft-fail, restart and try again.
 # - in microPython we will be harsher with hardware errors
 def hardwareFail(why):
-    print('A critical hardware error has occured!')
-    print('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
+    pp('A critical hardware error has occured!')
+    pp('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
     while True:  # loop forever
         sleep_ms(60000)
 
@@ -55,29 +60,35 @@ def hardwareFail(why):
 start = localtime()
 startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
 startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
-startText = '\n=== Starting: ' + startDate + ' ' + startTime + '\n'
+startText = '=== Starting: ' + startDate + ' ' + startTime
 
-print('logRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+if config.quiet:
+    print(startText)
+else:
+    print('logRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
 # Debug Logging
 rawLog = None
 if config.rawLog:
     try:
         rawLog = open(config.rawLog, "a")
-        print('raw data being logged to: ', config.rawLog)
-        rawLog.write(startText)
     except Exception as error:
-        print('logging of raw data failed: ', error)
+        pp('logging of raw data failed: ', error)
+    else:
+        pp('raw data being logged to: ', config.rawLog)
+        rawLog.write('\n' + startText +  '\n')
 outputLog = None
 if config.outputLog:
     try:
         outputLog = open(config.outputLog, "a")
-        print('output being logged to: ', config.outputLog)
-        outputLog.write(startText)
     except Exception as error:
-        print('logging of output failed: ', error)
+        pp('logging of output failed: ', error)
+    else:
+        pp('output being logged to: ', config.outputLog)
+        outputLog.write('\n' + startText + '\n')
 
 # Get output/display device
+pp('starting output')
 out = outputRRF(log=outputLog)
 
 # Init RRF USB/serial connection
@@ -87,9 +98,9 @@ for device in config.devices:
         # microPython: replace following with UART init
         rrf = Serial(device,config.baud,timeout=config.timeout)
     except:
-        print('device "' + device + '" not available')
+        pp('device "' + device + '" not available')
     else:
-        print('device "' + device + '" available')
+        pp('device "' + device + '" available')
         sleep_ms(100)   # settle time
         break
 if not rrf:
@@ -98,11 +109,13 @@ if not rrf:
     restartNow('No USB/serial device found')
 
 # create the OM handler
-OM = serialOM(rrf, out.omKeys, config.requestTimeout, rawLog)
+OM = serialOM(rrf, out.omKeys, config.requestTimeout, rawLog, config.quiet)
 
-if OM == None:
-    print('borked on startup')
+if OM.machineMode == '':
+    pp('borked on startup')
     restartNow('startup error')
+else:
+    pp('Machine is in "' + OM.machineMode + '" mode')
 
 '''
     Main loop
@@ -114,7 +127,7 @@ while True:
         # output the results
         print(out.updateOutput(OM.model))
     else:
-        print('Failed to fetch machine state')
+        pp('Failed to fetch machine state')
         sleep_ms(int(config.updateTime/10))  # re-try after 1/10th of update time
         continue
     # Request cycle ended, garbagecollect and wait for next update start

@@ -18,7 +18,6 @@ class outputRRF:
     def __init__(self, log=None):
         self.log = log
         self.localOM = None
-        print('output is starting')
 
     def updateOutput(self,model):
         # A local function to provide human readable uptime
