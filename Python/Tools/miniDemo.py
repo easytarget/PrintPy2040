@@ -4,7 +4,7 @@ from time import sleep
 from datetime import timedelta
 from sys import argv
 
-rrf = Serial(argv[1],57600,timeout=0.2)
+rrf = Serial(argv[1],57600)
 OM=serialOM(rrf, {'FFF':['network'],
                   'CNC':['network'],
                   'Laser':['network']})
