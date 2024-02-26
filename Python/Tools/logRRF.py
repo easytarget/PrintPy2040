@@ -117,11 +117,9 @@ except Exception as e:
 
 if OM.machineMode == '':
     pp('borked on startup')
-    restartNow('startup error')
-else:
-    pp('Machine is in "' + OM.machineMode + '" mode')
+    restartNow('Startup error')
 
-    # Show machine info
+    # Update the display model and show overall Status
     out.updateModel(OM.model)
     print(out.showStatus())
 
