@@ -120,6 +120,10 @@ if OM.machineMode == '':
 else:
     pp('Machine is in "' + OM.machineMode + '" mode')
 
+    # Show machine info
+    out.updateModel(OM.model)
+    print(out.showStatus())
+
 '''
     Main loop
 '''
@@ -135,12 +139,12 @@ while True:
     # output the results if successful
     if haveData:
         # output the results
-        print(out.updateOutput(OM.model))
+        out.updateModel(OM.model)
+        print(out.showOutput())
     else:
         pp('Failed to fetch machine state, retrying')
         sleep_ms(int(config.updateTime/10))  # re-try after 1/10th of update time
         continue
-    # Request cycle ended, garbagecollect and wait for next update start
+    # Request cycle ended, wait for next
     while ticks_diff(ticks_ms(),begin) < config.updateTime:
-        # Look for input: output toggle? System Status? Wifi Toggle? log(s) toggle?
         sleep_ms(1)
