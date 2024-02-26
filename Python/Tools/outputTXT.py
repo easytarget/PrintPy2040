@@ -19,7 +19,24 @@ class outputRRF:
         self.log = log
         self.localOM = None
 
-    def updateOutput(self,model):
+    def updateModel(self,model):
+        # Updates the local model
+        self.localOM = model
+        if model is None:
+            return False
+        return True
+
+    def showStatus(self):
+        # simple info about board and logger
+        # needs 'boards' to be in the list of keys above..
+        r = 'info: '
+        r += self.localOM['boards'][0]['firmwareName'] + ' v'
+        r += self.localOM['boards'][0]['firmwareVersion'] + ' on '
+        r += self.localOM['boards'][0]['name'] + ' in "'
+        r += self.localOM['state']['machineMode'] + '" mode'
+        return r
+
+    def showOutput(self):
         # A local function to provide human readable uptime
         def dhms(t):
             d = int(t / 86400)
@@ -38,13 +55,9 @@ class outputRRF:
             secs = "%02.f" % s
             return days+hrs+mins+secs
 
-        # Copy passed data to local copy (for refreshes etc)
-        if model == None:
-            if self.localOM == None:
-                # No data == no viable output
-                return('No data available')
-        else:
-            self.localOM = model
+        if self.localOM is None:
+            # No data == no viable output
+            return('No data available')
         # Construct results string
         r = 'status: ' + self.localOM['state']['status']
         r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])

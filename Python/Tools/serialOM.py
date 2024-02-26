@@ -5,12 +5,19 @@ from timeStubs import sleep_ms,ticks_ms,ticks_diff  # CPython
 from itertools import zip_longest
 from functools import reduce
 
+'''
+    General note:
+    This class was developed with an eye to providing microPython compatibility
+    There are a lot of microPython related comments in here, ignore them for now.
+'''
+
 class serialOMError(Exception):
     '''
         Our own Exception class, used to handle comms errors and enable
-        easy soft-fail on communications errors by the calling program
-        testing for 'serialOMError' in a try/except block.
+        easy soft-fail on communications errors since the calling program
+        can test for 'serialOMError' in a try/except block.
     '''
+
     def __init__(self, errMsg):
         self.errMsg = errMsg
         super().__init__(self.errMsg)
