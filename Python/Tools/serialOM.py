@@ -1,17 +1,22 @@
-# Common classes between CPython and microPython
 from json import loads
-
-#from time import sleep_ms,ticks_ms,ticks_diff  # microPython
 from timeStubs import sleep_ms,ticks_ms,ticks_diff  # CPython
-
-# SoftFail stuff; depreciated
-#from machine import reset             # microPython
-from sys import executable,argv,exit   # CPython
-from os import execv                   # CPython
-
-# CPython standard libs that need to be provided locally for microPython
+#from time import sleep_ms,ticks_ms,ticks_diff  # microPython
+# - these CPython standard libs will need to be provided locally for microPython
 from itertools import zip_longest
 from functools import reduce
+
+class serialOMError(Exception):
+    '''
+        Our own Exception class, used to handle comms errors and enable
+        easy soft-fail on communications errors by the calling program
+        testing for 'serialOMError' in a try/except block.
+    '''
+    def __init__(self, errMsg):
+        self.errMsg = errMsg
+        super().__init__(self.errMsg)
+    def __str__(self):
+        # we could test for the exact error here but not worth it imho
+        return f'{self.errMsg}'
 
 class serialOM:
     '''
@@ -27,11 +32,14 @@ class serialOM:
 
         There is a special key returned by M409; `seqs`, which returns an
         incremental count of changes to the values /not/ returned with the
-        frequent update requests. We use this key to trigger verbose updates
+        frequent update requests. This is used to trigger verbose updates
         when necessary for all the keys we monitor.
 
-        If either the machine mode changes, or the uptime rolls-back we clean
-        and rebuild our local object model copy
+        If either the machine mode changes, or the uptime rolls-back a clean
+        and rebuild is done on the local object model copy
+
+        Serial communications errors will raise a 'serialOMError' exception
+        with the original error in it's message body.
 
         See:
         https://docs.duet3d.com/User_manual/Reference/Gcodes#m409-query-object-model
@@ -91,22 +99,6 @@ class serialOM:
         if self.machineMode == '':
             self._print('failed to obtain initial machine state')
 
-    # Handle serial or comms errors
-    # depreciated
-    # TODO; remove this and raise an exception.. (and define one first!)
-    def _commsFail(self,why,error):
-        self._print('communications error: ' + why)
-        self._print('>>> ' + str(error).replace('\n','\n>>> '))
-        self._print('restarting in ',end='')
-        # Pause for a few seconds
-        for c in range(8,0,-1):
-            self._print(c,end=' ',flush=True)
-            sleep_ms(1000)
-        self._print()
-        # CPython; restart with original arguments
-        execv(executable, ['python'] + argv)
-        # Micropython; reboot module
-        #reset()
 
     # To print, or not print, that is the question.
     def _print(self, *args, **kwargs):
@@ -271,24 +263,24 @@ class serialOM:
         # absorb whatever is in our buffer
         try:
             waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
-        except Exception as error:
-            self._commsFail("Failed to query length of input buffer",error)
+        except Exception as e:
+            raise serialOMError('Failed to query length of input buffer : ' + str(e)) from None
         if waiting > 0:
             try:
                 junk = self.rrf.read().decode('ascii')
-            except Exception as error:
-                self._commsFail("Failed to flush input buffer",error)
+            except Exception as e:
+                raise serialOMError('Failed to flush input buffer : ' + str(e)) from None
             if self.rawLog:
                 self.rawLog.write(junk)
         # send command (+ checksum)
         try:
             self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
-        except Exception as error:
-            self._commsFail('Gcode serial write failed',error)
+        except Exception as e:
+            raise serialOMError('Gcode serial write failed : ' + str(e)) from None
         try:
             self.rrf.flush()
-        except Exception as error:
-            self._commsFail('Gcode serial write buffer flush failed',error)
+        except Exception as e:
+            raise serialOMError('Gcode serial write buffer flush failed : ' + str(e)) from None
         # log what we sent
         if self.rawLog:
             self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
@@ -311,8 +303,8 @@ class serialOM:
                 char = self.rrf.read(1).decode('ascii')
             except UnicodeDecodeError:
                 char = None
-            except Exception as error:
-                self._commsFail('Serial/UART failed: Cannot read from controller',error)
+            except Exception as e:
+                raise serialOMError('Serial/UART failed: Cannot read from controller : ' + str(e)) from None
             if self.rawLog and char:
                 self.rawLog.write(char)
             # store valid characters

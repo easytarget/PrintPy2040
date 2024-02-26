@@ -109,7 +109,10 @@ if not rrf:
     restartNow('No USB/serial device found')
 
 # create the OM handler
-OM = serialOM(rrf, out.omKeys, config.requestTimeout, rawLog, config.quiet)
+try:
+    OM = serialOM(rrf, out.omKeys, config.requestTimeout, rawLog, config.quiet)
+except Exception as e:
+    restartNow('Failed to start ObjectModel communications\n' + str(e))
 
 if OM.machineMode == '':
     pp('borked on startup')
@@ -121,17 +124,23 @@ else:
     Main loop
 '''
 while True:
+    collect()  # do this before every loop because.. microPython
     begin = ticks_ms()
     # Do a OM update
-    if OM.update():
+    haveData = False
+    try:
+        haveData = OM.update()
+    except Exception as e:
+        restartNow('Failed to fetch machine state\n' + str(e))
+    # output the results if successful
+    if haveData:
         # output the results
         print(out.updateOutput(OM.model))
     else:
-        pp('Failed to fetch machine state')
+        pp('Failed to fetch machine state, retrying')
         sleep_ms(int(config.updateTime/10))  # re-try after 1/10th of update time
         continue
     # Request cycle ended, garbagecollect and wait for next update start
-    collect()
     while ticks_diff(ticks_ms(),begin) < config.updateTime:
         # Look for input: output toggle? System Status? Wifi Toggle? log(s) toggle?
         sleep_ms(1)
