@@ -41,7 +41,10 @@ class config():
     '''
     rawLog = None
     outputLog = None
+    #rawLog = 'raw.log'
+    #outputLog = 'out.log'
 
     '''
         Output Config:
     '''
+

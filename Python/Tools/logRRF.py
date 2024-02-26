@@ -1,24 +1,22 @@
-# Import our config and local classes
+# Import our local classes and config
 from serialOM import serialOM
 from outputTXT import outputRRF
-try:
-    from RRFconfig import config
-except ModuleNotFoundError:
-    from RRFconfigExample import config
-    print('!! Using default config from RRFconfigExample.py')  # nag
+from logRRFconfig import config
 
 # Common classes between CPython and microPython
 from gc import collect
-
-# Libs that need to change between between CPython an microPython
-#from machine import UART              # microPython
+from sys import argv
+'''
+    microPython:
+    from machine import UART
+    from time import sleep_ms,ticks_ms,ticks_diff,localtime
+    from machine import reset
+'''
 from serial import Serial
-#from time import sleep_ms,ticks_ms,ticks_diff,localtime # microPython
-from timeStubs import sleep_ms,ticks_ms,ticks_diff # CPython
-from time import localtime                         # CPython
-#from machine import reset             # microPython
-from sys import executable,argv        # CPython
-from os import execv                   # CPython
+from timeStubs import sleep_ms,ticks_ms,ticks_diff
+from time import localtime
+from sys import executable
+from os import execv
 
 '''
     serialOM.py demo
@@ -66,6 +64,9 @@ if config.quiet:
     print(startText)
 else:
     print('logRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+
+if len(argv) > 0:
+    config.devices=argv[1:]
 
 # Debug Logging
 rawLog = None
