@@ -18,3 +18,13 @@ Implement a ObjectModel based fetch/update/display cycle in Python, basically a 
   * See comment in RRFconfigExample.py for configuring connection details
     * Defaults to `/dev/ttyACM[01]`, `57600` baud; use `M575 P0 S2` in your `config.g` if this is not already configured.
 * Will be used to prototype the logic for the PrintPy2040 micropython code; doing this on the desktop is very convenient..
+### microDemo:
+```[code=python]
+from serialOM import serialOM
+from serial import Serial
+
+rrf = Serial('/dev/ttyACM0',57600)
+OM=serialOM(rrf, {'FFF':[],'CNC':[],'Laser':[]}, quiet=True)
+print('state: ' + OM.model['state']['status']
+     + ', up: ' + str(OM.model['state']['upTime']) + 's')
+```
