@@ -17,11 +17,11 @@ class outputRRF:
 
     def __init__(self, log=None):
         self.log = log
-        self.localOM = None
+        self.OM = None
 
     def updateModel(self,model):
         # Updates the local model
-        self.localOM = model
+        self.OM = model
         if model is None:
             return False
         return True
@@ -30,12 +30,12 @@ class outputRRF:
         # simple info about board and logger
         # needs 'boards' to be in the list of keys above..
         r = 'info: '
-        r += self.localOM['boards'][0]['firmwareName'] + ' v'
-        r += self.localOM['boards'][0]['firmwareVersion'] + ' on '
-        r += self.localOM['boards'][0]['name'] + ' in "'
-        r += self.localOM['state']['machineMode'] + '" mode\n      '
-        r += 'Vin: %.1f' % self.localOM['boards'][0]['vIn']['current'] + 'V'
-        r += ' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current'] + 'C'
+        r += self.OM['boards'][0]['firmwareName'] + ' v'
+        r += self.OM['boards'][0]['firmwareVersion'] + ' on '
+        r += self.OM['boards'][0]['name'] + ' in "'
+        r += self.OM['state']['machineMode'] + '" mode\n      '
+        r += 'Vin: %.1f' % self.OM['boards'][0]['vIn']['current'] + 'V'
+        r += ' | mcu: %.1f' % self.OM['boards'][0]['mcuTemp']['current'] + 'C'
         return r
 
     def showOutput(self):
@@ -57,27 +57,27 @@ class outputRRF:
             secs = "%02.f" % s
             return days+hrs+mins+secs
 
-        if self.localOM is None:
+        if self.OM is None:
             # No data == no viable output
             return('No data available')
         # Construct results string
-        r = 'status: ' + self.localOM['state']['status']
-        r += ' | uptime: ' + dhms(self.localOM['state']['upTime'])
-        if self.localOM['state']['status'] in ['updating','starting']:
+        r = 'status: ' + self.OM['state']['status']
+        r += ' | uptime: ' + dhms(self.OM['state']['upTime'])
+        if self.OM['state']['status'] in ['updating','starting']:
             # placeholder for display splash while starting or updating..
             r += ' | please wait'
             return r
         r += self._updateCommon()
-        if self.localOM['state']['status'] == 'off':
+        if self.OM['state']['status'] == 'off':
             pass   # Placeholder for display off code etc..
         else:
             r += self._updateJob()
-            if self.localOM['state']['machineMode'] == 'FFF':
+            if self.OM['state']['machineMode'] == 'FFF':
                 r += self._updateFFF()
-            elif self.localOM['state']['machineMode']  == 'CNC':
+            elif self.OM['state']['machineMode']  == 'CNC':
                 r += self._updateAxes()
                 r += self._updateCNC()
-            elif self.localOM['state']['machineMode']  == 'Laser':
+            elif self.OM['state']['machineMode']  == 'Laser':
                 r += self._updateAxes()
                 r += self._updateLaser()
         r += self._updateMessages()
@@ -89,8 +89,8 @@ class outputRRF:
     def _updateCommon(self):
         # common items to always show
         r = ''
-        if len(self.localOM['network']['interfaces']) > 0:
-            for interface in self.localOM['network']['interfaces']:
+        if len(self.OM['network']['interfaces']) > 0:
+            for interface in self.OM['network']['interfaces']:
                 r += ' | ' + interface['type'] + ': '
                 if interface['state'] != 'active':
                     r += interface['state']
@@ -101,9 +101,9 @@ class outputRRF:
     def _updateJob(self):
         # Job progress
         r = ''
-        if self.localOM['job']['build']:
+        if self.OM['job']['build']:
             try:
-                percent = self.localOM['job']['filePosition'] / self.localOM['job']['file']['size'] * 100
+                percent = self.OM['job']['filePosition'] / self.OM['job']['file']['size'] * 100
             except ZeroDivisionError:  # file size can be 0 as the job starts
                 percent = 0
             r += ' | progress: ' + "%.1f%%" % percent
@@ -111,12 +111,12 @@ class outputRRF:
 
     def _updateAxes(self):
         # Display all configured axes workplace and machine position, plus state.
-        ws = self.localOM['move']['workplaceNumber']
+        ws = self.OM['move']['workplaceNumber']
         r = ' | axes: W' + str(ws + 1)
         m = ''      # machine pos
         offset = False   # workspace offset from Machine Pos?
-        if self.localOM['move']['axes']:
-            for axis in self.localOM['move']['axes']:
+        if self.OM['move']['axes']:
+            for axis in self.OM['move']['axes']:
                 if axis['visible']:
                     if axis['homed']:
                        r += ' ' + axis['letter'] + ':' + "%.2f" % (axis['machinePosition'] - axis['workplaceOffsets'][ws])
@@ -133,74 +133,74 @@ class outputRRF:
     def _updateMessages(self):
         # M117 messages
         r = ''
-        if self.localOM['state']['displayMessage']:
-            r += ' | message: ' +  self.localOM['state']['displayMessage']
+        if self.OM['state']['displayMessage']:
+            r += ' | message: ' +  self.OM['state']['displayMessage']
         # M291 messages
-        if self.localOM['state']['messageBox']:
-            if self.localOM['state']['messageBox']['mode'] == 0:
+        if self.OM['state']['messageBox']:
+            if self.OM['state']['messageBox']['mode'] == 0:
                 r += ' | info: '
             else:
                 r += ' | query: '
-            if self.localOM['state']['messageBox']['title']:
-                r += '== ' + self.localOM['state']['messageBox']['title'] + ' == '
-            r += self.localOM['state']['messageBox']['message']
+            if self.OM['state']['messageBox']['title']:
+                r += '== ' + self.OM['state']['messageBox']['title'] + ' == '
+            r += self.OM['state']['messageBox']['message']
         return r
 
     def _updateFFF(self):
         # a local function to return state and temperature details for a heater
         def showHeater(number,name):
             r = ''
-            if self.localOM['heat']['heaters'][number]['state'] == 'fault':
+            if self.OM['heat']['heaters'][number]['state'] == 'fault':
                 r += ' | ' + name + ': FAULT'
             else:
-                r += ' | ' + name + ': ' + '%.1f' % self.localOM['heat']['heaters'][number]['current']
-                if self.localOM['heat']['heaters'][number]['state'] == 'active':
-                    r += ' (%.1f)' % self.localOM['heat']['heaters'][number]['active']
-                elif self.localOM['heat']['heaters'][number]['state'] == 'standby':
-                    r += ' (%.1f)' % self.localOM['heat']['heaters'][number]['standby']
+                r += ' | ' + name + ': ' + '%.1f' % self.OM['heat']['heaters'][number]['current']
+                if self.OM['heat']['heaters'][number]['state'] == 'active':
+                    r += ' (%.1f)' % self.OM['heat']['heaters'][number]['active']
+                elif self.OM['heat']['heaters'][number]['state'] == 'standby':
+                    r += ' (%.1f)' % self.OM['heat']['heaters'][number]['standby']
             return r
 
         r = ''
         # For FFF mode we want to show all the Heater states
         # Bed
-        if len(self.localOM['heat']['bedHeaters']) > 0:
-            if self.localOM['heat']['bedHeaters'][0] != -1:
-                r += showHeater(self.localOM['heat']['bedHeaters'][0],'bed')
+        if len(self.OM['heat']['bedHeaters']) > 0:
+            if self.OM['heat']['bedHeaters'][0] != -1:
+                r += showHeater(self.OM['heat']['bedHeaters'][0],'bed')
         # Chamber
-        if len(self.localOM['heat']['chamberHeaters']) > 0:
-            if self.localOM['heat']['chamberHeaters'][0] != -1:
-                r += showHeater(self.localOM['heat']['chamberHeaters'][0],'chamber')
+        if len(self.OM['heat']['chamberHeaters']) > 0:
+            if self.OM['heat']['chamberHeaters'][0] != -1:
+                r += showHeater(self.OM['heat']['chamberHeaters'][0],'chamber')
         # Extruders
-        if len(self.localOM['tools']) > 0:
-            for tool in self.localOM['tools']:
+        if len(self.OM['tools']) > 0:
+            for tool in self.OM['tools']:
                 if len(tool['heaters']) > 0:
-                    r += showHeater(tool['heaters'][0],'e' + str(self.localOM['tools'].index(tool)))
+                    r += showHeater(tool['heaters'][0],'e' + str(self.OM['tools'].index(tool)))
         return r
 
     def _updateCNC(self):
         # a local function to return spindle name + state, direction and speed
         def showSpindle(name,spindle):
             r = ' | ' + name + ': '
-            if self.localOM['spindles'][spindle]['state'] == 'stopped':
+            if self.OM['spindles'][spindle]['state'] == 'stopped':
                 r += 'stopped'
-            elif self.localOM['spindles'][spindle]['state'] == 'forward':
-                r += '+' + str(self.localOM['spindles'][spindle]['current'])
-            elif self.localOM['spindles'][spindle]['state'] == 'reverse':
-                r += '-' + str(self.localOM['spindles'][spindle]['current'])
+            elif self.OM['spindles'][spindle]['state'] == 'forward':
+                r += '+' + str(self.OM['spindles'][spindle]['current'])
+            elif self.OM['spindles'][spindle]['state'] == 'reverse':
+                r += '-' + str(self.OM['spindles'][spindle]['current'])
             return r
 
         # Show details for all configured spindles
         r = ''
-        if len(self.localOM['tools']) > 0:
-            for tool in self.localOM['tools']:
+        if len(self.OM['tools']) > 0:
+            for tool in self.OM['tools']:
                 if tool['spindle'] != -1:
                     r += showSpindle(tool['name'],tool['spindle'])
         return r
 
     def _updateLaser(self):
         # Show laser info; not much to show since there is no seperate laser 'tool' (yet)
-        if self.localOM['move']['currentMove']['laserPwm'] != None:
-            pwm = '%.0f%%' % (self.localOM['move']['currentMove']['laserPwm'] * 100)
+        if self.OM['move']['currentMove']['laserPwm'] != None:
+            pwm = '%.0f%%' % (self.OM['move']['currentMove']['laserPwm'] * 100)
         else:
             pwm = 'not configured'
         return ' | laser: ' + pwm

@@ -173,7 +173,7 @@ class serialOM:
                 # invalid JSON, print and skip to next line
                 self._print('invalid JSON:',line)
                 continue
-            # Update localOM data
+            # Update local OM data
             if 'key' not in payload.keys():
                 # Valid JSON but no 'key' data in it
                 continue
@@ -232,7 +232,7 @@ class serialOM:
         return verboseList
 
     def _seqRequest(self):
-        # Send a 'seqs' request to the OM, updates localOM and returns
+        # Send a 'seqs' request to the OM, updates local OM and returns
         # a list of keys where the sequence number has changed
         changed=[]
         if self.seqs == {}:
@@ -326,7 +326,7 @@ class serialOM:
         return queryResponse
 
     def update(self):
-        # Do an update cycle; get new data and update localOM
+        # Do an update cycle; get new data and update local OM
         success = True  # track (soft) failures
         verboseSeqs = self._seqRequest()
         verboseList = self._stateRequest(verboseSeqs)
