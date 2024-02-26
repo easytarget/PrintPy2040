@@ -34,7 +34,7 @@ class outputRRF:
         r += self.localOM['boards'][0]['firmwareVersion'] + ' on '
         r += self.localOM['boards'][0]['name'] + ' in "'
         r += self.localOM['state']['machineMode'] + '" mode\n'
-        r += 'Vin: %.1f' % self.localOM['boards'][0]['vIn']['current']
+        r += '      Vin: %.1f' % self.localOM['boards'][0]['vIn']['current']
         r += ' | mcu: %.1f' % self.localOM['boards'][0]['mcuTemp']['current']
         return r
 
