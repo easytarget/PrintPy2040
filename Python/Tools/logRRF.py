@@ -119,9 +119,9 @@ if OM.machineMode == '':
     pp('borked on startup')
     restartNow('Startup error')
 
-    # Update the display model and show overall Status
-    out.updateModel(OM.model)
-    print(out.showStatus())
+# Update the display model and show overall Status
+out.updateModel(OM.model)
+print(out.showStatus())
 
 '''
     Main loop
