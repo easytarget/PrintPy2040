@@ -1,6 +1,5 @@
 '''
-    Copy this file as `RRFconfig.py`, and
-    then edit the serial device path and baud rate there.
+    if neede  edit the serial device path and baud rate here, etc.
 '''
 
 class config():
@@ -11,14 +10,10 @@ class config():
                      devices can wander between 0 and 1 when the duet reboots.
         baud:     (int) Serial baud rate; should match the setting used in the config.g
                   -  `M575` command used to enable the serial or usb port.
-        timeout:  (float, seconds) Read blocking timeout in float(seconds)
-                  - returns after this even with no data
-                    should be a a few hundred ms, unless your controller is verrrry slow.
         quiet:    (bool) suppress info messages
     '''
     devices = ['/dev/ttyACM0','/dev/ttyACM1']
     baud = 57600
-    timeout = 0.2
     quiet = False
 
     '''
@@ -35,16 +30,9 @@ class config():
     '''
         Logging Config:
         - Replace "None" with "'filename.log'" to enable.
-        rawLog:     An unprocessed log of all incoming serial data as a bytearray
+        rawLog:     An unprocessed raw log of all incoming serial data
         outputLog:  Log file for output module
-                    - The example TXT output class can mirror sends it's output there
+                    - The example TXT output class will mirror it's output there
     '''
     rawLog = None
     outputLog = None
-    #rawLog = 'raw.log'
-    #outputLog = 'out.log'
-
-    '''
-        Output Config:
-    '''
-
