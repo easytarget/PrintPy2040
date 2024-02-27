@@ -1,12 +1,12 @@
 from time import time
 
 '''
-    This is a TEXT (REPL/console) output class for logRRF
+    This is a TEXT (REPL/console) output class for PrintPY
     It will later be adapted for I2C displays etc
 '''
 
 # These are the only key sets in the OM we are interested in
-# We will always get the 'state' key at the start of the loop
+# We will always get the 'state' key from serialOM
 # All other keys need to be specified below
 
 class outputRRF:
@@ -63,7 +63,7 @@ class outputRRF:
         # Construct results string
         r = 'status: ' + self.OM['state']['status']
         r += ' | uptime: ' + dhms(self.OM['state']['upTime'])
-        if self.OM['state']['status'] in ['updating','starting']:
+        if self.OM['state']['status'] in ['halted','updating','starting']:
             # placeholder for display splash while starting or updating..
             r += ' | please wait'
             return r

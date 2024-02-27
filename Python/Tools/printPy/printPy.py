@@ -65,10 +65,14 @@ startText = '=== Starting: ' + startDate + ' ' + startTime
 if config.quiet:
     print(startText)
 else:
-    print('logRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+    print(argv[0] + ' is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
+# Arguments, optional, #1 is update timer, the rest are serial device ports
 if len(argv) > 1:
-    config.devices=argv[1:]
+    config.updateTime = argv[1]
+    config.requestTimeout = config.updateTime * 0.66
+if len(argv) > 2:
+    config.devices = argv[2:]
 
 # Debug Logging
 rawLog = None
@@ -119,8 +123,7 @@ except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e))
 
 if OM.machineMode == '':
-    pp('borked on startup')
-    restartNow('Startup error')
+    restartNow('Startup error while connecting to controller')
 
 # Update the display model and show overall Status
 out.updateModel(OM.model)

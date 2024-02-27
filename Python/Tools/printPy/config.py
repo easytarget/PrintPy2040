@@ -24,7 +24,7 @@ class config():
         rebootDelay:    (int) Countdown in seconds when auto-restarting/rebooting
     '''
     updateTime = 1000
-    requestTimeout = updateTime*0.66
+    requestTimeout = updateTime * 0.66
     rebootDelay = 8
 
     '''
