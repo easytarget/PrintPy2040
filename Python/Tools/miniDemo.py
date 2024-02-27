@@ -4,7 +4,7 @@ from time import sleep
 from datetime import timedelta
 
 rrf = Serial('/dev/ttyACM0',57600)
-OM=serialOM(rrf, {'FFF':['network'],
+OM = serialOM(rrf, {'FFF':['network'],
                   'CNC':['network'],
                   'Laser':['network']})
 

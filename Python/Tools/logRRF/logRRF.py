@@ -1,7 +1,9 @@
+from sys import path
+path.insert(0,'..')
 # Import our local classes and config
 from serialOM import serialOM
 from outputTXT import outputRRF
-from logRRFconfig import config
+from config import config
 
 # Common classes between CPython and microPython
 from gc import collect
@@ -65,7 +67,7 @@ if config.quiet:
 else:
     print('logRRF is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
-if len(argv) > 0:
+if len(argv) > 1:
     config.devices=argv[1:]
 
 # Debug Logging
