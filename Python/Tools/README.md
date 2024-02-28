@@ -1,15 +1,19 @@
-# serialRRFom.py
+# serialOM.py
+A RRF ObjectModel serial access class/library for Python3
 
 Requirements:
-* `PySerial` (we expect to be passed a PySerial object but other seriali/stream devices may work too).
+* `PySerial` (https://pyserial.readthedocs.io/)
+  * serialOM expects to be passed a PySerial object (but other serial/stream devices may work too).
 * `timeStubs.py`: a local set of stubs for cross-python compatibility. Place this in the same folder as `serialOM.py`
-* A suitable device specified in the controllers `config.g` to connect to. 
+* A suitable RRF USB/serial/UART device specified in the controllers `config.g` to connect to.
+  * For USB set `M575 P0 S2` in your config, this will set the USB port correctly. Other ports should use `S2` as the port mode.
+  * The gcode sender adds checksums to all sent commands, but this fails to satisfy the controller in `S3` mode for reasons I cant really be bothered to debug. The checksums I send are OK but the controller also appears to require line numbers in this mode (which is afik undocumented).
 
 ## Use:
 `serialOM` requires a `serial.Serial()` object at init, and a dictionary with the OM keys to gather for each machine mode. It will connect and populate `serialOM.model` with the '`state`' OM key plus the per-mode keys.
 
 A bare bones example of serialOM can be as simple as:
-```[code=python]
+```python
 from serialOM import serialOM
 from serial import Serial
 
