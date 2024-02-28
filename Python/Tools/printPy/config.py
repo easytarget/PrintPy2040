@@ -7,7 +7,7 @@ class config():
         Serial Device Config:
         devices:  (list, strings) devices to try when connecting
                    - a list because under linux the /dev/ttyACM* and /dev/ttyUSB*
-                     devices can wander between 0 and 1 when the duet reboots.
+                     devices can wander between 0 and 1 when the controller reboots.
         baud:     (int) Serial baud rate; should match the setting used in the config.g
                   -  `M575` command used to enable the serial or usb port.
         quiet:    (bool) suppress info messages
@@ -30,8 +30,8 @@ class config():
     '''
         Logging Config:
         - Replace "None" with "'filename.log'" to enable.
-        rawLog:     An unprocessed raw log of all incoming serial data
-        outputLog:  Log file for output module
+        rawLog:     A raw log of all incoming serial data
+        outputLog:  Log file passed to the output module
                     - The example TXT output class will mirror it's output there
     '''
     rawLog = None
