@@ -5,9 +5,10 @@ Requirements:
 * `PySerial` (https://pyserial.readthedocs.io/)
   * serialOM expects to be passed a PySerial object (but other serial/stream devices may work too).
 * `timeStubs.py`: a local set of stubs for cross-python compatibility. Place this in the same folder as `serialOM.py`
-* A suitable RRF USB/serial/UART device specified in the controllers `config.g` to connect to.
-  * For USB set `M575 P0 S2` in your config, this will set the USB port correctly. Other ports should use `S2` as the port mode.
-  * The gcode sender adds checksums to all sent commands, but this fails to satisfy the controller in `S3` mode for reasons I cant really be bothered to debug. The checksums I send are OK but the controller also appears to require line numbers in this mode (which is afik undocumented).
+* A suitable RRF USB/serial/UART device specified with '[M575](https://docs.duet3d.com/User_manual/Reference/Gcodes#m575-set-serial-comms-parameters)' in `config.g` to connect to.
+  * For USB set `M575 P0 S2` in your config, this will set the USB port correctly.
+  * Other UART ports should also use `S2` as the port mode (`S0` also works)
+  * CRC/Checksum modes are *not* supported, this includes the default `S1` mode.
 
 ## Use:
 `serialOM` requires a `serial.Serial()` object at init, and a dictionary with the OM keys to gather for each machine mode. It will connect and populate `serialOM.model` with the '`state`' OM key plus the per-mode keys.
@@ -22,11 +23,11 @@ OM  = serialOM(rrf, {'FFF':[],'CNC':[],'Laser':[]}, quiet=True)
 print('state: ' + OM.model['state']['status']
      + ', up: ' + str(OM.model['state']['upTime']) + 's')
 ```
-Try setting `quiet=False` for serialOM to see a lot mode detail of the connecction progress.
+Try setting `quiet=False` for serialOM to see a lot more detail of the connecction progress.
 
-If serialOM times out or otherwise fails to connect to the controller during initialisation `serialOM.machineMode` will be empty, otherwise this will reflect the controller mode; currently `FFF`, `CNC` or `Laser`.
+If serialOM times out or otherwise fails to connect to the controller during initialisation `serialOM.machineMode` will be empty (`''`), otherwise this will reflect the controller mode; currently `'FFF'`, `'CNC'` or `'Laser'`.
 
-Once connected periodically calling `serialOM.update()` will refresh the model tree. It returns `True` if the update succeeded, `False` if it failed (response timeout). It deals gracefully with `machineMode` changes and `upTime` rollbacks (controller reboots) refreshing the entire model and setting `serialOM.machineMode` as needed.
+Once connected calling `serialOM.update()` will refresh the model tree. It returns `True` if the update succeeded, `False` if it failed (response timeout). It deals gracefully with `machineMode` changes and `upTime` rollbacks (controller reboots) refreshing the entire model and (re)setting `serialOM.machineMode` as needed.
 
 The provided 'miniDemo.py' script is more detailed and shows the use of `updating()` and `getResponse()` functions.
 
@@ -43,11 +44,16 @@ There are two public functions provided by `serialOM` for convenience:
 * `sendGcode('code')'  : Sends the specified `code` to the controller, has no return value.
 * `getResponse(`code`)': Sends the `code` and waits for a response ending with `ok`, returns a list of recieved lines. Conforms to the request timeout as described above and returns an empty list if no valid response recieved.
 
-### printPy demo:
---quick description and link here please--
+## printPy demo:
+`serialOM` comes with a full implementation of a datalogging script in the `printPy` folder. 
+This uses the features above to implement a robust data gathering loop. This, in turn, calls an output class to process the data being gathered. In the demo this is a `text` implementation of the class which logs to the console, and optionally to a log file.
+* See [printPy/README.md](printPy/README.md)
+* The text output class serves as a template for writing classes to display ObjectModel info on I2C/SPI or any other external display/data feed.
+* This will eventually be ported to microPython as the core of [PrintPy2040](https://github.com/easytarget/PrintPy2040/). Eventually.
+
 
 ## Operation:
-Implements a RRF ObjectModel fetch/update cycle in Python, basically a prototype for the 'heart' of PrintPy
+Implements a RRF ObjectModel fetch/update cycle in Python, basically a CPython prototype of a microPython project.
 * Uses `M409` commands to query the ObjectModel, parses the responses to a Dictionary structure for output
   * Uses the `seqs` sequence numbers to limit load on the controller by only making verbose requests as needed.
   * Traps all serial errors and provides it's own `serialOMError` exception that can be trapped to handle communications issues seamlessly.
@@ -65,3 +71,4 @@ Implements a RRF ObjectModel fetch/update cycle in Python, basically a prototype
     * Non micropython standard libs are discouraged unless they have a easy micropython equivalent/local lib.
     * All times are in `ms` (micropython uses `int(ms)` for it's timing basics rather than `float(seconds)`)
   * Tested and developed on a RaspberryPI connected to my Duet2 wifi via USB/serial
+  * You can specify a 'raw' log file; this is handy when debugging but will fill very rapidly and should never be used 'in production'
