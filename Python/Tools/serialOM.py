@@ -87,6 +87,7 @@ class serialOM:
         self._print('serialOM is starting')
         # we want this to be set; a non blocking timeout
         rrf.timeout = requestTimeout / 2500
+	rrf.write_timeout = rrf.timeout
         # check for a valid response to a firmware version query
         self._print('checking for connected RRF controller')
         retries = 10
