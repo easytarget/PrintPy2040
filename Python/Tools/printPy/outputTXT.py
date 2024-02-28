@@ -2,7 +2,7 @@ from time import time
 
 '''
     This is a TEXT (REPL/console) output class for PrintPY
-    It will later be adapted for I2C displays etc
+    It can be adapted for I2C displays etc
 '''
 
 # These are the only key sets in the OM we are interested in
@@ -13,11 +13,13 @@ class outputRRF:
     # ObjectModel keys for each supported mode
     omKeys = {'FFF':['heat','tools','job','boards','network'],
               'CNC':['spindles','tools','move','job','boards','network'],
-            'Laser':['move','job','boards','network']}
+              'Laser':['move','job','boards','network']}
 
     def __init__(self, log=None):
         self.log = log
         self.OM = None
+        # If running I2C displays etc this should reflect their status
+        self.running = True
 
     def updateModel(self,model):
         # Updates the local model
