@@ -61,7 +61,7 @@ class serialOM:
             quiet:          Print messages on startup and when soft errors are encountered
 
         provides:
-            sendGcode(code):    Sends a Gcode to controller with checksum
+            sendGcode(code):    Sends a Gcode to controller
             getResponse(code):  Sends a Gcode and returns the response as a list of lines
             update():           Updates local model from the controller
 
@@ -266,11 +266,10 @@ class serialOM:
         return haveRRF
 
     def sendGcode(self, code):
-        # send a gcode+chksum then block until it is sent, or error
-        chksum = reduce(lambda x, y: x ^ y, map(ord, code))
-        # absorb whatever is in our buffer
+        # send a gcode then block until it is sent, or error
+        # first, absorb whatever is in our buffer
         try:
-            waiting = self.rrf.in_waiting     # CPython, micropython use 'any()'
+            waiting = self.rrf.in_waiting     # CPython, microPython use 'any()'
         except Exception as e:
             raise serialOMError('Failed to query length of input buffer : ' + str(e)) from None
         if waiting > 0:
@@ -278,11 +277,12 @@ class serialOM:
                 junk = self.rrf.read().decode('ascii')
             except Exception as e:
                 raise serialOMError('Failed to flush input buffer : ' + str(e)) from None
-            if self.rawLog:
-                self.rawLog.write(junk)
-        # send command (+ checksum)
+            else:
+                if self.rawLog:
+                    self.rawLog.write(junk)
+        # send command
         try:
-            self.rrf.write(bytearray(code + "*" + str(chksum) + "\r\n",'utf-8'))
+            self.rrf.write(bytearray(code + "\r\n",'utf-8'))
         except Exception as e:
             raise serialOMError('Gcode serial write failed : ' + str(e)) from None
         try:
@@ -291,7 +291,7 @@ class serialOM:
             raise serialOMError('Gcode serial write buffer flush failed : ' + str(e)) from None
         # log what we sent
         if self.rawLog:
-            self.rawLog.write("\n> " + code + "*" + str(chksum) + "\n")
+            self.rawLog.write("\n> " + code + "\n")
 
     def getResponse(self, cmd):
         '''
