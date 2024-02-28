@@ -29,20 +29,27 @@ class outputRRF:
         return True
 
     def showStatus(self):
+        if self.OM is None:
+            # called while not connected.
+            # this could be expanded for microPython memory etc.
+            return('No data available')
         # simple info about board and logger
         # needs 'boards' to be in the list of keys above..
         r = 'info: '
         r += self.OM['boards'][0]['firmwareName'] + ' v'
         r += self.OM['boards'][0]['firmwareVersion'] + ' on '
-        r += self.OM['boards'][0]['name'] + ' in "'
+        r += self.OM['boards'][0]['name'] + '\n      Controller is in "'
         r += self.OM['state']['machineMode'] + '" mode\n      '
         r += 'Vin: %.1f' % self.OM['boards'][0]['vIn']['current'] + 'V'
         r += ' | mcu: %.1f' % self.OM['boards'][0]['mcuTemp']['current'] + 'C'
         return r
 
     def showOutput(self):
-        # A local function to provide human readable uptime
+        # Shows the results on the console on demand.
+        #  copies to outputLog if one is specified
+
         def dhms(t):
+            # A local function to provide human readable uptime
             d = int(t / 86400)
             h = int((t / 3600) % 24)
             m = int((t / 60) % 60)
