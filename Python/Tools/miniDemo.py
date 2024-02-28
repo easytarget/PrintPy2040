@@ -8,8 +8,10 @@ OM = serialOM(rrf, {'FFF':['network'],
                   'CNC':['network'],
                   'Laser':['network']})
 
-print('> M112')
-for line in OM.getResponse('M122')[:8] + ['-truncated-']:
+print('controller is in "' + OM.model['state']['machineMode'] + '" mode')
+print('> M122')
+response = OM.getResponse('M122')
+for line in response[:8] + ['<truncated>']:
     print('>> ' + line)
 
 while True:
@@ -19,5 +21,5 @@ while True:
     if OM.model['state']['displayMessage']:
         print(', message: ' + OM.model['state']['displayMessage'],end='')
     print()
-    sleep(1)
+    sleep(6)
     OM.update()
