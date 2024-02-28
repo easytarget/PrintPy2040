@@ -7,9 +7,13 @@
 * the case is done and printed
 * the XIAO RP2040 board is in place
 * wiring is complete
-* MICROPYTHON coding is ongoing.
+* Code prototyping is done
+  * MICROPYTHON coding is ongoing.
 
 # Hardware
+This repo is principally about the hardware, code development is ongoing in https://github.com/easytarget/serialOM, released code will be placed here for reference.
+
+See the [README](microPython/README.md) in the '[microPython](microPython/)' folder for more.
 
 ## Case
 The case needs care when slicing and printing, some of the clearances are very tight. use a slicer with adaptive layer height features to make sure the screens and PCB's fit correctly.
