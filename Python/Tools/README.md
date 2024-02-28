@@ -1,21 +1,48 @@
-## serialRRFom.py
+# serialRRFom.py
 
-## use:
+Requirements:
+* `PySerial` (we expect to be passed a PySerial object but other seriali/stream devices may work too).
+* `timeStubs.py`: a local set of stubs for cross-python compatibility. Place this in the same folder as `serialOM.py`
+* A suitable device specified in the controllers `config.g` to connect to. 
 
-### microDemo:
+## Use:
+`serialOM` requires a `serial.Serial()` object at init, and a dictionary with the OM keys to gather for each machine mode. It will connect and populate `serialOM.model` with the '`state`' OM key plus the per-mode keys.
+
+A bare bones example of serialOM can be as simple as:
 ```[code=python]
 from serialOM import serialOM
 from serial import Serial
 
 rrf = Serial('/dev/ttyACM0',57600)
-OM=serialOM(rrf, {'FFF':[],'CNC':[],'Laser':[]}, quiet=True)
+OM  = serialOM(rrf, {'FFF':[],'CNC':[],'Laser':[]}, quiet=True)
 print('state: ' + OM.model['state']['status']
      + ', up: ' + str(OM.model['state']['upTime']) + 's')
 ```
-### printPy demo:
---quick description here please--
+Try setting `quiet=False` for serialOM to see a lot mode detail of the connecction progress.
 
-### serialOM.py
+If serialOM times out or otherwise fails to connect to the controller during initialisation `serialOM.machineMode` will be empty, otherwise this will reflect the controller mode; currently `FFF`, `CNC` or `Laser`.
+
+Once connected periodically calling `serialOM.update()` will refresh the model tree. It returns `True` if the update succeeded, `False` if it failed (response timeout). It deals gracefully with `machineMode` changes and `upTime` rollbacks (controller reboots) refreshing the entire model and setting `serialOM.machineMode` as needed.
+
+The provided 'miniDemo.py' script is more detailed and shows the use of `updating()` and `getResponse()` functions.
+
+#### Blocking:
+When being initialised, updated or making requests `serialOM` is blocking, it implements it's own request timeouts and will return if the connected device times out. The 'per request' timeout can be passed as an argument, during updates it will make 2 requests minimum, plus one request per additional mode OM key. During `init` additional requests occur to detect firmware and initial state.
+
+The `Serial()` device neeeds to have it's blocking timeouts set lower than the overall Request timeout, this is done during init by `serialOM` itself and does not need to be specified when creating the serial object.
+
+#### Exceptions:
+`serialOM` catches all exceptions coming from `serial` devices during read and write operations and will raise it's own `serialOMError` exception in response, with the original exception in the body. This allows the calling script to retry/re-initialise the connection as needed (handy for USB serial which disconnects when the controller reboots).
+
+#### Extras:
+There are two public functions provided by `serialOM` for convenience:
+* `sendGcode('code')'  : Sends the specified `code` to the controller, has no return value.
+* `getResponse(`code`)': Sends the `code` and waits for a response ending with `ok`, returns a list of recieved lines. Conforms to the request timeout as described above and returns an empty list if no valid response recieved.
+
+### printPy demo:
+--quick description and link here please--
+
+## Operation:
 Implements a RRF ObjectModel fetch/update cycle in Python, basically a prototype for the 'heart' of PrintPy
 * Uses `M409` commands to query the ObjectModel, parses the responses to a Dictionary structure for output
   * Uses the `seqs` sequence numbers to limit load on the controller by only making verbose requests as needed.
