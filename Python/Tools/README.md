@@ -41,8 +41,8 @@ The `Serial()` device neeeds to have it's blocking timeouts set lower than the o
 
 #### Extras:
 There are two public functions provided by `serialOM` for convenience:
-* `sendGcode('code')'  : Sends the specified `code` to the controller, has no return value.
-* `getResponse(`code`)': Sends the `code` and waits for a response ending with `ok`, returns a list of recieved lines. Conforms to the request timeout as described above and returns an empty list if no valid response recieved.
+* `sendGcode('code')` : Sends the specified `code` to the controller, has no return value.
+* `getResponse('code')`: Sends `code` and waits for a response ending with `ok`, returns a list of recieved lines. Conforms to the request timeout as described above and returns an empty list if no valid response recieved.
 
 ## printPy demo:
 `serialOM` comes with a full implementation of a datalogging script in the `printPy` folder. 
