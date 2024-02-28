@@ -157,9 +157,7 @@ while True:
         out.updateModel(OM.model)
         print(out.showOutput())
     else:
-        pp('Failed to fetch machine state, retrying')
-        sleep_ms(int(config.updateTime/10))  # re-try after 1/10th of update time
-        continue
+        pp('Failed to fetch machine state')
     # Request cycle ended, wait for next
     while ticks_diff(ticks_ms(),begin) < config.updateTime:
         sleep_ms(1)
