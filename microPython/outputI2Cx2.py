@@ -2,15 +2,15 @@ from time import sleep_ms,ticks_ms,ticks_diff
 from machine import Pin,I2C
 from ssd1306 import SSD1306_I2C
 from sys import path
+from config import config
 # fonts
 path.append('fonts')
 from ezFBfont import ezFBfont
-import mPyEZfont_u8g2_spleen_12x24_n
-import mPyEZfont_u8g2_spleen_16x32_n
-import mPyEZfont_u8g2_helvB10_r
-import mPyEZfont_u8g2_helvR08_e
-import mPyEZfont_u8g2_helvR24_n
-import mPyEZfont_u8g2_helvR12_n
+import ezFBfont_33_helvR24_num
+import ezFBfont_16_helvR12_num
+import ezFBfont_15_helvB10_ascii as heading
+import ezFBfont_13_helvR08_full as heading_sub
+import ezFBfont_15_helvR10_ascii as heading_info
 
 '''
     This is a I2C twin 128x64 OLED display out put class for PrintMPY
@@ -46,25 +46,27 @@ class outputRRF:
               'CNC':['spindles','tools','move','job','boards','network'],
               'Laser':['move','job','boards','network']}
 
-    def __init__(self, log=None):
+    def __init__(self, log=None, net=None):
         self._log = log  # Find a way to use this for display debugging
         self._OM = None
         # If running I2C displays etc this should reflect their status
         self.running = True
-        self.statusActive = False
-        self.statusDuration = 2000     # CONFIG
-        self._statusRequested = 0
+        self._counter = 0
 
         # demo only?
         self._begin = ticks_ms()
 
         # I2C
-        I2C0_SDA_PIN = 28
-        I2C0_SCL_PIN = 29
-        I2C1_SDA_PIN = 6
-        I2C1_SCL_PIN = 7
-        i2c0=I2C(0,sda=Pin(I2C0_SDA_PIN), scl=Pin(I2C0_SCL_PIN))
-        i2c1=I2C(1,sda=Pin(I2C1_SDA_PIN), scl=Pin(I2C1_SCL_PIN))
+        self._initDisplays()
+        self._bright(1)
+        self._clean()
+        self._splash()
+        self._active = True
+        self._updating = False
+        
+    def _initDisplays(self):
+        i2c0 = I2C(0,sda=Pin(config.I2C0_SDA_PIN), scl=Pin(config.I2C0_SCL_PIN))
+        i2c1 = I2C(1,sda=Pin(config.I2C1_SDA_PIN), scl=Pin(config.I2C1_SCL_PIN))
         self._d0 = SSD1306_I2C(128, 64, i2c0, addr=0x3c)
         self._d1 = SSD1306_I2C(128, 64, i2c1, addr=0x3c)
         self._d0.invert(False)
@@ -73,16 +75,14 @@ class outputRRF:
         self._d1.rotate(1)
         self._fontSetup(self._d0)
         self._fontSetup(self._d1)
-        self._bright(1)
-        self._clean()
-        self._splash()
-        self._active = True
+
 
     def _fontSetup(self,d):
-        d.heading = ezFBfont(d, mPyEZfont_u8g2_helvB10_r)
-        d.heading_sub = ezFBfont(d, mPyEZfont_u8g2_helvR08_e)
-        d.tens  = ezFBfont(d, mPyEZfont_u8g2_helvR24_n, halign='right', valign='baseline')
-        d.units = ezFBfont(d, mPyEZfont_u8g2_helvR12_n, valign='baseline')
+        d.heading = ezFBfont(d, heading)
+        d.heading_sub = ezFBfont(d, heading_sub)
+        d.heading_info = ezFBfont(d, heading_info)
+        d.tens  = ezFBfont(d, ezFBfont_33_helvR24_num, halign='right', valign='baseline')
+        d.units = ezFBfont(d, ezFBfont_16_helvR12_num, valign='baseline')
 
 
     def _splash(self):
@@ -91,9 +91,19 @@ class outputRRF:
         self._d1.heading.write('demo', 63, 0, halign='center')
         self._show()
 
+    def _waiting(self):
+        # some sort of timeout here..
+        self._on()
+        self._clean()
+        self._d0.heading.write('Waiting', 63, 0, halign='center')
+        # animate something?
+        self._d1.heading.write('...', 63, 0, halign='center')
+        self._show()
+
     def _clean(self):
-            self._d0.fill_rect(0, 0, 128, 64, 0)
-            self._d1.fill_rect(0, 0, 128, 64, 0)
+        self._d0.fill_rect(0, 0, 128, 64, 0)
+        self._d1.fill_rect(0, 0, 128, 64, 0)
+        self._updating = True
 
     def _on(self):
         if not self._active:
@@ -110,19 +120,44 @@ class outputRRF:
     def _show(self):
         self._d0.show()
         self._d1.show()
+        self._updating = False
 
     def _bright(self,bright):
         bright = int(bright * 255)
         self._d0.contrast(bright)
         self._d1.contrast(bright)
+        
+    def _dhms(self,t):
+        # A local function to provide human readable uptime
+        d = int(t / 86400)
+        h = int((t / 3600) % 24)
+        m = int((t / 60) % 60)
+        s = int(t % 60)
+        if d > 0:
+            days = str(d)  + 'd:'
+        else:
+            days = ''
+        if h > 0 or d > 0:
+            hrs = str(h)  + 'h:'
+        else:
+            hrs = ''
+        mins = "%02.f" % m + ':'
+        secs = "%02.f" % s
+        return days+hrs+mins+secs
+
 
     def update(self,model=None):
+        # Need to handle failed starts,
+        # - Display 'waiting for data' if model=None for more than a set time.
+        if model is not None:
+            self._OM = model
+        if self._OM is None:
+            self._waiting()
+            return('Initial update data unavailable\n')
         if self._OM['state']["status"] is not 'off':
             self._on()
             self._clean()
        # Updates the local model, returns the current status text
-        if model is not None:
-            self._OM = model
         if self._OM is None:
             return('no update data available\n')
         r =self._showModel() + '\n'
@@ -131,32 +166,6 @@ class outputRRF:
         else:
             self._off()
         return r
-
-    def showStatus(self, model=None):
-        # Returns specific status details for the controller and PrintPy
-        # this will be expanded for microPython host status. NetWork status
-        if ticks_diff(ticks_ms(),self._statusRequested) < self.statusDuration:
-            self._statusRequested = ticks_ms()
-            return ''
-        self._statusRequested = ticks_ms()
-        if model is not None:
-            self._OM = model
-        if self._OM is None:
-            # called while not connected.
-            return('no data available\n')
-        self.statusActive = True
-        # simple info about board and logger
-        # needs 'boards' to be in the list of keys above..
-        r = 'info: '
-        r += self._OM['boards'][0]['firmwareName'] + ' v'
-        r += self._OM['boards'][0]['firmwareVersion'] + ' on '
-        r += self._OM['boards'][0]['name'] + '\n      Controller is in "'
-        r += self._OM['state']['machineMode'] + '" mode\n      '
-        r += 'Vin: %.1f' % self._OM['boards'][0]['vIn']['current'] + 'V'
-        r += ' | mcu: %.1f' % self._OM['boards'][0]['mcuTemp']['current'] + 'C'
-        # Return results
-        self.statusActive = False
-        return r + '\n'
 
     '''
         All the routines below tediously walk/grok the OM and return
@@ -168,40 +177,21 @@ class outputRRF:
         #  Constructs and returns the model data in human-readable form.
         #  copies to outputLog if one is specified
 
-        def dhms(t):
-            # A local function to provide human readable uptime
-            d = int(t / 86400)
-            h = int((t / 3600) % 24)
-            m = int((t / 60) % 60)
-            s = int(t % 60)
-            if d > 0:
-                days = str(d)  + ':'
-            else:
-                days = ''
-            if h > 0 or d > 0:
-                hrs = str(h)  + ':'
-            else:
-                hrs = ''
-            mins = "%02.f" % m + ':'
-            secs = "%02.f" % s
-            return days+hrs+mins+secs
 
         if self._OM is None:
             # No data == no viable output
             return('No data available')
-        status_line = ' ' + self._OM['state']["status"]
-        self._d0.heading.write(status_line, 0, 0)
-        info_line = 'up: {}'.format(dhms(self._OM['state']["upTime"]))
-        self._d1.heading.write(info_line, 127, 0, halign = 'right')
         # Construct results string
-        r = ''
+        r = 'up: {}, status: {}'.format(
+            self._dhms(self._OM['state']["upTime"]),
+            self._OM['state']["status"])
         if self._OM['state']['status'] in ['halted','updating','starting']:
             # placeholder for display splash while starting or updating..
             r += ' | please wait'
             return r
         r += self._updateCommon()
         if self._OM['state']['status'] == 'off':
-            pass   # Placeholder for display off code etc..
+            return r
         else:
             r += self._updateJob()
             if self._OM['state']['machineMode'] == 'FFF':
@@ -218,15 +208,34 @@ class outputRRF:
 
     def _updateCommon(self):
         # common items to always show
-        r = ''
+        cstate = self._OM['state']["status"]
+        cstate = cstate[0].upper() + cstate[1:]
+        if len(cstate) < 8:
+            status_line = ' ' + cstate
+        else:
+            status_line = cstate
+        self._d0.heading.write(status_line, 0, 0)
+        
         if len(self._OM['network']['interfaces']) > 0:
-            for interface in self._OM['network']['interfaces']:
-                r += ' | ' + interface['type'] + ': '
-                if interface['state'] != 'active':
-                    r += interface['state']
-                else:
-                    r += interface['actualIP']
-        return r
+            interface = self._OM['network']['interfaces'][0]
+            if interface['state'] != 'active':
+                net = 'ip: {}'.format(interface['state'])
+            else:
+                net = 'ip: {}'.format(interface['actualIP'])
+        else:
+            net = ''
+
+        if self._OM['state']['displayMessage']:
+            info_line = self._OM['state']['displayMessage']
+        #elif self._counter == 0:
+        #    self._counter = 1
+        #    info_line = 'up: {}'.format(self._dhms(self._OM['state']["upTime"]))
+        else:
+            #self._counter = 0 
+            info_line = net if len(net) > 0 else ''
+
+        self._d1.heading_info.write(info_line, 127, 0, halign = 'right')
+        return ', ' + net
 
     def _updateJob(self):
         # Job progress
@@ -237,9 +246,8 @@ class outputRRF:
             except ZeroDivisionError:  # file size can be 0 as the job starts
                 percent = 0
             job_line = '{:.1f}'.format(percent)
-            pw,_ = self._d1.heading.size(job_line)
-            self._d1.heading.write(job_line, 0, 0)
-            self._d1.heading_sub.write('%', pw, 4)
+            self._d0.heading.write(job_line, 120, 0, halign='right')
+            self._d0.heading_sub.write('%', 121, 1)
         return r
 
     def _updateAxes(self):
@@ -296,17 +304,16 @@ class outputRRF:
                 units=int(temp)
                 dec = int((temp - units) * 10)
                 if self._OM['heat']['heaters'][number]['state'] == 'active':
-                    target = ' active\n ({})'.format(int(self._OM['heat']['heaters'][number]['active']))
+                    target = ' {}°'.format(int(self._OM['heat']['heaters'][number]['active']))
                 elif self._OM['heat']['heaters'][number]['state'] == 'standby':
-                    target = 'standby\n ({})'.format(int(self._OM['heat']['heaters'][number]['standby']))
-                    #target = 'standby'
+                    target = '({}°)'.format(int(self._OM['heat']['heaters'][number]['standby']))
                 else:
                     target = ' off'
-                display.heading.write(name, 0, 22)
+                display.heading.write(name, 0, 24)
                 display.heading_sub.write(target, 0, 38)
-                display.tens.write('{}.'.format(units), 106, 56)
-                display.tens.write('°', 106, 56, tkey=0, halign='center')
-                display.units.write(' {:01d}'.format(dec), 106, 56)
+                display.tens.write('{}.'.format(units), 106, 48)
+                display.tens.write('°', 106, 48, tkey=0, halign='center')
+                display.units.write(' {:01d}'.format(dec), 106, 48)
             return r
 
         r = ''
