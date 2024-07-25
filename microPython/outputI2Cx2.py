@@ -1,5 +1,5 @@
 from time import sleep_ms,ticks_ms,ticks_diff
-from machine import Pin,I2C
+from machine import I2C
 from ssd1306 import SSD1306_I2C
 from sys import path
 from config import config
@@ -9,9 +9,11 @@ from ezFBfont import ezFBfont
 import ezFBfont_15_helvB10_ascii as heading
 import ezFBfont_13_helvR08_full as heading_sub
 import ezFBfont_16_open_iconic_all_2x_full as icons
-import ezFBfont_12_spleen_8x16_num as units
-import ezFBfont_20_spleen_16x32_time as double_tens
-import ezFBfont_40_spleen_32x64_time as single_tens
+import ezFBfont_18_helvB14_ascii as message
+import ezFBfont_12_spleen_8x16_num as double_minor
+import ezFBfont_20_spleen_12x24_num as single_minor
+import ezFBfont_20_spleen_16x32_time as double_major
+import ezFBfont_40_spleen_32x64_time as single_major
 
 # define some icon chars
 C_TOOL = chr(130)
@@ -69,7 +71,7 @@ class outputRRF:
         # internals
         self._active = True
         self._updating = False
-        self._show_digits = {}
+        self._show_decimal = {}
         # hardware
         self._initDisplays()
         self._bright(1)
@@ -92,13 +94,14 @@ class outputRRF:
         d.heading = ezFBfont(d, heading)
         d.heading_sub = ezFBfont(d, heading_sub)
         d.icons = ezFBfont(d, icons)
-        d.tens  = ezFBfont(d, single_tens, halign='right', valign='baseline')
-        d.units = ezFBfont(d, units, valign='baseline')
+        d.message = ezFBfont(d, message)
+        d.s_minor = ezFBfont(d, single_minor, valign='baseline')
+        d.s_major = ezFBfont(d, single_major, halign='right', valign='baseline')
 
     def _splash(self):
         # Should scroll a 'clean' screen in?
-        self._d0.heading.write('serialOM', 63, 0, halign='center')
-        self._d1.heading.write('demo', 63, 0, halign='center')
+        self._d0.message.write('PrintPy\n2040', 63, 20, halign='center')
+        self._d1.message.write('by\nOwen', 63, 20, halign='center')
         self._show()
 
     def _waiting(self):
@@ -206,7 +209,7 @@ class outputRRF:
         else:
             self._updateJob()
             if self._OM['state']['machineMode'] == 'FFF':
-                r += self._updateFFF()
+                self._updateFFF()
             else:
                 r += ', Unsupported mode: {}'.format(
                     self._OM['state']['machineMode'])
@@ -240,7 +243,6 @@ class outputRRF:
         x = 127 if icon is None else 110
         self._d1.heading_sub.write(net, x, 2, halign = 'right')
         self._d1.icons.write(icon, x+2, 0, halign = 'left')
-        return
 
     def _updateJob(self):
         # Job progress
@@ -273,19 +275,19 @@ class outputRRF:
     def _updateFFF(self):
         # a local function to return state and temperature details for a heater
         def showHeater(number,name,icon,display):
-            r = ''
-            if name not in self._show_digits.keys():
-                self._show_digits[name] = False
+            if name not in self._show_decimal.keys():
+                self._show_decimal[name] = False
             if self._OM['heat']['heaters'][number]['state'] == 'fault':
-                r += ' | ' + name + ': FAULT'
+                display.icons.write(C_WARN, 0, 27)
+                display.message.write('{} Fault'.format(name), 21, 29)
             else:
                 temp = self._OM['heat']['heaters'][number]['current']
-                units=int(temp)
-                dec = int((temp - units) * 10)
+                val =int(temp)
+                dec = abs(int((temp - val) * 10))
                 if temp >= 100 or temp <= -10:
-                    self._show_digits[name] = False
-                elif temp <= 95 and temp >= -9:
-                    self._show_digits[name] = True
+                    self._show_decimal[name] = False
+                elif temp <= 90 and temp >= -9:
+                    self._show_decimal[name] = True
                 if self._OM['heat']['heaters'][number]['state'] == 'active':
                     target = '{}°'.format(int(self._OM['heat']['heaters'][number]['active']))
                     
@@ -294,34 +296,35 @@ class outputRRF:
                 else:
                     target = ''
                     icon = ''
+                    
+                # Display data from above
                 display.icons.write(icon,2,18)
                 display.heading.write(name, 0, 37)
                 display.heading_sub.write(target, 0, 50)
-                #display.tens.write('{}'.format(units), 106, 63)
-                display.tens.write('{}'.format(units), 127, 63)
-                #display.units.write('.{:01d}°'.format(dec), 106, 63)
-            return r
+                if self._show_decimal[name]:
+                    display.s_minor.write('°', 100, 32)
+                    display.s_major.write('{}'.format(val), 106, 63)
+                    display.s_minor.write('.{:01d}'.format(dec), 104, 63)
+                else:
+                    display.s_minor.write('°', 119, 32)
+                    display.s_major.write('{}'.format(val), 127, 63)
 
-        r = ''
         # Bed
         if len(self._OM['heat']['bedHeaters']) > 0:
             if self._OM['heat']['bedHeaters'][0] != -1:
-                r += showHeater(self._OM['heat']['bedHeaters'][0],
-                                'bed', C_BED, self._d1)
+                showHeater(self._OM['heat']['bedHeaters'][0],
+                           'bed', C_BED, self._d1)
         # TODO!: Chamber (Enclosure)
         #if len(self._OM['heat']['chamberHeaters']) > 0:
         #    if self._OM['heat']['chamberHeaters'][0] != -1:
-        #        r += showHeater(self._OM['heat']['chamberHeaters'][0],
-        #                        'encl', C_ENCL, self._d1)
+        #        showHeater(self._OM['heat']['chamberHeaters'][0],
+        #                   'encl', C_ENCL, self._d1)
         # Extruders
         if len(self._OM['tools']) > 0:
             # FIX to show at max 2 heaters
             for tool in self._OM['tools']:
                 if len(tool['heaters']) > 0:
-                    r += showHeater(tool['heaters'][0],
-                                    'e' + str(self._OM['tools'].index(tool)),
-                                    #'encl', (test)
-                                    C_TOOL, self._d0)
-        #display
-        print(self._show_digits,end=' ')
-        return r
+                    showHeater(tool['heaters'][0],
+                               'e' + str(self._OM['tools'].index(tool)),
+                               C_TOOL, self._d0)
+                               #'encl', C_ENCL, self._d0)
