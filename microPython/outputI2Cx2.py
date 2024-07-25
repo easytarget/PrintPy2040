@@ -6,11 +6,23 @@ from config import config
 # fonts
 path.append('fonts')
 from ezFBfont import ezFBfont
-import ezFBfont_33_helvR24_num
-import ezFBfont_16_helvR12_num
 import ezFBfont_15_helvB10_ascii as heading
 import ezFBfont_13_helvR08_full as heading_sub
-import ezFBfont_15_helvR10_ascii as heading_info
+import ezFBfont_16_open_iconic_all_2x_full as icons
+import ezFBfont_12_spleen_8x16_num as units
+import ezFBfont_20_spleen_16x32_time as double_tens
+import ezFBfont_40_spleen_32x64_time as single_tens
+
+# define some icon chars
+C_TOOL = chr(130)
+C_BED = chr(168)
+C_ENCL = chr(186)
+C_STANDBY = chr(235)
+C_REFRESH = chr(243)
+C_LINK = chr(270)
+C_WARN = chr(280)
+C_WIFI = chr(281)
+C_WRENCH = chr(282)
 
 '''
     This is a I2C twin 128x64 OLED display out put class for PrintMPY
@@ -51,22 +63,22 @@ class outputRRF:
         self._OM = None
         # If running I2C displays etc this should reflect their status
         self.running = True
-        self._counter = 0
 
         # demo only?
         self._begin = ticks_ms()
-
-        # I2C
+        # internals
+        self._active = True
+        self._updating = False
+        self._show_digits = {}
+        # hardware
         self._initDisplays()
         self._bright(1)
         self._clean()
         self._splash()
-        self._active = True
-        self._updating = False
         
     def _initDisplays(self):
-        i2c0 = I2C(0,sda=Pin(config.I2C0_SDA_PIN), scl=Pin(config.I2C0_SCL_PIN))
-        i2c1 = I2C(1,sda=Pin(config.I2C1_SDA_PIN), scl=Pin(config.I2C1_SCL_PIN))
+        i2c0 = I2C(0,sda=config.sda0, scl=config.scl0)
+        i2c1 = I2C(1,sda=config.sda1, scl=config.scl1)
         self._d0 = SSD1306_I2C(128, 64, i2c0, addr=0x3c)
         self._d1 = SSD1306_I2C(128, 64, i2c1, addr=0x3c)
         self._d0.invert(False)
@@ -76,14 +88,12 @@ class outputRRF:
         self._fontSetup(self._d0)
         self._fontSetup(self._d1)
 
-
     def _fontSetup(self,d):
         d.heading = ezFBfont(d, heading)
         d.heading_sub = ezFBfont(d, heading_sub)
-        d.heading_info = ezFBfont(d, heading_info)
-        d.tens  = ezFBfont(d, ezFBfont_33_helvR24_num, halign='right', valign='baseline')
-        d.units = ezFBfont(d, ezFBfont_16_helvR12_num, valign='baseline')
-
+        d.icons = ezFBfont(d, icons)
+        d.tens  = ezFBfont(d, single_tens, halign='right', valign='baseline')
+        d.units = ezFBfont(d, units, valign='baseline')
 
     def _splash(self):
         # Should scroll a 'clean' screen in?
@@ -100,9 +110,9 @@ class outputRRF:
         self._d1.heading.write('...', 63, 0, halign='center')
         self._show()
 
-    def _clean(self):
-        self._d0.fill_rect(0, 0, 128, 64, 0)
-        self._d1.fill_rect(0, 0, 128, 64, 0)
+    def _clean(self, c=0):
+        self._d0.fill_rect(0, 0, 128, 64, c)
+        self._d1.fill_rect(0, 0, 128, 64, c)
         self._updating = True
 
     def _on(self):
@@ -154,14 +164,14 @@ class outputRRF:
         if self._OM is None:
             self._waiting()
             return('Initial update data unavailable\n')
-        if self._OM['state']["status"] is not 'off':
+        if self._OM['state']["status"] is not 'DEBUG':
             self._on()
             self._clean()
        # Updates the local model, returns the current status text
         if self._OM is None:
             return('no update data available\n')
         r =self._showModel() + '\n'
-        if self._OM['state']["status"] is not 'off':
+        if self._OM['state']["status"] is not 'DEBUG':
             self._show()
         else:
             self._off()
@@ -189,57 +199,51 @@ class outputRRF:
             # placeholder for display splash while starting or updating..
             r += ' | please wait'
             return r
-        r += self._updateCommon()
-        if self._OM['state']['status'] == 'off':
+        self._updateStatus()
+        self._updateNetwork()
+        if self._OM['state']['status'] == 'DEBUG':
             return r
         else:
-            r += self._updateJob()
+            self._updateJob()
             if self._OM['state']['machineMode'] == 'FFF':
                 r += self._updateFFF()
-            elif self._OM['state']['machineMode']  == 'CNC':
-                r += self._updateAxes()
-                r += self._updateCNC()
-            elif self._OM['state']['machineMode']  == 'Laser':
-                r += self._updateAxes()
-                r += self._updateLaser()
+            else:
+                r += ', Unsupported mode: {}'.format(
+                    self._OM['state']['machineMode'])
+                # DO SOMETHING HERE TO DISPLAY UNSUPPORTED MODE
         r += self._updateMessages()
         # Return results
         return r
 
-    def _updateCommon(self):
+    def _updateStatus(self):
         # common items to always show
         cstate = self._OM['state']["status"]
         cstate = cstate[0].upper() + cstate[1:]
-        if len(cstate) < 8:
-            status_line = ' ' + cstate
-        else:
-            status_line = cstate
-        self._d0.heading.write(status_line, 0, 0)
+        self._d0.heading.write(cstate, 0, 1)
         
-        if len(self._OM['network']['interfaces']) > 0:
-            interface = self._OM['network']['interfaces'][0]
-            if interface['state'] != 'active':
-                net = 'ip: {}'.format(interface['state'])
-            else:
-                net = 'ip: {}'.format(interface['actualIP'])
+    def _updateNetwork(self):
+        if len(self._OM['network']['interfaces']) == 0:
+            return
+        interface = self._OM['network']['interfaces'][config.net]
+        net = '{}: {}'.format(interface['type'],
+                             interface['state'])
+        if interface['state'] in ['active', 'connected']:
+            net = 'ip: {}'.format(interface['actualIP'])
+            icon = C_WIFI if interface['type'] == 'wifi' else C_LINK
+        elif interface['state'] in ['enabled', 'changingMode', 'establishingLink',
+                                    'obtainingIP', 'starting1', 'starting2']:
+            icon = C_REFRESH
+        elif interface['state'] in ['idle']:
+            icon = C_STANDBY
         else:
-            net = ''
-
-        if self._OM['state']['displayMessage']:
-            info_line = self._OM['state']['displayMessage']
-        #elif self._counter == 0:
-        #    self._counter = 1
-        #    info_line = 'up: {}'.format(self._dhms(self._OM['state']["upTime"]))
-        else:
-            #self._counter = 0 
-            info_line = net if len(net) > 0 else ''
-
-        self._d1.heading_info.write(info_line, 127, 0, halign = 'right')
-        return ', ' + net
+            icon = C_WARN
+        x = 127 if icon is None else 110
+        self._d1.heading_sub.write(net, x, 2, halign = 'right')
+        self._d1.icons.write(icon, x+2, 0, halign = 'left')
+        return
 
     def _updateJob(self):
         # Job progress
-        r = ''
         if self._OM['job']['build']:
             try:
                 percent = self._OM['job']['filePosition'] / self._OM['job']['file']['size'] * 100
@@ -248,34 +252,7 @@ class outputRRF:
             job_line = '{:.1f}'.format(percent)
             self._d0.heading.write(job_line, 120, 0, halign='right')
             self._d0.heading_sub.write('%', 121, 1)
-        return r
-
-    def _updateAxes(self):
-        # Display all configured axes values (workplace and machine), plus state.
-        ws = self._OM['move']['workplaceNumber']
-        r = ' | axes: '
-        m = ''      # machine pos
-        offset = False   # is the workspace offset from machine co-ordinates?
-        homed = False   # are any of the axes homed?
-        if self._OM['move']['axes']:
-            for axis in self._OM['move']['axes']:
-                if axis['visible']:
-                    if axis['homed']:
-                        homed = True
-                        r += ' ' + axis['letter'] + ':' + "%.2f" % (axis['machinePosition'] - axis['workplaceOffsets'][ws])
-                        m += ' ' + "%.2f" % (axis['machinePosition'])
-                        if axis['workplaceOffsets'][ws] != 0:
-                            offset = True
-                    else:
-                        r += ' ' + axis['letter'] + ':?'
-                        m += ' ?'
-            if homed:
-                # Show which workspace we have selected when homed
-                r += ' (' + str(ws + 1) + ')'
-            if offset:
-                # Show machine position if workspace is offset
-                r += '(' + m[1:] + ')'
-        return r
+        return
 
     def _updateMessages(self):
         # M117 messages
@@ -295,75 +272,56 @@ class outputRRF:
 
     def _updateFFF(self):
         # a local function to return state and temperature details for a heater
-        def showHeater(number,name,display):
+        def showHeater(number,name,icon,display):
             r = ''
+            if name not in self._show_digits.keys():
+                self._show_digits[name] = False
             if self._OM['heat']['heaters'][number]['state'] == 'fault':
                 r += ' | ' + name + ': FAULT'
             else:
                 temp = self._OM['heat']['heaters'][number]['current']
                 units=int(temp)
                 dec = int((temp - units) * 10)
+                if temp >= 100 or temp <= -10:
+                    self._show_digits[name] = False
+                elif temp <= 95 and temp >= -9:
+                    self._show_digits[name] = True
                 if self._OM['heat']['heaters'][number]['state'] == 'active':
-                    target = ' {}°'.format(int(self._OM['heat']['heaters'][number]['active']))
+                    target = '{}°'.format(int(self._OM['heat']['heaters'][number]['active']))
+                    
                 elif self._OM['heat']['heaters'][number]['state'] == 'standby':
                     target = '({}°)'.format(int(self._OM['heat']['heaters'][number]['standby']))
                 else:
-                    target = ' off'
-                display.heading.write(name, 0, 24)
-                display.heading_sub.write(target, 0, 38)
-                display.tens.write('{}.'.format(units), 106, 48)
-                display.tens.write('°', 106, 48, tkey=0, halign='center')
-                display.units.write(' {:01d}'.format(dec), 106, 48)
+                    target = ''
+                    icon = ''
+                display.icons.write(icon,2,18)
+                display.heading.write(name, 0, 37)
+                display.heading_sub.write(target, 0, 50)
+                #display.tens.write('{}'.format(units), 106, 63)
+                display.tens.write('{}'.format(units), 127, 63)
+                #display.units.write('.{:01d}°'.format(dec), 106, 63)
             return r
 
         r = ''
-        # For FFF mode we want to show all the Heater states
         # Bed
         if len(self._OM['heat']['bedHeaters']) > 0:
             if self._OM['heat']['bedHeaters'][0] != -1:
                 r += showHeater(self._OM['heat']['bedHeaters'][0],
-                                'bed', self._d1)
-        # Chamber
-        if len(self._OM['heat']['chamberHeaters']) > 0:
-            if self._OM['heat']['chamberHeaters'][0] != -1:
-                r += showHeater(self._OM['heat']['chamberHeaters'][0],
-                                'chamber')
+                                'bed', C_BED, self._d1)
+        # TODO!: Chamber (Enclosure)
+        #if len(self._OM['heat']['chamberHeaters']) > 0:
+        #    if self._OM['heat']['chamberHeaters'][0] != -1:
+        #        r += showHeater(self._OM['heat']['chamberHeaters'][0],
+        #                        'encl', C_ENCL, self._d1)
         # Extruders
         if len(self._OM['tools']) > 0:
+            # FIX to show at max 2 heaters
             for tool in self._OM['tools']:
                 if len(tool['heaters']) > 0:
                     r += showHeater(tool['heaters'][0],
-                                    'E' + str(self._OM['tools'].index(tool)),
-                                    self._d0)
+                                    'e' + str(self._OM['tools'].index(tool)),
+                                    #'encl', (test)
+                                    C_TOOL, self._d0)
         #display
+        print(self._show_digits,end=' ')
         return r
-
-    def _updateCNC(self):
-        # a local function to return spindle name + state, direction and speed
-        def showSpindle(name,spindle):
-            r = ' | ' + name + ': '
-            if self._OM['spindles'][spindle]['state'] == 'stopped':
-                r += 'stopped'
-            elif self._OM['spindles'][spindle]['state'] == 'forward':
-                r += '+' + str(self._OM['spindles'][spindle]['current'])
-            elif self._OM['spindles'][spindle]['state'] == 'reverse':
-                r += '-' + str(self._OM['spindles'][spindle]['current'])
-            return r
-
-        # Show details for all configured spindles
-        r = ''
-        if len(self._OM['tools']) > 0:
-            for tool in self._OM['tools']:
-                if tool['spindle'] != -1:
-                    r += showSpindle(tool['name'],tool['spindle'])
-        if len(r) == 0:
-            r += ' | spindle: not configured'
-        return r
-
-    def _updateLaser(self):
-        # Show laser info; not much to show since there is no seperate laser 'tool' (yet)
-        if self._OM['move']['currentMove']['laserPwm'] is not None:
-            pwm = '%.0f%%' % (self._OM['move']['currentMove']['laserPwm'] * 100)
-        else:
-            pwm = 'not configured'
-        return ' | laser: ' + pwm

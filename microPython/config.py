@@ -18,23 +18,11 @@ class config():
         Timing and timeout config:
         updateTime:     (int, ms)  Basic time interval between update cycles
         rebootDelay:    (int) Countdown in seconds when auto-restarting/rebooting printPy
+        animate:        (int, ms) Display animation update frequency
     '''
     updateTime = 1000
     rebootDelay = 3
-
-    '''
-        Logging Config:
-        - Replace "None" with "'filename.log'" to enable.
-        rawLog:     A raw log of all incoming serial data
-        outputLog:  Log file passed to the output module
-                    - The example TXT output class will mirror it's output there
-
-        WARNING: log files will fill rapidly (MB/Hr for the raw log)
-                 use with caution on microPython devices.
-    '''
-    #rawLog = None
-    rawLog = None
-    outputLog = None
+    animate = 200
 
     '''
         Hardware config:
@@ -44,8 +32,19 @@ class config():
         buttonDown: Pin value when button depressed
         buttonTm:   debounce time (ms); keep this as low as practical
         buttonLong: long press time (ms) for WiFi toggle, 0 to disable
+        I2C pins:   SDA and SCK for each I2C interface
     '''
     button = Pin(2, Pin.IN, Pin.PULL_UP)
     buttonDown = 0
     buttonTm = 50
     buttonLong = 500
+    sda0 = Pin(28)
+    scl0 = Pin(29)
+    sda1 = Pin(6)
+    scl1 = Pin(7)
+
+    '''
+        Duet Config:
+        net:    Default Network Interface number
+    '''
+    net = 0

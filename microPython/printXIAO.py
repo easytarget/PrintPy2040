@@ -21,10 +21,6 @@ def pp(*args, **kwargs):
 # Do a minimum drama restart/reboot
 def restartNow(why):
     pp('Error: ' + why)
-    if outputLog:
-        outputLog.flush()
-    if rawLog:
-        rawLog.flush()
     # Countdown and restart
     pp('Restarting in ',end='')
 
@@ -56,7 +52,7 @@ def buttonPressed(irqTime):
     if button.value() == config.buttonDown:
         buttonTime = irqTime
         print('+',end='')
-        outputText = out.showStatus(OM.model,'printPy Free Memory: ' + str(mem_free()))
+        outputText = 'PrintPy Free Memory: ' + str(mem_free())
         if outputText:
             print(outputText,end='')
     else:
@@ -83,31 +79,9 @@ if config.quiet:
 else:
     print('printMPy is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
-# Debug Logging
-rawLog = None
-if config.rawLog:
-    try:
-        rawLog = open(config.rawLog, "a")
-    except Exception as error:
-        pp('logging of raw data failed: ', error)
-    else:
-        pp('raw data being logged to: ', config.rawLog)
-        rawLog.write('\n' + startText +  '\n')
-
-# Output logging
-outputLog = None
-if config.outputLog:
-    try:
-        outputLog = open(config.outputLog, "a")
-    except Exception as error:
-        pp('logging of output failed: ', error)
-    else:
-        pp('output being logged to: ', config.outputLog)
-        outputLog.write('\n' + startText + '\n')
-
 # Get output/display device, hard fail if not available
 pp('starting output')
-out = outputRRF(log=outputLog)
+out = outputRRF()
 if not out.running:
     hardwareFail('Failed to start output device')
 else:
@@ -134,7 +108,7 @@ led.blink('busy')
 
 # create the OM handler
 try:
-    OM = serialOM(rrf, out.omKeys, rawLog, config.quiet)
+    OM = serialOM(rrf, out.omKeys, quiet=config.quiet)
 except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e))
 
@@ -143,8 +117,6 @@ led.blink(led.emote(OM.model))
 if OM.machineMode == '':
     restartNow('Failed to connect to controller, or unsupported controller mode.')
 
-# Update the display model and show overall Status
-print(out.showStatus(OM.model),end='')
 
 '''
     Main loop
@@ -164,7 +136,7 @@ while True:
         # pass the results to the output module and print any response
         outputText = out.update(OM.model)
         if outputText:
-             print(outputText,end='')
+             print('({}) {}'.format(str(mem_free()),outputText), end='')
         led.blink(led.emote(OM.model))
     else:
         led.blink('err')
