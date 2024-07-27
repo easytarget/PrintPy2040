@@ -18,8 +18,9 @@ screenOff = (sx/2)+0.1; // X offset for each screen + gap
 // Case size (x,y based on screen dimensions)
 inX = (2*sx)+1; // basic interior space based on screens
 inY = sy+1;
-inZ = 10;       // how deep (depends on cpu board etc..)
+inZ = 12.5;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
+insetB=8;       // inset for button and socket (8 is max..)
 
 printing = true;
 assemble = true;
@@ -43,8 +44,8 @@ if(printing) {
   // components
   screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([0,-12.2,4]);
-  socket([-19.4,-7.5,6],[180,0,0]);
-  button([-19.5,2,6],[0,180,0]);
+  socket([-19.4,-7.5,insetB],[180,0,0]);
+  button([-19.5,2,insetB],[0,180,0]);
   3x12hexhead([23.1,-19.5,3],[0,-90,0]);
   3x12hexhead([-23.1,-19.5,3],[0,90,0]);
 } else {
@@ -257,7 +258,7 @@ translate(pos) rotate(rot) {
   }
   // Button recess
   translate([-19.4,2,2])
-  linear_extrude(height=4,convexity=20) {
+  linear_extrude(height=insetB-2,convexity=20) {
     difference() {
       square([14.5,15.2],center=true);
       square([12.5,13.2],center=true);
@@ -267,19 +268,19 @@ translate(pos) rotate(rot) {
     square([2,1]);
   }
   // Button support
-  translate([-19.4,2,6])
+  translate([-19.4,2,insetB])
   linear_extrude(height=1,convexity=20,scale=[0.87,0.8]) {
     square([14.5,9],center=true);
   }
   // socket support
   translate([-19.4,-7.5,2])
-  linear_extrude(height=4,convexity=20) {
+  linear_extrude(height=insetB-2,convexity=20) {
     difference() {
       square([15.6,5],center=true);
       square([13.8,2.8],center=true);
     }
   }
-  translate([-19.4,-9.2,6.5])
+  translate([-19.4,-9.2,insetB+0.5])
   cube([15.6,1.6,1],center=true);
   // Thin wall around base
   difference() {
@@ -560,11 +561,11 @@ translate(pos) rotate(rot) {
     square([pitch*5,pitch],center=true);
   }
   color("gold")
-  translate([0,0,-0.6])
+  translate([0,0,-1.6])
   for (x=[-2:1:2]) {
-    linear_extrude(height=0.6) {
-      translate([x*pitch,1])
-      square([0.6,2.6],center=true);
+    linear_extrude(height=1.6) {
+      translate([x*pitch,0])
+      square([0.6,0.6],center=true);
     }
   }
 }
