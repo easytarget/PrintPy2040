@@ -21,7 +21,7 @@ inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-printing = !true;
+printing = true;
 assemble = true;
 
 if(printing) {
@@ -44,7 +44,7 @@ if(printing) {
   screens([0,0,inZ+0.8],[0,0,0]);
   rp2040([0,-12.2,4]);
   socket([-19.4,-7.5,6],[180,0,0]);
-  button([-19.5,2,8],[0,180,0]);
+  button([-19.5,2,6],[0,180,0]);
   3x12hexhead([23.1,-19.5,3],[0,-90,0]);
   3x12hexhead([-23.1,-19.5,3],[0,90,0]);
 } else {
@@ -183,7 +183,7 @@ translate(pos) rotate(rot) {
     // Then cut wall to make the USB-C clip
     translate([0,-13,6])
     linear_extrude(height=inZ,convexity=10) {
-      square([6.75,4],center=true);
+      square([7.2,4],center=true);
     }
     translate([0,-13,0])
     linear_extrude(height=6,convexity=10,scale=[0.3,1]) {
@@ -252,12 +252,12 @@ translate(pos) rotate(rot) {
       square([12,inY-0.3],center=true);
       square([inX-4.5,inY-4.5],center=true);
       translate([0,-13,6])
-      square([6.75,4],center=true);
+      square([7.2,4],center=true);
     }
   }
   // Button recess
   translate([-19.4,2,2])
-  linear_extrude(height=6,convexity=20) {
+  linear_extrude(height=4,convexity=20) {
     difference() {
       square([14.5,15.2],center=true);
       square([12.5,13.2],center=true);
@@ -267,7 +267,7 @@ translate(pos) rotate(rot) {
     square([2,1]);
   }
   // Button support
-  translate([-19.4,2,8])
+  translate([-19.4,2,6])
   linear_extrude(height=1,convexity=20,scale=[0.87,0.8]) {
     square([14.5,9],center=true);
   }
@@ -279,8 +279,22 @@ translate(pos) rotate(rot) {
       square([13.8,2.8],center=true);
     }
   }
-  translate([-19.4,-5.8,6.5])
-  cube([14.5,1.6,1],center=true);
+  translate([-19.4,-9.2,6.5])
+  cube([15.6,1.6,1],center=true);
+  // Thin wall around base
+  difference() {
+    linear_extrude(height=3,convexity=8) {
+      difference() {
+        union() {
+          square([inX-0.3,inY-6],center=true);
+          square([inX-6,inY-0.3],center=true);
+        }
+        square([inX-1.5,inY-1.5],center=true);
+        translate([0,-14])
+        square([10,6],center=true);
+      }
+    }
+  }
 }
 
 module foot(pos=[0,0,0],rot=[0,0,0])
