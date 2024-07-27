@@ -21,8 +21,8 @@ inY = sy+1;
 inZ = 10;       // how deep (depends on cpu board etc..)
 wallRad=1.5;    // round off (case thickness)
 
-printing = true;
-assemble = !true;
+printing = !true;
+assemble = true;
 
 if(printing) {
   casebody([0,20,0],[0,0,180]);
@@ -31,13 +31,13 @@ if(printing) {
   foot([66,-25,3]);
   mount([66,-8,9],[90,0,180]);
 } else if (assemble) rotate([90,0,0]) {
-  footangle = 105;
+  footangle = -90;
   // printable bits
-  color("WhiteSmoke",0.6)
+  color("WhiteSmoke")
   casebody([0,0,inZ+5.1],[180,0,0]);
   color("MediumPurple")
   caseback();
-  color("MediumPurple",1)
+  color("MediumPurple")
   foot([0,-19.5,3],[footangle,0,0]);
   //mount([0,-19.5,3],[footangle,0,0]);
   // components
@@ -140,7 +140,7 @@ translate(pos) rotate(rot) {
       text("XIAO",halign="center",valign="center",size=10,$fn=24);
       // Socket
       translate([-19.4,-7.5])
-      square([13.4,3],center=true);
+      square([13.8,3],center=true);
     }
   }
   // support the logo
@@ -275,12 +275,12 @@ translate(pos) rotate(rot) {
   translate([-19.4,-7.5,2])
   linear_extrude(height=4,convexity=20) {
     difference() {
-      square([15.2,5],center=true);
-      square([13.4,2.8],center=true);
+      square([15.6,5],center=true);
+      square([13.8,2.8],center=true);
     }
   }
   translate([-19.4,-5.8,6.5])
-  cube([15.2,1.6,1],center=true);
+  cube([14.5,1.6,1],center=true);
 }
 
 module foot(pos=[0,0,0],rot=[0,0,0])
@@ -532,7 +532,7 @@ color("silver") {
 module socket(pos=[0,0,0],rot=[0,0,0],pitch=2.54)
 translate(pos) rotate(rot) {
   color("grey")
-  linear_extrude(height=6,convexity=10) {
+  linear_extrude(height=8,convexity=10) {
     difference() {
       square([pitch*5,pitch],center=true);
       for (x=[-2:1:2]) {
