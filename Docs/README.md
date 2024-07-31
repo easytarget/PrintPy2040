@@ -1,8 +1,5 @@
 ## PrintPy notes and references
 
-See `M409.log` in this folder for copy/pastable responses to send while 
-remotely debugging.
-
 # Useful Links
 
 ObjectModel reference:
