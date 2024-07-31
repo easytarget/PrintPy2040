@@ -9,6 +9,8 @@ connectors:
     type: 2.54mm PINSTRIP
     subtype: male
     pinlabels: [RX, GND, 5V, GND, TX]
+    image:
+      src: uart-connector.png
     #loops:
     #  - [2, 4]
 
