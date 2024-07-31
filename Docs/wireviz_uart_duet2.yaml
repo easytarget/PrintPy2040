@@ -5,12 +5,14 @@ connectors:
     pinlabels: [5V, GND, URXD0, UTXD0]
     image:
       src: duet2-uart1.png
+    notes: "This is a polarised plug\nTX and RX are NOT 5V tolerant!\nCare Needed"
   PrintPY:
     type: 2.54mm PINSTRIP
     subtype: male
     pinlabels: [RX, GND, 5V, GND, TX]
     image:
       src: uart-connector.png
+    notes: Gnd pins 2 and 4 are connected internally
     #loops:
     #  - [2, 4]
 
@@ -21,7 +23,7 @@ cables:
     colors: [RD, BK, BU, GN]
     wirecount: 4
     shield: true
-    notes: Shield is optional
+    notes: "Shield is optional\nMay be needed for long runs"
 
 connections:
   -
