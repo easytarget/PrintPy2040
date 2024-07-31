@@ -19,8 +19,10 @@ screenOff = (sx/2)+0.1; // X offset for each screen + gap
 inX = (2*sx)+1; // basic interior space based on screens
 inY = sy+1;
 inZ = 12.5;       // how deep (depends on cpu board etc..)
+//inZ = 10;  // SLIM CASE
 wallRad=1.5;    // round off (case thickness)
 insetB=8;       // inset for button and socket (8 is max..)
+//insetB=6;  // SLIM CASE
 
 printing = true;
 assemble = true;
@@ -290,7 +292,7 @@ translate(pos) rotate(rot) {
           square([inX-0.3,inY-6],center=true);
           square([inX-6,inY-0.3],center=true);
         }
-        square([inX-1.5,inY-1.5],center=true);
+        square([inX-2,inY-2],center=true);
         translate([0,-14])
         square([10,6],center=true);
       }
