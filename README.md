@@ -28,6 +28,8 @@ There is no PCB needed for this, the circuit should be wired + soldered directly
 ## Connection
 Take care with wiring this, it is important that the 5V supply does not contact the (3v3) TX/RX lines! The connector allows the plug to be reversed to swap TX/RX lines quickly and safely.
 
+![[Duet2 Loom](Docs/wireviz_uart_duet2.svg)](Docs/wireviz_uart_duet2.html)
+
 ## Alternate connections/deployments
 ### RP2040 I2C pins
 If using an alternate RP2040 board please check the table below to determine which pins the I2C interfaces can be accessed on; and make sure the pins are correctly defined in the code.

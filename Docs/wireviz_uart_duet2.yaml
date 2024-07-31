@@ -1,0 +1,37 @@
+connectors:
+  Duet2:
+    type: MOLEX KK 254
+    subtype: female
+    pinlabels: [5V, GND, URXD0, UTXD0]
+    image:
+      src: duet2-uart1.png
+  PrintPY:
+    type: 2.54mm PINSTRIP
+    subtype: male
+    pinlabels: [RX, GND, 5V, GND, TX]
+    #loops:
+    #  - [2, 4]
+
+cables:
+  Serial:
+    gauge: 0.2 mm2
+    length: 0.30
+    colors: [RD, BK, BU, GN]
+    wirecount: 4
+    shield: true
+    notes: Shield is optional
+
+connections:
+  -
+    - Duet2: [1,2,3,4]
+    - Serial: [1,2,3,4]
+    - PrintPY: [3,4,1,5]
+  -
+    - Duet2: 2
+    - Serial: s
+
+options:
+  color_mode: full
+
+metadata:
+  notes: https://docs.duet3d.com/User_manual/Connecting_hardware/Display_PanelDue
