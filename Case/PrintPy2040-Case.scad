@@ -65,7 +65,6 @@ if(printing) {
   }
 }
 
-// TODO: Widen window.?
 module casebody(pos=[0,0,0],rot=[0,0,0],usb=true)
 translate(pos) rotate(rot) {
   difference() {
@@ -143,7 +142,7 @@ translate(pos) rotate(rot) {
       text("XIAO",halign="center",valign="center",size=10,$fn=24);
       // Socket
       translate([-19.4,-7.5])
-      square([13.8,3],center=true);
+      square([13.8,2.8],center=true);
     }
   }
   // support the logo
@@ -180,23 +179,23 @@ translate(pos) rotate(rot) {
     hull() {
       for (x=[-1,1]) {
         translate([x*3,0,0])
-        cylinder(d=3.5,h=10,$fn=24);
+        cylinder(d=3.25,h=10,$fn=24);
       }
     }
     // Then cut wall to make the USB-C clip
     translate([0,-13,6])
     linear_extrude(height=inZ,convexity=10) {
-      square([7.2,4],center=true);
+      square([8,4],center=true);
     }
     translate([0,-13,0])
-    linear_extrude(height=6,convexity=10,scale=[0.3,1]) {
-      square([10,4],center=true);
+    linear_extrude(height=6,convexity=10,scale=[1.5,1]) {
+      square([4,4],center=true);
     }
     // gaps in upper wall
     for (x=[-1,1]) {
       translate([15*x,13,2])
       linear_extrude(height=inZ-1,convexity=10,scale=[2,1]) {
-        square([10,4],center=true);
+        square([9.8,4],center=true);
       }
     }
   }
@@ -217,21 +216,26 @@ translate(pos) rotate(rot) {
   // clip posts at other end of MCU
   difference() {
     for (x=[-1,1]) {
-      translate([x*7,7.8,2])
+      translate([x*6.3,7.8,2])
       linear_extrude(height=4.6, convexity=10, scale=[0.66,0.9]) {
-        translate([1*x,3])
-        square([3,7],center=true);
+        translate([2*x,3])
+        square([4,7],center=true);
       }
     }
-    translate([0,8.3,4.6])
-    cube([20,2,1.2],center=true);
+    translate([0,0,4])
+    linear_extrude(height=1.2, convexity=10) {
+      projection() {
+        scale([1.02,1.02])
+         rp2040([0,-12.2,4]);
+      }
+    }
     translate([0,7.8,5.5])
     rotate([45,0,0])
     cube([20,1.7,2.55],center=true);
   }
   // brace clip walls
   for (x=[-1,1]) {
-    translate([11.8*x,-14.2,2])
+    translate([11.6*x,-14.2,2])
     linear_extrude(height=7,convexity=10,scale=[1,0.3]) {
       translate([0,3])
       square([1.6,6],center=true);
@@ -255,7 +259,7 @@ translate(pos) rotate(rot) {
       square([12,inY-0.3],center=true);
       square([inX-4.5,inY-4.5],center=true);
       translate([0,-13,6])
-      square([7.2,4],center=true);
+      square([8,4],center=true);
     }
   }
   // Button recess
@@ -271,8 +275,11 @@ translate(pos) rotate(rot) {
   }
   // Button support
   translate([-19.4,2,insetB])
-  linear_extrude(height=1,convexity=20,scale=[0.87,0.8]) {
-    square([14.5,9],center=true);
+  linear_extrude(height=1,convexity=20, scale=[0.85,1]) {
+    for (y=[-3,0,3]) {
+      translate([0,y])
+      square([14.5,1.4],center=true);
+    }
   }
   // socket support
   translate([-19.4,-7.5,2])
@@ -282,8 +289,8 @@ translate(pos) rotate(rot) {
       square([13.8,2.8],center=true);
     }
   }
-  translate([-19.4,-9.2,insetB+0.5])
-  cube([15.6,1.6,1],center=true);
+  translate([-19.4,-9,insetB+0.5])
+  cube([15.6,2,1],center=true);
   // Thin wall around base
   difference() {
     linear_extrude(height=3,convexity=8) {
