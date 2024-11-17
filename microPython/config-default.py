@@ -24,7 +24,7 @@ class config():
     buttonDown = 0
     buttonTm = 50
     buttonLong = 500
-    swap_displays = True
+    swap_displays = False
 
     '''
         Timing and timeout config:
