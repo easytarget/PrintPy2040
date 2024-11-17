@@ -16,6 +16,7 @@ class lumen:
                 self.flash  = int(), flash duration in ms
         '''
         self.bright = bright
+        self.dim = bright / 3
         self.flash = flash
         self._moods = {'off':(255,128,0),
                         'on':(0,255,0),
@@ -58,11 +59,11 @@ class lumen:
 
         if mood == 'empty':
             return
-
+        bright = self.dim if mood is 'off' else self.bright
         neo = self._moods[mood]
-        self._pixel[0] = (int(neo[0]*self.bright),
-                          int(neo[1]*self.bright),
-                          int(neo[2]*self.bright))
+        self._pixel[0] = (int(neo[0]*bright),
+                          int(neo[1]*bright),
+                          int(neo[2]*bright))
         self._pixel.write()
         Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
 
@@ -75,32 +76,28 @@ class lumen:
         self._rgbstate = (self._rgbstate[2],self._rgbstate[0],self._rgbstate[1])
 
 
-    def emote(self,model):
+    def emote(self,model,net=0):
         '''
             Use the model to find our mood by mapping the
             status to colors, crudely.
         '''
 
-        status = model['state']['status']
-        wifi = False
-        if len(model['network']['interfaces']) > 0:
-            for interface in model['network']['interfaces']:
-                if interface['type'] is 'wifi' and interface['state'] is 'active':
-                    wifi = True
-
         if model is None:
             return('err')
+        status = model['state']['status']
+        interface = model['network']['interfaces'][net]
+        online = True if interface['state'] is 'active' else False
         if model['state']['machineMode'] == '':
            return('err')
         if status in ['disconnected','halted']:
             return('err')
         if status is 'off':
-            if wifi:
+            if online:
                 return('off')
             else:
                 return('err')
         if status is 'idle':
-            if wifi:
+            if online:
                 return('on')
             else:
                 return('err')

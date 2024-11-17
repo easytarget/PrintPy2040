@@ -79,10 +79,12 @@ class outputRRF:
         self._splash()
         
     def _initDisplays(self):
-        i2c0 = I2C(0,sda=config.sda0, scl=config.scl0)
-        i2c1 = I2C(1,sda=config.sda1, scl=config.scl1)
-        self._d0 = SSD1306_I2C(128, 64, i2c0, addr=0x3c)
-        self._d1 = SSD1306_I2C(128, 64, i2c1, addr=0x3c)
+        # D0 = Left (eaxtruers, status, progress),
+        # D1 = right (chassis, messages, wifi
+        i2c_left = I2C(1) if config.swap_displays else I2C(0)
+        i2c_right = I2C(0) if config.swap_displays else I2C(1)
+        self._d0 = SSD1306_I2C(128, 64, i2c_left, addr=0x3c)
+        self._d1 = SSD1306_I2C(128, 64, i2c_right, addr=0x3c)
         self._d0.invert(False)
         self._d1.invert(False)
         self._d0.rotate(1)
@@ -100,8 +102,8 @@ class outputRRF:
 
     def _splash(self):
         # Should scroll a 'clean' screen in?
-        self._d0.message.write('PrintPy\n2040', 63, 20, halign='center')
-        self._d1.message.write('by\nOwen', 63, 20, halign='center')
+        self._d0.message.write('PrintPy\n2040', 63, 16, halign='center')
+        self._d1.message.write('by\nOwen', 63, 16, halign='center')
         self._show()
 
     def _waiting(self):
@@ -167,14 +169,14 @@ class outputRRF:
         if self._OM is None:
             self._waiting()
             return('Initial update data unavailable\n')
-        if self._OM['state']["status"] is not 'DEBUG':
+        if self._OM['state']["status"] is not 'off':
             self._on()
             self._clean()
        # Updates the local model, returns the current status text
         if self._OM is None:
             return('no update data available\n')
         r =self._showModel() + '\n'
-        if self._OM['state']["status"] is not 'DEBUG':
+        if self._OM['state']["status"] is not 'off':
             self._show()
         else:
             self._off()
@@ -251,7 +253,8 @@ class outputRRF:
                 percent = self._OM['job']['filePosition'] / self._OM['job']['file']['size'] * 100
             except ZeroDivisionError:  # file size can be 0 as the job starts
                 percent = 0
-            job_line = '{:.1f}'.format(percent)
+            
+            job_line = '{:.1f}'.format(percent) if percent < 100 else '100'
             self._d0.heading.write(job_line, 120, 0, halign='right')
             self._d0.heading_sub.write('%', 121, 1)
         return
@@ -290,7 +293,6 @@ class outputRRF:
                     self._show_decimal[name] = True
                 if self._OM['heat']['heaters'][number]['state'] == 'active':
                     target = '{}°'.format(int(self._OM['heat']['heaters'][number]['active']))
-                    
                 elif self._OM['heat']['heaters'][number]['state'] == 'standby':
                     target = '({}°)'.format(int(self._OM['heat']['heaters'][number]['standby']))
                 else:
@@ -298,9 +300,9 @@ class outputRRF:
                     icon = ''
                     
                 # Display data from above
-                display.icons.write(icon,2,18)
-                display.heading.write(name, 0, 37)
-                display.heading_sub.write(target, 0, 50)
+                display.heading.write(name, 0, 16)
+                display.icons.write(icon,2,48)
+                display.heading_sub.write(target, 0, 30)
                 if self._show_decimal[name]:
                     display.s_minor.write('°', 100, 32)
                     display.s_major.write('{}'.format(val), 106, 63)
@@ -309,22 +311,35 @@ class outputRRF:
                     display.s_minor.write('°', 119, 32)
                     display.s_major.write('{}'.format(val), 127, 63)
 
+        # Temp panels chassis = bed and encl, extruders = tool list 
+        chassis = []
+        extruders = []
         # Bed
         if len(self._OM['heat']['bedHeaters']) > 0:
             if self._OM['heat']['bedHeaters'][0] != -1:
-                showHeater(self._OM['heat']['bedHeaters'][0],
-                           'bed', C_BED, self._d1)
-        # TODO!: Chamber (Enclosure)
-        #if len(self._OM['heat']['chamberHeaters']) > 0:
-        #    if self._OM['heat']['chamberHeaters'][0] != -1:
-        #        showHeater(self._OM['heat']['chamberHeaters'][0],
-        #                   'encl', C_ENCL, self._d1)
+                chassis.append((self._OM['heat']['bedHeaters'][0],
+                              'bed', C_BED))
+        if len(self._OM['heat']['chamberHeaters']) > 0:
+            if self._OM['heat']['chamberHeaters'][0] != -1:
+                chassis.append((self._OM['heat']['chamberHeaters'][0],
+                              'encl', C_ENCL))
         # Extruders
         if len(self._OM['tools']) > 0:
             # FIX to show at max 2 heaters
             for tool in self._OM['tools']:
                 if len(tool['heaters']) > 0:
-                    showHeater(tool['heaters'][0],
-                               'e' + str(self._OM['tools'].index(tool)),
-                               C_TOOL, self._d0)
-                               #'encl', C_ENCL, self._d0)
+                    extruders.append((tool['heaters'][0],
+                                   'e' + str(self._OM['tools'].index(tool)),
+                                   C_TOOL))
+        print(chassis, extruders,end=' :: ')
+
+        # Display        
+        # If len heaters <= 2 we have no extruders..
+        #if heaters[0] is not None and heaters[1] is not None:
+        #    showHeater(self._OM['heat']['bedHeaters'][0],
+        #                   'bed', C_BED, self._d1)
+        #showHeater(self._OM['heat']['chamberHeaters'][0],
+        #                   'encl', C_ENCL, self._d1)
+        #showHeater(tool['heaters'][0],
+        #                        'e' + str(self._OM['tools'].index(tool)),
+        #                        C_TOOL, self._d0)

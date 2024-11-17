@@ -108,15 +108,14 @@ led.blink('busy')
 
 # create the OM handler
 try:
-    OM = serialOM(rrf, out.omKeys, quiet=config.quiet)
+    OM = serialOM(rrf, out.omKeys, quiet=config.quiet, noCheck=True)
 except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e))
-
-led.blink(led.emote(OM.model))
 
 if OM.machineMode == '':
     restartNow('Failed to connect to controller, or unsupported controller mode.')
 
+led.blink(led.emote(OM.model,config.net))
 
 '''
     Main loop
@@ -134,10 +133,12 @@ while True:
     # output the results if successful
     if haveData:
         # pass the results to the output module and print any response
+        s = ticks_ms()
         outputText = out.update(OM.model)
+        print(ticks_ms()-s,end=', ')
         if outputText:
              print('({}) {}'.format(str(mem_free()),outputText), end='')
-        led.blink(led.emote(OM.model))
+        led.blink(led.emote(OM.model,config.net))
     else:
         led.blink('err')
         pp('failed to fetch ObjectModel data')
