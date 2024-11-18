@@ -7,13 +7,26 @@
 * the case is done and printed
 * the XIAO RP2040 board is in place
 * wiring is complete
-* Code prototyping is done
-  * MICROPYTHON coding is ongoing.
-
-# Hardware
-This repo is principally about the hardware, code development is ongoing in https://github.com/easytarget/serialOM, released code will be placed here for reference.
+* Code is in progress
+  * Alpha-2 is working well
+  * Needs chamber + multi-extruder support, message marquee, info screens, wifi toggle
+![Alpha demo](Docs/alpha2.close.jpg)
 
 See the [README](microPython/README.md) in the '[microPython](microPython/)' folder for more.
+
+# Hardware
+This is designed to be a relatively simple build; needing soldering skills and care, but little more.
+
+Parts:
+1. A SeeedStudio XIAO RP 2040 devboard
+2. Two SSD1306 OLED I2C displays; the yellow/blue displays I use in my project work well, but any color display of the same size will work.
+3. Hookup wire; thin.
+4. (optional) A press Button; the design used here is quite common, the case has enough space to accomodate other types
+5. (optional) A 5-pin du-pont socket strip, I had to cut down and trim a longer strip.
+  * Alternatively you can have a direct wire from the PrintPY to the board, depending on needs.
+
+You will also need a UART cable suitable for your board, the cable below is for a Duet2.
+* The Duet3+ ranges use a different JST plug on the board. This has 3.3v available avoiding the need to bring 5V to the PrintPY
 
 ## Case
 The case needs care when slicing and printing, some of the clearances are very tight. use a slicer with adaptive layer height features to make sure the screens and PCB's fit correctly.
