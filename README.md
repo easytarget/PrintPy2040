@@ -16,8 +16,9 @@ See the [README](microPython/README.md) in the '[microPython](microPython/)' fol
 
 # Hardware
 This is designed to be a relatively simple build; needing soldering skills and care, but little more.
+[![Case Render](Case/exploded-thumb.png)](Case/exploded.png)
 
-Parts:
+## Parts:
 1. A SeeedStudio XIAO RP 2040 devboard
 2. Two SSD1306 OLED I2C displays; the yellow/blue displays I use in my project work well, but any color display of the same size will work.
 3. Hookup wire; thin.
@@ -31,14 +32,14 @@ You will also need a UART cable suitable for your board, the cable below is for 
 ## Case
 The case needs care when slicing and printing, some of the clearances are very tight. use a slicer with adaptive layer height features to make sure the screens and PCB's fit correctly.
 
-![Case Render](Case/front.png) ![Case Render](Case/rear.png)
+[![Case Render](Case/front-thumb.png)](Case/front.png) [![Case Render](Case/rear-thumb.png)](Case/rear.png)
 
-## Wiring
+## Wiring 5V (Duet 2)
 ![Hookup Guide](Docs/printpy_bb.svg)
 
 There is no PCB needed for this, the circuit should be wired + soldered directly in-place (this is fiddly, but possible)
 
-## Connection
+## Connection 5V (Duet 2)
 Take care with wiring this, it is important that the 5V supply does not contact the (3v3) TX/RX lines! The connector allows the plug to be reversed to swap TX/RX lines quickly and safely.
 
 ![Duet2 Loom](Docs/wireviz_uart_duet2.svg)
