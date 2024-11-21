@@ -6,7 +6,7 @@ from config import config
 # The microPython standard libs
 from sys import exit
 from gc import collect,mem_free
-from machine import UART,reset,disable_irq,enable_irq
+from machine import reset,disable_irq,enable_irq
 from time import sleep_ms,ticks_ms,ticks_diff,localtime
 
 '''
@@ -29,8 +29,7 @@ def restartNow(why):
         led.blink('err')
         sleep_ms(1000)
     pp()
-    #execv(executable, ['python'] + argv)   #  CPython
-    exit()
+    #exit()   # Useful while debugging, drop to REPL
     reset() # Micropython; reboot module
 
 def hardwareFail(why):
@@ -95,7 +94,7 @@ if config.button:
     pp('button present on:',repr(button).split('(')[1].split(',')[0])
 
 # Init RRF USB/serial connection
-rrf = UART(config.device)
+rrf = config.device
 rrf.init(baudrate=config.baud)
 if not rrf:
     hardwareFail('No UART device found')

@@ -6,7 +6,7 @@ RENAME/COPY this file to `config.py` on your device
 
 '''
 
-from machine import Pin
+from machine import UART, Pin, I2C
 
 class config():
     '''
@@ -18,13 +18,30 @@ class config():
         buttonDown:    Pin value when button depressed
         buttonTm:      debounce time (ms); keep this as low as practical
         buttonLong:    long press time (ms) for WiFi toggle, 0 to disable
-        swap_displays: whether left display is I2C0 (false) or I2C1 (true)
+        I2C_left:      I2C interface definitions for left and right screens
+        I2C_right:     Currently uses default pins and hardware interfaces and
+                       can be adapted with softI2C+alternate pins as needed.
     '''
     button = Pin(2, Pin.IN, Pin.PULL_UP)
     buttonDown = 0
     buttonTm = 50
     buttonLong = 500
-    swap_displays = True
+    I2C_left = I2C(1, sda=Pin(6), scl=Pin(7))
+    I2C_right = I2C(0, sda=Pin(28), scl=Pin(29))
+    
+    '''
+        Display and led brightness
+        display_bright: Display Brightness (float, 0 to 1)
+        display_invert: Display inversion (bool)
+        display_rotate: Display flip display vertically (bool)
+        led_bright:     Indicator LED brightness (float, 0 to 1)
+        led_bright_off: Indicator LED brightness when machine off
+    '''
+    display_bright = float(0.66)
+    display_invert = False
+    display_rotate = True
+    led_bright = float(1)
+    led_bright_off = float(0.5)
 
     '''
         Timing and timeout config:
@@ -36,11 +53,11 @@ class config():
 
     '''
         Serial Device Config:
-        device:   (int) UART device (0 or 1)
+        device:   UART device
         baud:     (int) Serial baud rate; should match the setting used in config.g
         quiet:    (bool) suppress info messages
     '''
-    device = 0
+    device = UART(0)
     baud = 57600
     quiet = False
 
