@@ -7,10 +7,14 @@
 * the case is done and printed
 * the XIAO RP2040 board is in place
 * wiring is complete
-* Code is in progress
-  * Alpha-2 is working well
-  * Needs chamber + multi-extruder support, message marquee, info screens, wifi toggle
-![Alpha demo](Docs/alpha2.close.jpg)
+* code requirements are in place
+  * SerialOM for communications
+  * MicroPython EZ fonts for the display
+* Code is in progress; new for alpha3
+  * chamber + multi-extruder support works
+  * messages work but without marquee
+  * Needs message marquee, info screens, wifi toggle
+![Alpha demo](Docs/3-heaters-alpha3.jpg)
 
 See the [README](microPython/README.md) in the '[microPython](microPython/)' folder for more.
 
