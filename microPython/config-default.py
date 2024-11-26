@@ -1,12 +1,12 @@
 '''
 
 RENAME/COPY this file to `config.py` on your device
-- edit if needed
+- edit if needed, defaults are sensible ones for a XIAO2040 based device
 - button definition and display swapping is done here.
 
 '''
 
-from machine import Pin, I2C
+from machine import UART, Pin, I2C
 
 class config():
     '''
@@ -26,8 +26,8 @@ class config():
     buttonDown = 0
     buttonTm = 50
     buttonLong = 500
-    I2C_left = I2C(0)
-    I2C_right = I2C(1)
+    I2C_left = I2C(1, sda=Pin(6), scl=Pin(7))
+    I2C_right = I2C(0, sda=Pin(28), scl=Pin(29))
 
     '''
         Display and led brightness
@@ -53,16 +53,17 @@ class config():
 
     '''
         Serial Device Config:
-        device:   (int) UART device (0 or 1)
+        device:   UART device
         baud:     (int) Serial baud rate; should match the setting used in config.g
         quiet:    (bool) suppress info messages
     '''
-    device = 0
+    device = UART(0)
     baud = 57600
     quiet = False
 
     '''
         Machine Config:
         net:    Default Network Interface number
+                (`None` to disale network status display and functions)
     '''
     net = 0
