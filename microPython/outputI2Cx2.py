@@ -60,7 +60,7 @@ class outputRRF:
               'CNC':['spindles','tools','move','job','boards','network'],
               'Laser':['move','job','boards','network']}
 
-    def __init__(self, net=None):
+    def __init__(self):
         self._OM = None
         self.running = True
         # demo only?
@@ -220,8 +220,10 @@ class outputRRF:
         cstate = cstate[0].upper() + cstate[1:]
         self._d0.heading.write(cstate, 0, 1)
         return ' | {}'.format(cstate)
-        
+
     def _showNetwork(self):
+        if config.net is None:
+            return ''
         if len(self._OM['network']['interfaces']) == 0:
             return ' | Offline'
         interface = self._OM['network']['interfaces'][config.net]
@@ -239,6 +241,7 @@ class outputRRF:
             icon = C_WARN
         self._d1.icons.write(icon, 112, 0, halign = 'left')
         if self._message == '':
+            # only show detailed network info when no messages are displaying
             self._d1.heading_sub.write(net, 110, 1, halign = 'right')
         return ' | {}'.format(net)
 
@@ -248,7 +251,7 @@ class outputRRF:
             try:
                 percent = self._OM['job']['filePosition'] / self._OM['job']['file']['size'] * 100
             except ZeroDivisionError:  # file size might be 0 as the job starts
-                percent = 0 
+                percent = 0
             job_line = '{:.1f}'.format(percent) if percent < 100 else '100'
             self._d0.heading.write(job_line, 120, 0, halign='right')
             self._d0.heading_sub.write('%', 121, 1)
@@ -341,11 +344,10 @@ class outputRRF:
                 else:
                     display.d_minor.write('°', 121, y + 10)
                     display.d_major.write('{}'.format(val), 121, y + 19)
-         
+
 
         def panelfault(name, display, position):
-                # Display 'fault!' in a panel
-                # ------------ TODO, make this go full/upper/lower) ---------------
+                # Display 'fault!' in a heater panel
                 if position == 'upper':
                     display.icons.write(C_BOLT, 0, 18)
                     display.message.write('{} FAULT'.format(name), 18, 18)

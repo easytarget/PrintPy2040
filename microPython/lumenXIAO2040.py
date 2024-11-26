@@ -76,7 +76,7 @@ class lumen:
         self._rgbstate = (self._rgbstate[2],self._rgbstate[0],self._rgbstate[1])
 
 
-    def emote(self,model,net=0):
+    def emote(self,model,net=None):
         '''
             Use the model to find our mood by mapping the
             status to colors, crudely.
@@ -85,8 +85,12 @@ class lumen:
         if model is None:
             return('err')
         status = model['state']['status']
-        interface = model['network']['interfaces'][net]
-        online = True if interface['state'] is 'active' else False
+        if net is not None:
+            interface = model['network']['interfaces'][net]
+            online = True if interface['state'] is 'active' else False
+        else:
+            # If not netwok set online True to avoid signalling the 'offline error' status
+            online = True
         if model['state']['machineMode'] == '':
            return('err')
         if status in ['disconnected','halted']:
