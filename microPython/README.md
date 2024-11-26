@@ -1,10 +1,22 @@
-# Microipython code is a WIP!
+# Micropython code
+
+## This is a Work In Progress!
+I am making working alpha releases that during developmment, see the main readme for the current status.
+
+# Architecture
+`printXIAO.py` is the main program; it runs a continual loop that queries the RRF controller to fetch the current objectModel (machine state). It then calls two output class modules to display data from the objectModel:
+- `lumenXIAO2040.py` : Shows the controller status using the onboard NeoPixel on the Xiao RP2040 board, also show a communication 'heartbeat' using the seperate RGB status led also present on the board.
+- `outputI2Cx2.py` : Displays the machine state on a twin OLED display, showing the overall status; current temperatures and heater statuses; job status (when active), messages and network status.
+  - The display is built entirely out of fonts (using symbol fonts where necesscary) and uses my own microPython fonts, font writer and marquee.
+
+### Requirements:
 Development of the communications code happens in the `serialOM` repo:
 https://github.com/easytarget/serialOM
-* This has a seperate 'microPython' tree with a compatible serialOM variant.
 
-## Releases will be placed here
-The 'Firmware' folder contains the reference firmware, *not* a precompiled image. mmmkay.
+Development of the Font display system (Font Writer, Marquee and the Fonts themselves) happens in the `microPyEZfonts` repo:
+https://github.com/easytarget/microPyEZfonts
 
-## Currently:
-This folder contains a 'bare minimum' sketch to test screens and buttons.
+## Install
+The 'Firmware' folder contains the reference firmware. This is the image I am using and have tested with. This iis a copy of the generic firmware from the main microPython downloads site. There is no 'precompiled firmware' available.
+
+Simply put the whole contents of this folder (/microPython/) in to the root of your device, heeping the directory structure; copy `config-default.py` to `config.py` and make any changes you need (there are not many 'options' and the hardware defaults are set up for the XIAO 2040 board used here.
