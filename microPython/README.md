@@ -17,6 +17,12 @@ Development of the Font display system (Font Writer, Marquee and the Fonts thems
 https://github.com/easytarget/microPyEZfonts
 
 ## Install
-The 'Firmware' folder contains the reference firmware. This is the image I am using and have tested with. This iis a copy of the generic firmware from the main microPython downloads site. There is no 'precompiled firmware' available.
+I do all development using the [**Thonny**](https://thonny.org/) IDE, this is a fairly simple tool, but I quite like it because of this it matches my needs. You can also use ViperIDE or any other development environment you are familiar with.
 
-Simply put the whole contents of this folder (/microPython/) in to the root of your device, heeping the directory structure; copy `config-default.py` to `config.py` and make any changes you need (there are not many 'options' and the hardware defaults are set up for the XIAO 2040 board used here.
+The 'Firmware' folder just contains the latest reference firmware; the image I am using and have tested with. This is just a copy of the generic firmware from the main microPython downloads site. There is no 'precompiled firmware' available for PrintPy2040.
+
+Simply put the whole contents of this folder (/microPython/) excluding the 'Firmware' folder) in to the root of your device, keeping the directory structure.
+
+Then copy `config-default.py` to `config.py` and make any changes you need (there are not many 'options' and the hardware defaults are set up for the XIAO 2040 board used here.
+
+You can run `printXIAO.py` from the REPL console to test.
