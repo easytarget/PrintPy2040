@@ -30,18 +30,26 @@ class config():
     I2C_right = I2C(0, sda=Pin(28), scl=Pin(29))
 
     '''
-        Display and led brightness
+        Display settings
         display_bright: Display Brightness (float, 0 to 1)
         display_invert: Display inversion (bool)
         display_rotate: Display flip display vertically (bool)
-        led_bright:     Indicator LED brightness (float, 0 to 1)
-        led_bright_off: Indicator LED brightness when machine off
     '''
     display_bright = float(0.66)
     display_invert = False
     display_rotate = True
-    led_bright = float(1)
-    led_bright_off = float(0.5)
+
+    '''
+        LED 'mood' illumination
+        illuminate:  Use onboard LED(s) for mood and heartbeat (bool)
+        led_bright:  Indicator LED brightness (float, 0 to 1)
+        led_standby: Indicator LED brightness when machine off
+        led_flash:   Mood indicator flash time (int, ms)
+    '''
+    illuminate = True
+    led_bright = float(1.0)
+    led_standby = float(0.33)
+    led_flash = 66
 
     '''
         Timing and timeout config:
@@ -64,6 +72,6 @@ class config():
     '''
         Machine Config:
         net:    Default Network Interface number
-                (`None` to disale network status display and functions)
+                (`None` to disable network status display and functions)
     '''
     net = 0

@@ -5,9 +5,9 @@ from lumenXIAO2040 import lumen
 from config import config
 # The microPython standard libs
 from sys import exit
-from gc import collect,mem_free
-from machine import reset,disable_irq,enable_irq
-from time import sleep_ms,ticks_ms,ticks_diff,localtime
+from gc import collect, mem_free
+from machine import reset, disable_irq, enable_irq
+from time import sleep_ms, ticks_ms, ticks_diff, localtime
 
 '''
     PrintMPy is a serialOM.py loop for MicroPython devices.
@@ -26,7 +26,8 @@ def restartNow(why):
 
     for c in range(config.rebootDelay,0,-1):
         pp(c,end=' ')
-        led.blink('err')
+        if led is not None:
+            led.blink('err')
         sleep_ms(1000)
     pp()
     #exit()   # Useful while debugging, drop to REPL
@@ -59,7 +60,7 @@ def buttonPressed(irqTime):
         # This should really require a second press /while/ the status is showing.
         if config.buttonLong > 0 and buttonTime is not None:
             if ticks_diff(ticks_ms(),buttonTime) > config.buttonLong:
-                print('WIFI TRIGGER') # TODO: Wifi enable/disabe cycle
+                print('WIFI TRIGGER') # TODO: Wifi enable/disable cycle
         buttonTime = None
 
 
@@ -102,8 +103,11 @@ else:
     print('UART connected')
 
 # Illumination/mood LEDs
-led = lumen()
-led.blink('busy')
+if config.illuminate:
+    led = lumen(config.led_bright, config.led_standby, config.led_flash)
+    led.blink('busy')
+else
+    led = None
 
 # create the OM handler
 try:
@@ -114,7 +118,8 @@ except Exception as e:
 if OM.machineMode == '':
     restartNow('Failed to connect to controller, or unsupported controller mode.')
 
-led.blink(led.emote(OM.model,config.net))
+if led is not None:
+    led.blink(led.emote(OM.model,config.net))
 
 '''
     Main loop
@@ -123,7 +128,8 @@ while True:
     collect()  # do this before every loop because.. microPython
     begin = ticks_ms()
     # Do a OM update
-    led.send()
+    if led is not None:
+        led.send()
     haveData = False
     try:
         haveData = OM.update()
@@ -137,9 +143,11 @@ while True:
         print(ticks_ms()-s,end=', ')
         if outputText:
              print('({}) {}'.format(str(mem_free()),outputText), end='')
-        led.blink(led.emote(OM.model,config.net))
+        if led is not None:
+            led.blink(led.emote(OM.model,config.net))
     else:
-        led.blink('err')
+        if led is not None:
+            led.blink('err')
         pp('failed to fetch ObjectModel data')
     # check output is running and restart if not
     if not out.running:

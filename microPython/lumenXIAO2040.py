@@ -7,16 +7,17 @@ from neopixel import NeoPixel
 '''
 
 class lumen:
-    def __init__(self,bright=1,flash=66):
+    def __init__(self, bright, standby, flash):
         '''
             start led/neopixel etc
 
             properties:
                 self.bright = float(0..1), intensity
+                self.standby = float(0..1), intensity when off
                 self.flash  = int(), flash duration in ms
         '''
         self.bright = bright
-        self.dim = bright / 3
+        self.dim = standby
         self.flash = flash
         self._moods = {'off':(255,128,0),
                         'on':(0,255,0),
