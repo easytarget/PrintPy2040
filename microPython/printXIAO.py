@@ -62,7 +62,7 @@ def buttonPressed(irqTime):
                 print('WIFI TRIGGER') # TODO: Wifi enable/disable cycle
         buttonTime = None
 
-def blink(state)
+def blink(state):
     if led is not None:
         led.blink(state)
 
@@ -84,9 +84,16 @@ else:
 # Illumination/mood LEDs
 if config.illuminate:
     led = lumen(config.led_bright, config.led_standby, config.led_flash)
-    blink('busy')
-else
+else:
     led = None
+
+# Init RRF UART connection
+rrf = config.device
+rrf.init(baudrate=config.baud)
+if not rrf:
+    hardwareFail('No UART device found')
+else:
+    print('UART connected')
 
 # Get output/display device, hard fail if not available
 pp('starting output')
@@ -95,21 +102,8 @@ if not out.running:
     hardwareFail('Failed to start output device')
 else:
     sleep_ms(333)
-
-# hardware button
-buttonTime = None
-if config.button:
-    button = config.button
-    button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=buttonDown)
-    pp('button present on:',repr(button).split('(')[1].split(',')[0])
-
-# Init RRF USB/serial connection
-rrf = config.device
-rrf.init(baudrate=config.baud)
-if not rrf:
-    hardwareFail('No UART device found')
-else:
-    print('UART connected')
+out.splash()
+splashend = ticks_ms() + config.splashtime
 
 # create the OM handler
 try:
@@ -120,8 +114,19 @@ except Exception as e:
 if OM.machineMode == '':
     restartNow('Failed to connect to controller, or unsupported controller mode.')
 
-# Flash initial status
+# hardware button
+buttonTime = None
+if config.button:
+    button = config.button
+    button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=buttonDown)
+    pp('button present on:',repr(button).split('(')[1].split(',')[0])
+
+# Now pause, then blink initial status and destroy splash after timeout
+while ticks_ms() < splashend:
+    sleep_ms(25)
 blink(led.emote(OM.model,config.net))
+out.swipeclean()
+out.update(OM.model)
 
 '''
     Main loop
@@ -133,19 +138,23 @@ while True:
     if led is not None:
         led.heartbeat()
     haveData = False
+    omstart = ticks_ms()
     try:
         haveData = OM.update()
     except Exception as e:
         restartNow('Error while fetching machine state\n' + str(e))
+    omend = ticks_ms()
     # output the results if successful
     if haveData:
-        blink(led.emote(OM.model,config.net))
+        blink(led.emote(OM.model, config.net))
         # pass the results to the output module and print any response
-        s = ticks_ms()
         outputText = out.update(OM.model)
-        t = ticks_ms() - s
-        if outputText:
-            print('({}ms, {}k) {}'.format(t, str(mem_free()), outputText), end='')
+        if config.stats:
+            omtime = omend - omstart
+            stats = '[{}ms, {}b] '.format(omtime, str(mem_free()))
+            outputText = stats + outputText
+        if config.info:
+            print('{}'.format(outputText.strip()))
     else:
         blink('err')
         pp('failed to fetch ObjectModel data')

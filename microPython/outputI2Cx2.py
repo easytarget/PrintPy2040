@@ -74,18 +74,17 @@ class outputRRF:
         self._initDisplays()
         self._bright(config.display_bright)
         self._clean()
-        self._splash()
         self._show()
 
     def _initDisplays(self):
-        self._d0 = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
-        self._d1 = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
-        self._d0.invert(config.display_invert)
-        self._d1.invert(config.display_invert)
-        self._d0.rotate(config.display_rotate)
-        self._d1.rotate(config.display_rotate)
-        self._fontSetup(self._d0)
-        self._fontSetup(self._d1)
+        self._left = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
+        self._right = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
+        self._left.invert(config.display_invert)
+        self._right.invert(config.display_invert)
+        self._left.rotate(config.display_rotate)
+        self._right.rotate(config.display_rotate)
+        self._fontSetup(self._left)
+        self._fontSetup(self._right)
 
     def _fontSetup(self,d):
         d.heading = ezFBfont(d, heading)
@@ -99,50 +98,34 @@ class outputRRF:
 
     def _on(self):
         if not self._active:
-            self._d0.poweron()
-            self._d1.poweron()
+            self._left.poweron()
+            self._right.poweron()
             self._active = True
 
     def _off(self):
         if self._active:
-            self._d0.poweroff()
-            self._d1.poweroff()
+            self._left.poweroff()
+            self._right.poweroff()
             self._active = False
 
     def _bright(self,bright):
         bright = int(bright * 255)
-        self._d0.contrast(bright)
-        self._d1.contrast(bright)
-        
+        self._left.contrast(bright)
+        self._right.contrast(bright)
+
     def _clean(self, c=0):
-        self._d0.fill_rect(0, 0, 128, 64, c)
-        self._d1.fill_rect(0, 0, 128, 64, c)
+        self._left.fill_rect(0, 0, 128, 64, c)
+        self._right.fill_rect(0, 0, 128, 64, c)
         self._updating = True
 
     def _show(self):
-        self._d0.show()
-        self._d1.show()
+        self._left.show()
+        self._right.show()
         self._updating = False
-        
-    def _splash(self):
-        # Slightly animated..
-        self._showtext('PrintPy\n2040', 'by Owen    ')
-        self._d1.text('easytarget.org', 0, 40)
-        self._show()
-        sleep_ms(2000)
-        for x in range(0,15):
-            self._d0.scroll(8,0)
-            self._d1.scroll(-8,0)
-            self._show()
-        
-    def _waiting(self):
-        self._d0.heading.write('Waiting', 63, 0, halign='center')
-        self._d1.heading.write('...', 63, 0, halign='center')
 
     def _showtext(self, left, right):
-        self._d0.message.write(left, 63, 16, halign='center')
-        self._d1.message.write(right, 63, 16, halign='center')
-        
+        self._left.message.write(left, 63, 16, halign='center')
+        self._right.message.write(right, 63, 16, halign='center')
 
     def _dhms(self,t):
         # A local function to provide human readable uptime
@@ -162,13 +145,27 @@ class outputRRF:
         secs = "%02.f" % s
         return days+hrs+mins+secs
 
+    def splash(self):
+        self._clean()
+        self._showtext('PrintPy\n2040', 'by Owen    ')
+        self._right.heading.write('easytarget.org', 0, 36)
+        self._show()
+
+    def swipeclean(self):
+        # Slightly animated
+        for x in range(0,15):
+            self._left.scroll(8,0)
+            self._right.scroll(-8,0)
+            self._show()
+
     def update(self,model=None):
         # Need to handle failed starts,
         # - Display 'waiting for data' if model=None for more than a set time.
         if model is not None:
             self._OM = model
         if self._OM is None:
-            self._waiting()
+            self._showtext('waiting','....')
+            self._show()
             return('Initial update data unavailable\n')
         if self._OM['state']["status"] is not 'off':
             self._on()
@@ -206,9 +203,9 @@ class outputRRF:
         if self._OM['state']['machineMode'] == 'FFF':
             self._showFFF()
         else:
-            r += ', Unsupported mode: {}'.format(
-                self._OM['state']['machineMode'])
-            self._showtext('Unsupported\nMode',self._OM['state']['machineMode'])
+            mode = self._OM['state']['machineMode']
+            r += ', Unsupported mode: {}'.format(mode)
+            self._showtext('\'{}\'\nmode'.format(mode), 'not\nsupported')
         m = self._showMessages()
         r += self._showNetwork()
         # Return results
@@ -218,7 +215,9 @@ class outputRRF:
         # common items to always show
         cstate = self._OM['state']["status"]
         cstate = cstate[0].upper() + cstate[1:]
-        self._d0.heading.write(cstate, 0, 1)
+        if cstate == 'Simulating':
+            cstate = 'Processing'
+        self._left.heading.write(cstate, 0, 1)
         return ' | {}'.format(cstate)
 
     def _showNetwork(self):
@@ -239,10 +238,10 @@ class outputRRF:
             icon = C_STANDBY
         else:
             icon = C_WARN
-        self._d1.icons.write(icon, 112, 0, halign = 'left')
+        self._right.icons.write(icon, 112, 0, halign = 'left')
         if self._message == '':
             # only show detailed network info when no messages are displaying
-            self._d1.heading_sub.write(net, 110, 1, halign = 'right')
+            self._right.heading_sub.write(net, 110, 3, halign = 'right')
         return ' | {}'.format(net)
 
     def _showJob(self):
@@ -252,9 +251,10 @@ class outputRRF:
                 percent = self._OM['job']['filePosition'] / self._OM['job']['file']['size'] * 100
             except ZeroDivisionError:  # file size might be 0 as the job starts
                 percent = 0
-            job_line = '{:.1f}'.format(percent) if percent < 100 else '100'
-            self._d0.heading.write(job_line, 120, 0, halign='right')
-            self._d0.heading_sub.write('%', 121, 1)
+            job_line = ' {:.1f}'.format(percent) if percent < 100 else '100'
+            self._left.d_minor.write(job_line, 120, 12, halign='right')
+            #self._left.heading.write(job_line, 120, 0, halign='right')
+            self._left.heading_sub.write('%', 121, 2)
             return ' | Job: {}%'.format(job_line)
         return ''
 
@@ -264,7 +264,7 @@ class outputRRF:
         self._message = self._OM['state']['displayMessage']
         if self._message != '':
             r += ' | message: ' +  self._message
-            self._d1.heading.write(self._message, 0, 0)
+            self._right.heading.write(self._message, 0, 0)
             # Set up Marquee
         #else:
             # stop Marquee
@@ -289,13 +289,6 @@ class outputRRF:
                 return
             else:
                 temp = self._OM['heat']['heaters'][number]['current']
-                ## ------------------------------------
-                if name == 'e1':       # TEST ---------
-                    temp = temp + 3.3  # TEST ---------
-                if name == 'enc':      # TEST ---------
-                    temp = temp + 3.3  # TEST ---------
-                    temp = temp + 100  # TEST ---------
-                ## ------------------------------------
                 val =int(temp)
                 dec = abs(int((temp - val) * 10))
                 # Note the following, it builds hysterisys into turning decimal display on/off
@@ -307,6 +300,7 @@ class outputRRF:
                     target = '{}°'.format(int(self._OM['heat']['heaters'][number]['active']))
                 elif self._OM['heat']['heaters'][number]['state'] == 'standby':
                     target = '({}°)'.format(int(self._OM['heat']['heaters'][number]['standby']))
+                    icon = ''
                 else:  # heater is off
                     target = ''
                     icon = ''
@@ -335,12 +329,13 @@ class outputRRF:
                 # Half panel heater display
                 y = 16 if pos == 0 else 40
                 display.heading.write(name, 0, y)
+                display.icons.write(icon, 38, y + 4)
                 display.heading_sub.write(target, 2, y + 12)
                 #display.text(target.replace('°',''), 0, y+14)
                 if self._show_decimal[name]:
-                    display.d_minor.write('°', 110, y + 10)
-                    display.d_major.write('{}'.format(val), 110, y + 19)
-                    display.d_minor.write('.{:01d}'.format(dec), 110, y + 19)
+                    display.d_minor.write('°', 108, y + 10)
+                    display.d_major.write('{}'.format(val), 108, y + 19)
+                    display.d_minor.write('.{:01d}'.format(dec), 108, y + 19)
                 else:
                     display.d_minor.write('°', 121, y + 10)
                     display.d_major.write('{}'.format(val), 121, y + 19)
@@ -359,42 +354,43 @@ class outputRRF:
                     display.message.write('{}'.format(name), 21, 22)
                     display.message.write('FAULT', 21, 42)
 
-        # Temp panels chassis = bed and chamber, extruders = tool list
-        chassis = []
         extruders = []
+        heaters = []
         # Extruders (tools)
         if len(self._OM['tools']) > 0:
             for tool in self._OM['tools']:
                 if len(tool['heaters']) > 0:
                     # only record the first heater for each tool
                     extruders.append((tool['heaters'][0],
-                                      'e' + str(self._OM['tools'].index(tool)), C_TOOL))
+                                      'E' + str(self._OM['tools'].index(tool)), C_TOOL))
         # Bed and Chamber, only take first of each!
         if len(self._OM['heat']['bedHeaters']) > 0:
             if self._OM['heat']['bedHeaters'][0] != -1:
-                chassis.append((self._OM['heat']['bedHeaters'][0], 'bed', C_BED))
+                heaters.append((self._OM['heat']['bedHeaters'][0], 'bed', C_BED))
         if len(self._OM['heat']['chamberHeaters']) > 0:
             if self._OM['heat']['chamberHeaters'][0] != -1:
-                chassis.append((self._OM['heat']['chamberHeaters'][0], 'enc', C_ENCL))
+                heaters.append((self._OM['heat']['chamberHeaters'][0], 'enc', C_ENCL))
 
-        # This is how to add fake devices for testing..
-        #extruders.append((extruders[0][0],'e1',C_TOOL))
-        chassis.append((chassis[0][0],'enc',C_ENCL))
+        # This is how to add fake devices for testing multi-panel stuff..
+        #extruders.append((extruders[0][0],'E1',C_TOOL))
+        #heaters.append((heaters[0][0],'encl',C_ENCL))
 
         # Display extruder heaters (max 2)
         if len(extruders) == 0:
-            print('WARNING! No extrudes')
+            self._left.icons.write(C_WARN, 64, 18, halign='center')
+            self._left.message.write('no extruders?', 64, 38, halign='center')
         if len(extruders) == 1:
-            showHeater(*extruders[0], self._d0, 'full')
+            showHeater(*extruders[0], self._left, 'full')
         if len(extruders) >= 2:
-            showHeater(*extruders[0], self._d0, 'upper')
-            showHeater(*extruders[1], self._d0, 'lower')
+            showHeater(*extruders[0], self._left, 'upper')
+            showHeater(*extruders[1], self._left, 'lower')
 
         # Display bed and chamber heaters
-        if len(chassis) == 0:
-            print('WARNING! No chassis heaters')
-        if len(chassis) == 1:
-            showHeater(*chassis[0], self._d1, 'full')
-        if len(chassis) >= 2:
-            showHeater(*chassis[0], self._d1, 'upper')
-            showHeater(*chassis[1], self._d1, 'lower')
+        if len(heaters) == 0:
+            self._right.icons.write(C_WARN, 64, 18, halign='center')
+            self._right.message.write('no heaters?', 64, 38, halign='center')
+        if len(heaters) == 1:
+            showHeater(*heaters[0], self._right, 'full')
+        if len(heaters) >= 2:
+            showHeater(*heaters[0], self._right, 'upper')
+            showHeater(*heaters[1], self._right, 'lower')

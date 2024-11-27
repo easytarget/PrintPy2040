@@ -60,14 +60,18 @@ class config():
     rebootDelay = 3
 
     '''
+        UI
+        splashtime: (int) splash screen time in milliseconds
+    '''
+    splashtime = 2000
+
+    '''
         Serial Device Config:
         device:   UART device
         baud:     (int) Serial baud rate; should match the setting used in config.g
-        quiet:    (bool) suppress info messages
     '''
     device = UART(0)
     baud = 57600
-    quiet = False
 
     '''
         Machine Config:
@@ -75,3 +79,13 @@ class config():
                 (`None` to disable network status display and functions)
     '''
     net = 0
+
+    '''
+        REPL output Options:
+        info:   (bool) Show machine status lines in REPL console
+        stats:  (bool) Show printPy fetch speed and memory stats when info=True
+        quiet:  (bool) Suppress init and serialOM comms info messages
+    '''
+    info = True
+    stats = False
+    quiet = False
