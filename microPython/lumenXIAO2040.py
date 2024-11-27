@@ -12,15 +12,15 @@ class lumen:
             start led/neopixel etc
 
             properties:
-                self.bright = float(0..1), intensity
-                self.standby = float(0..1), intensity when off
-                self.flash  = int(), flash duration in ms
+                bright = float(0..1), intensity
+                standby = float(0..1), intensity when off
+                flash  = int(), flash duration in ms
         '''
         self.bright = bright
-        self.dim = standby
+        self.standby = standby
         self.flash = flash
         self._moods = {'off':(255,128,0),
-                        'on':(0,255,0),
+                      'idle':(0,255,0),
                       'busy':(255,255,255),
                        'job':(255,0,255),
                     'paused':(0,0,255),
@@ -41,7 +41,7 @@ class lumen:
         self._setRGB()   # start off
 
     def _setRGB(self,state=(False,False,False)):
-        # sets onboard rgb status led
+        # sets onboard rgb status led (heartbeat led)
         self._rgbR.value(not state[0])   # pins are inverted
         self._rgbG.value(not state[1])
         self._rgbB.value(not state[2])
@@ -58,9 +58,9 @@ class lumen:
             self._pixel[0] = (0,0,0)
             self._pixel.write()
 
-        if mood == 'empty':
+        if mood is None:
             return
-        bright = self.dim if mood is 'off' else self.bright
+        bright = self.standby if mood is 'off' else self.bright
         neo = self._moods[mood]
         self._pixel[0] = (int(neo[0]*bright),
                           int(neo[1]*bright),
@@ -68,12 +68,13 @@ class lumen:
         self._pixel.write()
         Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
 
-    def send(self):
+    def heartbeat(self):
         '''
-            Use for a seperate 'send heartbeat' led using the spare 'USER' led of the Xiao
-            cycling RGB every time a request cycle begins
+            Shows comms activity using the spare RGB led on the Xiao board
+            cycling R->G->B->etc every time a request is sent
         '''
-        self._setRGB(self._rgbstate)         # Rotate the onboard RGB
+        self._setRGB(self._rgbstate)
+        # Rotate the onboard RGB heartbeat
         self._rgbstate = (self._rgbstate[2],self._rgbstate[0],self._rgbstate[1])
 
 
@@ -85,31 +86,23 @@ class lumen:
 
         if model is None:
             return('err')
-        status = model['state']['status']
         if net is not None:
             interface = model['network']['interfaces'][net]
             online = True if interface['state'] is 'active' else False
         else:
-            # If not netwok set online True to avoid signalling the 'offline error' status
+            # If no netwok; set online=True so that we do not signal 'error' when off or idle
             online = True
         if model['state']['machineMode'] == '':
            return('err')
+        status = model['state']['status']
         if status in ['disconnected','halted']:
             return('err')
-        if status is 'off':
-            if online:
-                return('off')
-            else:
-                return('err')
-        if status is 'idle':
-            if online:
-                return('on')
-            else:
-                return('err')
+        if status in ['off','idle']:
+            return status if online else 'err'
         if status in ['starting','updating','busy','changingTool']:
             return('busy')
         if status in ['pausing','paused','resuming','cancelling']:
             return('paused')
         if status in ['processing','simulating']:
             return('job')
-        return 'empty'
+        return None
