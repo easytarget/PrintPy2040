@@ -28,11 +28,12 @@ class heartbeat:
         self._rgbG.value(not state[1])
         self._rgbB.value(not state[2])
 
-    def beat(self):
+    def beat(self, dim=False):
         '''
             Shows comms activity using the spare RGB led on the Xiao board
             cycling R->G->B->etc every time a request is sent
         '''
+        # TODO: dimming function
         self._setRGB(self._rgbstate)
         # Rotate the onboard RGB heartbeat
         self._rgbstate = (self._rgbstate[2],self._rgbstate[0],self._rgbstate[1])

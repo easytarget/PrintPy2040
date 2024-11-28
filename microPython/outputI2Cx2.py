@@ -64,8 +64,7 @@ class outputRRF:
 
     def __init__(self):
         self._OM = None
-        self.running = True
-        self.standby = False
+        self.standby = True
         # internals
         self._updating = False
         self._message = ''
@@ -75,7 +74,7 @@ class outputRRF:
         self._initDisplays()
         self._bright(config.display_bright)
         self._clean()
-        self._show()
+        self.running = True
 
     def _initDisplays(self):
         self._left = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
@@ -97,14 +96,17 @@ class outputRRF:
         d.d_major = ezFBfont(d, double_major, halign='right', valign='baseline')
         d.d_minor = ezFBfont(d, double_minor, valign='baseline')
 
-    def _on(self):
-        if not self.standby:
+    def on(self):
+        if self.standby:
             self._left.poweron()
             self._right.poweron()
+            self._showModel()
+            self._swipeOn()
             self.standby = False
 
-    def _off(self):
+    def off(self):
         if not self.standby:
+            self._swipeOff()
             self._left.poweroff()
             self._right.poweroff()
             self.standby = True
@@ -147,42 +149,42 @@ class outputRRF:
         return days+hrs+mins+secs
 
     def splash(self):
-        self._clean()
         self._showtext('PrintPy\n2040', 'by Owen    ')
         self._right.heading.write('easytarget.org', 0, 36)
-        self._show()
 
-    def swipeclean(self):
-        # Slightly animated
-        for x in range(0, 15):
-            self._left.scroll(8, 0)
-            self._right.scroll(-8, 0)
+    def _swipeOff(self):
+        s = 16
+        for x in range(0, 129, 8):
+            self._left.scroll(s, 0)
+            self._left.rect(0, 0, s, 64, 0, True)
+            self._right.scroll(-s, 0)
+            self._right.rect(128 - s, 0, s, 64, 0, True)
             self._show()
 
-    def swipeon(self):
-        # Slightly animated
+    def _swipeOn(self):
+        s = 16
         lfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
         rfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
         lfb.blit(self._left,0,0)
         rfb.blit(self._right,0,0)
         self._clean()
-        for x in range(0, 15):
-            self._left.blit(lfb, x * 8, 0)
-            self._right.blit(rfb, (15 - x) * 8, 0)
+        for x in range(0, 129, s):
+            self._left.blit(lfb, 128 - x, 0)
+            self._right.blit(rfb, -128 + x, 0)
             self._show()
-            sleep_ms(250)
-            print(x, 15-x)
         del(lfb,rfb)
 
     def update(self, model):
         # TODO: Need to test and handle failed starts,
         # TODO: Display 'waiting for data' if model=None for more than a set time.
         if model is not None:
+            self._failcount = 0
             self._OM = model
         else:
             self._failcount += 1
-            if self._failcount > config.failcount
+            if self._failcount > config.failcount:
                 self._showtext('no data','retrying')
+                # TODO: show a fail counter..
                 self._show()
                 return('update data unavailable\n')
         if self._OM is None:
@@ -191,13 +193,13 @@ class outputRRF:
             return('initial update data unavailable\n')
         show = not self._OM['state']["status"] in config.offstates
         if show:
-            self._on()
-            self._clean()
+            self.on()
+        self._clean()
         r = self._showModel() + '\n'
         if show:
             self._show()
         else:
-            self._off()
+            self.off()
         return r
 
     '''

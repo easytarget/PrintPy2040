@@ -65,7 +65,7 @@ def buttonPressed(irqTime):
 
 def blink(state):
     if config.mood:
-        led.blink(state, out.standby)
+        mood.blink(state, out.standby)
 
 '''
     Init
@@ -85,7 +85,7 @@ else:
 # LEDs
 if config.mood:
     mood = lumen(config.mood_bright, config.mood_standby, config.mood_flash)
-if config.heartbeat:
+if config.heart:
     heart = heartbeat(config.heart_bright, config.heart_standby)
 
 # UART connection
@@ -101,9 +101,10 @@ pp('starting output')
 out = outputRRF()
 if not out.running:
     hardwareFail('Failed to start output device')
-else:
-    sleep_ms(333)
+#else:
+#    sleep_ms(333)
 out.splash()
+out.on()
 splashend = ticks_ms() + config.splashtime
 
 # create the OM handler and get initial status
@@ -126,7 +127,9 @@ if config.button:
 while ticks_ms() < splashend:
     sleep_ms(25)
 blink(mood.emote(OM.model, config.net))
-out.swipeclean()
+out.off()
+
+# Screen will turn on automatically here
 out.update(OM.model)
 
 '''
@@ -136,7 +139,7 @@ while True:
     collect()  # do this before every loop because.. microPython
     begin = ticks_ms()
     # Do a OM update
-    if config.heartbeat:
+    if config.heart:
         heart.beat(out.standby)
     haveData = False
     omstart = ticks_ms()
