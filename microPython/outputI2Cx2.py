@@ -56,9 +56,10 @@ class outputRRF:
     # ObjectModel keys for each supported mode
     # We will always get the 'state' key from serialOM
     # All other keys need to be specified below
-    omKeys = {'FFF':['heat','tools','job','boards','network'],
-              'CNC':['spindles','tools','move','job','boards','network'],
-              'Laser':['move','job','boards','network']}
+    #omKeys = {'FFF':['heat','tools','job','boards','network'],
+    omKeys = {'FFF':['heat','tools','job','network'],
+              'CNC':['network'],
+              'Laser':['network']}
 
     def __init__(self):
         self._OM = None
@@ -86,7 +87,7 @@ class outputRRF:
         self._fontSetup(self._left)
         self._fontSetup(self._right)
 
-    def _fontSetup(self,d):
+    def _fontSetup(self, d):
         d.heading = ezFBfont(d, heading)
         d.heading_sub = ezFBfont(d, heading_sub)
         d.icons = ezFBfont(d, icons)
@@ -108,7 +109,7 @@ class outputRRF:
             self._right.poweroff()
             self._active = False
 
-    def _bright(self,bright):
+    def _bright(self, bright):
         bright = int(bright * 255)
         self._left.contrast(bright)
         self._right.contrast(bright)
@@ -158,23 +159,21 @@ class outputRRF:
             self._right.scroll(-8,0)
             self._show()
 
-    def update(self,model=None):
-        # Need to handle failed starts,
-        # - Display 'waiting for data' if model=None for more than a set time.
+    def update(self, model):
+        # TODO: Need to test and handle failed starts,
+        # TODO: Display 'waiting for data' if model=None for more than a set time.
         if model is not None:
             self._OM = model
         if self._OM is None:
             self._showtext('waiting','....')
             self._show()
             return('Initial update data unavailable\n')
-        if self._OM['state']["status"] is not 'off':
+        show = not self._OM['state']["status"] in config.offstates
+        if show:
             self._on()
             self._clean()
-       # Updates the local model, returns the current status text
-        if self._OM is None:
-            return('no update data available\n')
         r = self._showModel() + '\n'
-        if self._OM['state']["status"] is not 'off':
+        if show:
             self._show()
         else:
             self._off()

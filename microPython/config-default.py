@@ -62,8 +62,12 @@ class config():
     '''
         UI
         splashtime: (int) splash screen time in milliseconds
+        offtime:    (int) screen off delay in seconds
+        offstates:  (list) states where the screen should turn off
     '''
     splashtime = 2000
+    offtime = 16
+    offstates = ['off']
 
     '''
         Serial Device Config:
