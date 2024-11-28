@@ -40,24 +40,36 @@ class config():
     display_rotate = True
 
     '''
-        LED 'mood' illumination
-        illuminate:  Use onboard LED(s) for mood and heartbeat (bool)
-        led_bright:  Indicator LED brightness (float, 0 to 1)
-        led_standby: Indicator LED brightness when machine off
-        led_flash:   Mood indicator flash time (int, ms)
+        NeiPixel 'mood' illumination
+        mood:          (bool)  Indicate status via onboard Neopixel
+        mood_bright:    (float) Indicator LED brightnessx (0 to 1)
+        mood_standby:   (float) Indicator LED brightness when machine off
+        mood_flash:     (int)   Mood indicator flash time (ms)
     '''
-    illuminate = True
-    led_bright = float(1.0)
-    led_standby = float(0.33)
-    led_flash = 66
+    mood = True
+    mood_bright = float(1.0)
+    mood_standby = float(0.33)
+    mood_flash = 66
+
+    '''
+        Communications heartbeat on auxillary RGB
+        heart          (bool)  Show comms heartbeat
+        heart_bright:  (float) Heartbeat LED brightness (0 to 1)
+        heart_standby: (float) Heartbeat LED brightness when machine off
+    '''
+    heart = True
+    heart_bright = float(1.0)
+    heart_standby = float(0.5)
 
     '''
         Timing and timeout config:
-        updateTime:     (int, ms)  Basic time interval between update cycles
-        rebootDelay:    (int) Countdown in seconds when auto-restarting/rebooting printPy
+        updateTime:  (int)i Basic time interval between update cycles (ms)
+        rebootDelay: (int) Countdown in seconds when auto-restarting/rebooting printPy
+        failcount:   (int) Number of failed update cycles before declaring comms fail
     '''
     updateTime = 1000
     rebootDelay = 3
+    failcount = 5
 
     '''
         UI

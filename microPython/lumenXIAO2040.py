@@ -33,20 +33,7 @@ class lumen:
         self._pixel[0]=(0,0,0)
         self._pixel.write()
 
-        # RGB mini status Led, default off
-        self._rgbR = Pin(17,Pin.OUT)
-        self._rgbG = Pin(16,Pin.OUT)
-        self._rgbB = Pin(25,Pin.OUT)
-        self._rgbstate = (True,False,False)
-        self._setRGB()   # start off
-
-    def _setRGB(self,state=(False,False,False)):
-        # sets onboard rgb status led (heartbeat led)
-        self._rgbR.value(not state[0])   # pins are inverted
-        self._rgbG.value(not state[1])
-        self._rgbB.value(not state[2])
-
-    def blink(self,mood):
+    def blink(self, mood, dim=False):
         '''
             flash the mood after an update finishes
             use an interrupt timer
@@ -60,23 +47,13 @@ class lumen:
 
         if mood is None:
             return
-        bright = self.standby if mood is 'off' else self.bright
+        bright = self.standby if dim else self.bright
         neo = self._moods[mood]
         self._pixel[0] = (int(neo[0]*bright),
                           int(neo[1]*bright),
                           int(neo[2]*bright))
         self._pixel.write()
         Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
-
-    def heartbeat(self):
-        '''
-            Shows comms activity using the spare RGB led on the Xiao board
-            cycling R->G->B->etc every time a request is sent
-        '''
-        self._setRGB(self._rgbstate)
-        # Rotate the onboard RGB heartbeat
-        self._rgbstate = (self._rgbstate[2],self._rgbstate[0],self._rgbstate[1])
-
 
     def emote(self,model,net=None):
         '''

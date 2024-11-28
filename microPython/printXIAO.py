@@ -2,6 +2,7 @@
 from serialOM import serialOM
 from outputI2Cx2 import outputRRF
 from lumenXIAO2040 import lumen
+from heartbeatXIAO2040 import heartbeat
 from config import config
 # The microPython standard libs
 from sys import exit
@@ -63,8 +64,8 @@ def buttonPressed(irqTime):
         buttonTime = None
 
 def blink(state):
-    if led is not None:
-        led.blink(state)
+    if config.mood:
+        led.blink(state, out.standby)
 
 '''
     Init
@@ -81,13 +82,13 @@ if config.quiet:
 else:
     print('printMPy is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
 
-# Illumination/mood LEDs
-if config.illuminate:
-    led = lumen(config.led_bright, config.led_standby, config.led_flash)
-else:
-    led = None
+# LEDs
+if config.mood:
+    mood = lumen(config.mood_bright, config.mood_standby, config.mood_flash)
+if config.heartbeat:
+    heart = heartbeat(config.heart_bright, config.heart_standby)
 
-# Init RRF UART connection
+# UART connection
 rrf = config.device
 rrf.init(baudrate=config.baud)
 if not rrf:
@@ -105,7 +106,7 @@ else:
 out.splash()
 splashend = ticks_ms() + config.splashtime
 
-# create the OM handler
+# create the OM handler and get initial status
 try:
     OM = serialOM(rrf, out.omKeys, quiet=config.quiet, noCheck=True)
 except Exception as e:
@@ -124,7 +125,7 @@ if config.button:
 # Now pause, then blink initial status and destroy splash after timeout
 while ticks_ms() < splashend:
     sleep_ms(25)
-blink(led.emote(OM.model,config.net))
+blink(mood.emote(OM.model, config.net))
 out.swipeclean()
 out.update(OM.model)
 
@@ -135,8 +136,8 @@ while True:
     collect()  # do this before every loop because.. microPython
     begin = ticks_ms()
     # Do a OM update
-    if led is not None:
-        led.heartbeat()
+    if config.heartbeat:
+        heart.beat(out.standby)
     haveData = False
     omstart = ticks_ms()
     try:
@@ -146,7 +147,7 @@ while True:
     omend = ticks_ms()
     # output the results if successful
     if haveData:
-        blink(led.emote(OM.model, config.net))
+        blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and print any response
         outputText = out.update(OM.model)
         if config.stats:

@@ -1,5 +1,6 @@
 from time import sleep_ms,ticks_ms,ticks_diff
 from ssd1306 import SSD1306_I2C
+from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
 # fonts
@@ -37,7 +38,7 @@ C_WRENCH = chr(282)
 class outputRRF:
     '''
         arguments:
-            log : log file object or None to disable.
+            None
 
         methods:
             update(model) : Updates the local model copy and
@@ -48,9 +49,9 @@ class outputRRF:
                 Aimed at display devices to show extra info when triggered.
 
         properties:
-            omKeys       : see below
-            running      : (bool) can be set False if the output device fails
-            statusActive : (bool) set True while a status is being displayed
+            omKeys  : see below
+            running : (bool) set False if the output device fails
+            standby : (bool) set True when the display is off
 '''
 
     # ObjectModel keys for each supported mode
@@ -64,13 +65,12 @@ class outputRRF:
     def __init__(self):
         self._OM = None
         self.running = True
-        # demo only?
-        self._begin = ticks_ms()
+        self.standby = False
         # internals
-        self._active = True
         self._updating = False
         self._message = ''
         self._show_decimal = {}
+        self._failcount = 0
         # hardware
         self._initDisplays()
         self._bright(config.display_bright)
@@ -98,16 +98,16 @@ class outputRRF:
         d.d_minor = ezFBfont(d, double_minor, valign='baseline')
 
     def _on(self):
-        if not self._active:
+        if not self.standby:
             self._left.poweron()
             self._right.poweron()
-            self._active = True
+            self.standby = False
 
     def _off(self):
-        if self._active:
+        if not self.standby:
             self._left.poweroff()
             self._right.poweroff()
-            self._active = False
+            self.standby = True
 
     def _bright(self, bright):
         bright = int(bright * 255)
@@ -154,20 +154,41 @@ class outputRRF:
 
     def swipeclean(self):
         # Slightly animated
-        for x in range(0,15):
-            self._left.scroll(8,0)
-            self._right.scroll(-8,0)
+        for x in range(0, 15):
+            self._left.scroll(8, 0)
+            self._right.scroll(-8, 0)
             self._show()
+
+    def swipeon(self):
+        # Slightly animated
+        lfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+        rfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+        lfb.blit(self._left,0,0)
+        rfb.blit(self._right,0,0)
+        self._clean()
+        for x in range(0, 15):
+            self._left.blit(lfb, x * 8, 0)
+            self._right.blit(rfb, (15 - x) * 8, 0)
+            self._show()
+            sleep_ms(250)
+            print(x, 15-x)
+        del(lfb,rfb)
 
     def update(self, model):
         # TODO: Need to test and handle failed starts,
         # TODO: Display 'waiting for data' if model=None for more than a set time.
         if model is not None:
             self._OM = model
+        else:
+            self._failcount += 1
+            if self._failcount > config.failcount
+                self._showtext('no data','retrying')
+                self._show()
+                return('update data unavailable\n')
         if self._OM is None:
-            self._showtext('waiting','....')
+            self._showtext('connecting','....')
             self._show()
-            return('Initial update data unavailable\n')
+            return('initial update data unavailable\n')
         show = not self._OM['state']["status"] in config.offstates
         if show:
             self._on()
@@ -180,9 +201,10 @@ class outputRRF:
         return r
 
     '''
-        All the routines below tediously walk/grok the OM and return
-        a stringlet with the data they find, this is then concatenated
-        into a string that is passed back to the caller.
+        All the routines below tediously walk/grok the OM update the
+        display as appropriate and return a stringlet with the data
+        they find, this is then concatenated into a string that is
+        passed back to the caller.
     '''
 
     def _showModel(self):
