@@ -68,7 +68,7 @@ class config():
         failcount:   (int) Number of failed update cycles before declaring comms fail
     '''
     updateTime = 1000
-    rebootDelay = 3
+    rebootDelay = 5
     failcount = 5
 
     '''

@@ -1,4 +1,4 @@
-from machine import Timer,Pin
+from machine import Timer, Pin
 from neopixel import NeoPixel
 '''
     Lumen (LED Indicator) for the Seeedstudio XIAO RP2040
