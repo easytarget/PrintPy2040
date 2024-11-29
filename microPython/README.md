@@ -5,7 +5,8 @@ I am making working alpha releases that during developmment, see the main readme
 
 # Architecture
 `printXIAO.py` is the main program; it runs a continual loop that queries the RRF controller to fetch the current objectModel (machine state). It then calls two output class modules to display data from the objectModel:
-- `lumenXIAO2040.py` : Shows the controller status using the onboard NeoPixel on the Xiao RP2040 board, also show a communication 'heartbeat' using the seperate RGB status led also present on the board.
+- `lumenXIAO.py` : Shows the controller status using the onboard NeoPixel on the Xiao RP2040 board.
+- `heartbeatXIAO.py` : Shows a communication 'heartbeat' using the auxillary RGB led on the board.
 - `outputI2Cx2.py` : Displays the machine state on a twin OLED display, showing the overall status; current temperatures and heater statuses; job status (when active), messages and network status.
   - The display is built entirely out of fonts (using symbol fonts where necesscary) and uses my own microPython fonts, font writer and marquee.
 

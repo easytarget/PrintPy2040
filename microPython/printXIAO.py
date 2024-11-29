@@ -1,8 +1,8 @@
 # Import our local classes and config
 from serialOM import serialOM
 from outputI2Cx2 import outputRRF
-from lumenXIAO2040 import lumen
-from heartbeatXIAO2040 import heartbeat
+from lumenXIAO import lumen
+from heartbeatXIAO import heartbeat
 from config import config
 # The microPython standard libs
 from sys import exit
