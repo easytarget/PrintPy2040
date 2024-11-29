@@ -20,7 +20,7 @@ def pp(*args, **kwargs):
         print(*args, **kwargs)
 
 # Do a minimum drama restart/reboot
-def restartNow(why):
+def restartNow(why, display='error'):
     pp('Error: ' + why)
     # Countdown and restart
     pp('Restarting in ',end='')
@@ -28,12 +28,15 @@ def restartNow(why):
     for c in range(config.rebootDelay,0,-1):
         pp(c,end=' ')
         blink('err')
+        out.showText(display, 'restarting\n{}'.format(c))
+        out.on()
         sleep_ms(1000)
     pp()
-    #exit()   # Useful while debugging, drop to REPL
-    reset() # Micropython; reboot module
+    #exit()   # Useful while debugging, drops to REPL
+    reset()  # Reboot module
 
 def hardwareFail(why):
+    # Fatal error; halt.
     pp('A critical hardware error has occured!')
     pp('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
     while True:  # loop forever
@@ -66,6 +69,10 @@ def buttonPressed(irqTime):
 def blink(state):
     if config.mood:
         mood.blink(state, out.standby)
+        
+def exit():
+    # Kill timer..
+    pass
 
 '''
     Init
@@ -113,7 +120,7 @@ try:
 except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e))
 
-if OM.machineMode == '':
+if OM.machineMode == '' or OM.model is None:
     restartNow('Failed to connect to controller, or unsupported controller mode.')
 
 # hardware button
@@ -128,9 +135,10 @@ while ticks_ms() < splashend:
     sleep_ms(25)
 blink(mood.emote(OM.model, config.net))
 out.off()
-
-# Screen will turn on automatically here
-out.update(OM.model)
+out.showText('Starting','...')
+out.on()
+sleep_ms(500)
+out.updateNG(OM.model)
 
 '''
     Main loop
@@ -152,7 +160,7 @@ while True:
     if haveData:
         blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and print any response
-        outputText = out.update(OM.model)
+        outputText = out.updateNG(OM.model)
         if config.stats:
             omtime = omend - omstart
             stats = '[{}ms, {}b] '.format(omtime, str(mem_free()))

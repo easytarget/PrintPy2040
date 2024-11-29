@@ -3,6 +3,7 @@ from ssd1306 import SSD1306_I2C
 from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
+from machine import Timer
 # fonts
 path.append('fonts')
 from ezFBfont import ezFBfont
@@ -63,17 +64,21 @@ class outputRRF:
               'Laser':['network']}
 
     def __init__(self):
-        self._OM = None
         self.standby = True
         # internals
+        self._OM = None
+        self._pause = False
+        self._lastOut = ''
         self._updating = False
         self._message = ''
+        self._marquee = None
         self._show_decimal = {}
         self._failcount = 0
         # hardware
         self._initDisplays()
         self._bright(config.display_bright)
         self._clean()
+        self._animate()
         self.running = True
 
     def _initDisplays(self):
@@ -96,20 +101,27 @@ class outputRRF:
         d.d_major = ezFBfont(d, double_major, halign='right', valign='baseline')
         d.d_minor = ezFBfont(d, double_minor, valign='baseline')
 
-    def on(self):
-        if self.standby:
-            self._left.poweron()
-            self._right.poweron()
-            self._showModel()
-            self._swipeOn()
-            self.standby = False
+    def _animate(self):
+        # Callback function
+        def frame(t):
+            if self._pause:
+                return
+            if self._OM is None:
+                return
+            print('timer.start....',end='')
+            self._clean()
+            self._lastOut = self._showModel()
+            if self._marquee is not None:
+                # step marquee and add a pause whenever it rolls over
+                if self._marquee.step(2):
+                    self._marquee.pause(20)
+            print('timer.end ',end='')
+            self._show()
 
-    def off(self):
-        if not self.standby:
-            self._swipeOff()
-            self._left.poweroff()
-            self._right.poweroff()
-            self.standby = True
+        # Start the marquee timer, update 5 times a second
+        #self._timer = Timer()
+        #self._timer.init(period=200, mode=Timer.PERIODIC, callback=show)
+        Timer(period=400, mode=Timer.PERIODIC, callback=frame)
 
     def _bright(self, bright):
         bright = int(bright * 255)
@@ -119,16 +131,36 @@ class outputRRF:
     def _clean(self, c=0):
         self._left.fill_rect(0, 0, 128, 64, c)
         self._right.fill_rect(0, 0, 128, 64, c)
-        self._updating = True
 
     def _show(self):
         self._left.show()
         self._right.show()
-        self._updating = False
 
-    def _showtext(self, left, right):
-        self._left.message.write(left, 63, 16, halign='center')
-        self._right.message.write(right, 63, 16, halign='center')
+    def _swipeOff(self):
+        self._pause = True
+        s = 16
+        for x in range(0, 129, 8):
+            self._left.scroll(s, 0)
+            self._left.rect(0, 0, s, 64, 0, True)
+            self._right.scroll(-s, 0)
+            self._right.rect(128 - s, 0, s, 64, 0, True)
+            self._show()
+        self._pause = False
+
+    def _swipeOn(self):
+        self._pause = True
+        s = 16
+        lfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+        rfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+        lfb.blit(self._left,0,0)
+        rfb.blit(self._right,0,0)
+        self._clean()
+        for x in range(0, 129, s):
+            self._left.blit(lfb, 128 - x, 0)
+            self._right.blit(rfb, -128 + x, 0)
+            self._show()
+        del(lfb,rfb)
+        self._pause = False
 
     def _dhms(self,t):
         # A local function to provide human readable uptime
@@ -148,48 +180,48 @@ class outputRRF:
         secs = "%02.f" % s
         return days+hrs+mins+secs
 
+    def on(self):
+        if self.standby:
+            self._left.poweron()
+            self._right.poweron()
+            self._swipeOn()
+            self.standby = False
+        else:
+            self._show()
+
+    def off(self):
+        if not self.standby:
+            self._swipeOff()
+            self._left.poweroff()
+            self._right.poweroff()
+            self.standby = True
+
     def splash(self):
-        self._showtext('PrintPy\n2040', 'by Owen    ')
+        self.showText('PrintPy\n2040', 'by Owen    ')
         self._right.heading.write('easytarget.org', 0, 36)
 
-    def _swipeOff(self):
-        s = 16
-        for x in range(0, 129, 8):
-            self._left.scroll(s, 0)
-            self._left.rect(0, 0, s, 64, 0, True)
-            self._right.scroll(-s, 0)
-            self._right.rect(128 - s, 0, s, 64, 0, True)
-            self._show()
-
-    def _swipeOn(self):
-        s = 16
-        lfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
-        rfb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
-        lfb.blit(self._left,0,0)
-        rfb.blit(self._right,0,0)
+    def showText(self, left, right):
         self._clean()
-        for x in range(0, 129, s):
-            self._left.blit(lfb, 128 - x, 0)
-            self._right.blit(rfb, -128 + x, 0)
-            self._show()
-        del(lfb,rfb)
+        self._left.message.write(left, 63, 16, halign='center')
+        self._right.message.write(right, 63, 16, halign='center')
 
     def update(self, model):
+        self._updating = True
         # TODO: Need to test and handle failed starts,
         # TODO: Display 'waiting for data' if model=None for more than a set time.
-        if model is not None:
-            self._failcount = 0
-            self._OM = model
-        else:
+        if model is None:
             self._failcount += 1
             if self._failcount > config.failcount:
-                self._showtext('no data','retrying')
+                self.showText('no\nresponse','retrying\n...')
                 # TODO: show a fail counter..
                 self._show()
+                self._updating = False
                 return('update data unavailable\n')
+        else:
+            self._failcount = 0
+            self._OM = model
         if self._OM is None:
-            self._showtext('connecting','....')
-            self._show()
+            self._updating = False
             return('initial update data unavailable\n')
         show = not self._OM['state']["status"] in config.offstates
         if show:
@@ -200,7 +232,33 @@ class outputRRF:
             self._show()
         else:
             self.off()
+        self._updating = False
         return r
+
+    def updateNG(self, model):
+        if model is None:
+            self._failcount += 1
+            if self._failcount > config.failcount:
+                self.showText('no\nresponse','retrying\n...')
+                # TODO: show a fail counter..
+                self._show()
+                self._updating = False
+                return('update data unavailable\n')
+        else:
+            self._failcount = 0
+
+        # Update the local model
+        self._OM = model
+
+        # Turn screen on/off as needed
+        show = not self._OM['state']["status"] in config.offstates
+        if show:
+            self.on()
+        else:
+            self.off()
+            
+        # Return the last generated status line
+        return self._lastOut + '\n'
 
     '''
         All the routines below tediously walk/grok the OM update the
@@ -228,7 +286,7 @@ class outputRRF:
         else:
             mode = self._OM['state']['machineMode']
             r += ', Unsupported mode: {}'.format(mode)
-            self._showtext('\'{}\'\nmode'.format(mode), 'not\nsupported')
+            self.showText('\'{}\'\nmode'.format(mode), 'not\nsupported')
         m = self._showMessages()
         r += self._showNetwork()
         # Return results
