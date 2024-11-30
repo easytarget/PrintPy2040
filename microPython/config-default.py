@@ -63,7 +63,7 @@ class config():
 
     '''
         Timing and timeout config:
-        updateTime:  (int)i Basic time interval between update cycles (ms)
+        updateTime:  (int) Basic time interval between update cycles (ms)
         rebootDelay: (int) Countdown in seconds when auto-restarting/rebooting printPy
         failcount:   (int) Number of failed update cycles before declaring comms fail
     '''
