@@ -69,7 +69,7 @@ def buttonPressed(irqTime):
 def blink(state):
     if config.mood:
         mood.blink(state, out.standby)
-        
+
 def exit():
     # Kill timer..
     pass
@@ -102,6 +102,10 @@ if not rrf:
     hardwareFail('No UART device found')
 else:
     print('UART connected')
+# UART port and buffer will be in a unknown state; there may be junk in it
+# So; send a newline, then wait a bit (display init), then empty the buffer
+rrf.write('\n')
+rrf.flush()
 
 # Get output/display device, hard fail if not available
 pp('starting output')
@@ -114,12 +118,18 @@ out.splash()
 out.on()
 splashend = ticks_ms() + config.splashtime
 
+# Now that the display is running we read+discard from the UART until it stays empty
+while rrf.any()
+    rrf.read(128)
+    sleep_ms(100)
+
 # create the OM handler and get initial status
 try:
     OM = serialOM(rrf, out.omKeys, quiet=config.quiet, noCheck=True)
 except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e))
 
+# TODO: handle this better?
 if OM.machineMode == '' or OM.model is None:
     restartNow('Failed to connect to controller, or unsupported controller mode.')
 
@@ -149,21 +159,21 @@ while True:
     # Do a OM update
     if config.heart:
         heart.beat(out.standby)
-    haveData = False
-    omstart = ticks_ms()
+    have_data = False
+    om_start = ticks_ms()
     try:
-        haveData = OM.update()
+        have_data = OM.update()
     except Exception as e:
         restartNow('Error while fetching machine state\n' + str(e))
-    omend = ticks_ms()
+    om_end = ticks_ms()
     # output the results if successful
-    if haveData:
+    if have_data:
         blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and print any response
         outputText = out.updatePanels(OM.model)
         if config.stats:
-            omtime = omend - omstart
-            stats = '[{}ms, {}b] '.format(omtime, str(mem_free()))
+            om_time = om_end - om_start
+            stats = '[{}ms, {}b] '.format(om_time, str(mem_free()))
             outputText = stats + outputText
         if config.info:
             print('{}'.format(outputText.strip()))
