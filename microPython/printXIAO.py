@@ -160,7 +160,7 @@ while True:
     if haveData:
         blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and print any response
-        outputText = out.updateNG(OM.model)
+        outputText = out.updatePanels(OM.model)
         if config.stats:
             omtime = omend - omstart
             stats = '[{}ms, {}b] '.format(omtime, str(mem_free()))
