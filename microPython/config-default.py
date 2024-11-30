@@ -85,6 +85,7 @@ class config():
         Serial Device Config:
         device:   UART device
         baud:     (int) Serial baud rate; should match the setting used in config.g
+                  eg: TODO!!!!
     '''
     device = UART(0)
     baud = 57600
@@ -98,10 +99,10 @@ class config():
 
     '''
         REPL output Options:
-        info:   (bool) Show machine status lines in REPL console
-        stats:  (bool) Show printPy fetch speed and memory stats when info=True
-        quiet:  (bool) Suppress init and serialOM comms info messages
+        info:    (bool) Show machine status lines in REPL console
+        stats:   (bool) Show printPy fetch speed and memory stats when info=True
+        verbose: (bool) Show init and serialOM comms info messages
     '''
-    info = True
+    info = False
     stats = False
-    quiet = False
+    verbose = False

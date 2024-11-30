@@ -16,7 +16,7 @@ from time import sleep_ms, ticks_ms, ticks_diff, localtime
 
 # local print function so we can suppress info messages.
 def pp(*args, **kwargs):
-    if not config.quiet:
+    if not config.verbose:
         print(*args, **kwargs)
 
 # Do a minimum drama restart/reboot
@@ -78,16 +78,8 @@ def exit():
     Init
 '''
 
-# Basic info
-start = localtime()
-startDate = str(start[0]) + '-' + str(start[1]) + '-' + str(start[2])
-startTime = "%02.f" % start[3] + ':' + "%02.f" % start[4] + ':' + "%02.f" % start[5]
-startText = '=== Starting: ' + startDate + ' ' + startTime
-
-if config.quiet:
-    print(startText)
-else:
-    print('printMPy is starting at: ' + startDate + ' ' + startTime + ' (device localtime)')
+# Always log that we are starting to console.
+print('printXIAO is starting')
 
 # LEDs
 if config.mood:
@@ -125,7 +117,7 @@ while rrf.any()
 
 # create the OM handler and get initial status
 try:
-    OM = serialOM(rrf, out.omKeys, quiet=config.quiet, noCheck=True)
+    OM = serialOM(rrf, out.omKeys, quiet=config.verbose, noCheck=True)
 except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e))
 
