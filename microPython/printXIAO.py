@@ -6,9 +6,12 @@ from heartbeatXIAO import heartbeat
 from config import config
 # The microPython standard libs
 from sys import exit
+
+
 from gc import collect, mem_free
-from machine import reset, disable_irq, enable_irq
+from machine import reset, disable_irq, enable_irq, mem32
 from time import sleep_ms, ticks_ms, ticks_diff, localtime
+import _thread
 
 '''
     PrintMPy is a serialOM.py loop for MicroPython devices.
@@ -71,7 +74,7 @@ def blink(state):
         mood.blink(state, out.standby)
 
 def exit():
-    # Kill timer..
+    # Kill timer.. TODO: ...
     pass
 
 '''
@@ -80,6 +83,7 @@ def exit():
 
 # Always log that we are starting to console.
 print('printXIAO is starting')
+print('main thread: ', mem32[0xd0000000])
 
 # LEDs
 if config.mood:
@@ -102,8 +106,11 @@ rrf.flush()
 # Get output/display device, hard fail if not available
 pp('starting output')
 out = outputRRF()
+out.animate()
+
 if not out.running:
     hardwareFail('Failed to start output device')
+
 #else:
 #    sleep_ms(333)
 out.splash()
@@ -111,7 +118,7 @@ out.on()
 splashend = ticks_ms() + config.splashtime
 
 # Now that the display is running we read+discard from the UART until it stays empty
-while rrf.any()
+while rrf.any():
     rrf.read(128)
     sleep_ms(100)
 
@@ -140,7 +147,7 @@ out.off()
 out.showText('Starting','...')
 out.on()
 sleep_ms(500)
-out.updateNG(OM.model)
+out.updatePanels(OM.model)
 
 '''
     Main loop

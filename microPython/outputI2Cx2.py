@@ -3,7 +3,7 @@ from ssd1306 import SSD1306_I2C
 from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
-from machine import Timer
+from machine import Timer, mem32
 import _thread
 # fonts
 path.append('fonts')
@@ -75,6 +75,7 @@ class outputRRF:
         # internals
         self._OM = None
         self.pause = False
+        self.running = False
         self._lastOut = ''
         self._updating = False
         self._message = ''
@@ -83,19 +84,18 @@ class outputRRF:
         self._failcount = 0
         # hardware
         self._initDisplays()
-        self._initPanels()
+        #self._initPanels()
         self._bright(config.display_bright)
         self._clean()
-        print('animate call: ', mem32[0xd0000000])
-        _thread.start_new_thread(self._animate, ())
-        self.running = True
+        print('display init: ', mem32[0xd0000000])
+        
 
     def _initDisplays(self):
-        def fonts(self, d):
+        def fonts(d):
             d.heading = ezFBfont(d, heading)
             d.message = ezFBfont(d, message)
-        self._l_display = SSD1306_I2C(128, 64, config.I2C_l_display, addr=0x3c)
-        self._r_display = SSD1306_I2C(128, 64, config.I2C_r_display, addr=0x3c)
+        self._l_display = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
+        self._r_display = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
         self._l_display.invert(config.display_invert)
         self._r_display.invert(config.display_invert)
         self._l_display.rotate(config.display_rotate)
@@ -104,7 +104,7 @@ class outputRRF:
         fonts(self._r_display)
         
     def _initPanels(self):
-        def fonts(self, d):
+        def fonts(d):
             d.heading = ezFBfont(d, heading)
             d.heading_sub = ezFBfont(d, heading_sub)
             d.icons = ezFBfont(d, icons)
@@ -118,8 +118,15 @@ class outputRRF:
         fonts(self._l_panel)
         fonts(self._r_panel)        
 
-    def _animate(self):
+    def animate(self):
         # Callback function
+        print('animate call: ', mem32[0xd0000000])
+        
+        def start():
+            print('animate start: ', mem32[0xd0000000])
+            self._timer = Timer()
+            self._timer.init(period=100, mode=Timer.PERIODIC, callback=frame)
+            
         def frame(t):
             #print('.',end='')
             print('animate step: ', mem32[0xd0000000])
@@ -140,9 +147,8 @@ class outputRRF:
             self._show()
 
         # Start the marquee animation timer, update 10 times a second
-        print('animate start: ', mem32[0xd0000000])
-        self._timer = Timer()
-        self._timer.init(period=100, mode=Timer.PERIODIC, callback=frame)
+        #_thread.start_new_thread(start, ())
+        self.running = True
 
     def _bright(self, bright):
         bright = int(bright * 255)
@@ -200,6 +206,11 @@ class outputRRF:
         mins = "%02.f" % m + ':'
         secs = "%02.f" % s
         return days+hrs+mins+secs
+    
+    def stop(self):
+        self._timer.deinit()
+        self._l_display.poweroff()
+        self._r_display.poweroff()
 
     def on(self):
         if self.standby:
