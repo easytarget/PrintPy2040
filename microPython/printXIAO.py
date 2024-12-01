@@ -11,7 +11,6 @@ from sys import exit
 from gc import collect, mem_free
 from machine import reset, disable_irq, enable_irq, mem32
 from time import sleep_ms, ticks_ms, ticks_diff, localtime
-import _thread
 
 '''
     PrintMPy is a serialOM.py loop for MicroPython devices.
@@ -73,10 +72,6 @@ def blink(state):
     if config.mood:
         mood.blink(state, out.standby)
 
-def exit():
-    # Kill timer.. TODO: ...
-    pass
-
 '''
     Init
 '''
@@ -106,8 +101,6 @@ rrf.flush()
 # Get output/display device, hard fail if not available
 pp('starting output')
 out = outputRRF()
-out.animate()
-
 if not out.running:
     hardwareFail('Failed to start output device')
 

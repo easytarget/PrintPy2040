@@ -30,6 +30,22 @@ class config():
     I2C_right = I2C(0, sda=Pin(28), scl=Pin(29))
 
     '''
+        Serial Device Config:
+        device:   UART device
+        baud:     (int) Serial baud rate; should match the setting used in config.g
+                  eg: TODO!!!!
+    '''
+    device = UART(0)
+    baud = 57600
+
+    '''
+        Machine Config:
+        net:    Default Network Interface number
+                (`None` to disable network status display and functions)
+    '''
+    net = 0
+
+    '''
         Display settings
         display_bright: Display Brightness (float, 0 to 1)
         display_invert: Display inversion (bool)
@@ -72,7 +88,7 @@ class config():
     failcount = 5
 
     '''
-        UI
+        UI:
         splashtime: (int) splash screen time in milliseconds
         offtime:    (int) screen off delay in seconds
         offstates:  (list) states where the screen should turn off
@@ -80,27 +96,24 @@ class config():
     splashtime = 2000
     offtime = 16
     offstates = ['off']
-
+    
     '''
-        Serial Device Config:
-        device:   UART device
-        baud:     (int) Serial baud rate; should match the setting used in config.g
-                  eg: TODO!!!!
+        Display animation:
+        - 
+        animation_interval: (int) Display animation interval, ms
+        marquee_step:       (int) Number of pixels moved for each marquee step
+        marquee_pause:      (int) Number of step cycles to pause for when scrolling long text
     '''
-    device = UART(0)
-    baud = 57600
-
-    '''
-        Machine Config:
-        net:    Default Network Interface number
-                (`None` to disable network status display and functions)
-    '''
-    net = 0
+    animation_interval = 1000
+    marquee_step = 2
+    marquee_pause = 
 
     '''
         REPL output Options:
-        info:    (bool) Show machine status lines in REPL console
-        stats:   (bool) Show printPy fetch speed and memory stats when info=True
+        - For development you want these all on (probably...)
+        - Turn off for production use
+        info:   (bool) Show machine status lines in REPL console
+        stats:  (bool) Show printPy fetch speed and memory stats when info=True
         verbose: (bool) Show init and serialOM comms info messages
     '''
     info = False
