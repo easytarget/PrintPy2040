@@ -4,7 +4,6 @@ from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
 from machine import mem32
-from gc import collect
 import _thread
 # fonts
 path.append('fonts')
@@ -75,42 +74,28 @@ class outputRRF:
         self.standby = True
         # internals
         self._OM = None
-        self.pause = False
+        self.noMarquee = False
         self.running = False
         self.watchdog = ticks_ms() + 10000
         self._lastOut = ''
-        self._updating = False
         self._message = ''
         self._marquee = None
         self._show_decimal = {}
         self._failcount = 0
-        # hardware
+        # Displays
         self._initDisplays()
-        self._initPanels()
         self._bright(config.display_bright)
         self._clean()
         print('display init: ', mem32[0xd0000000])
-        _thread.start_new_thread(self.animate, ())
+        _thread.start_new_thread(self.marquee, ())   # <--   this
         self.running = True
+        # Spare framebuffers used for on/off slide animation
+        self._lbuf = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+        self._rbuf = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+
 
     def _initDisplays(self):
         def fonts(d):
-            return {
-                'heading' : ezFBfont(d, heading),
-                'message' : ezFBfont(d, message),
-                }
-        self._l_display = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
-        self._r_display = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
-        self._l_display.invert(config.display_invert)
-        self._r_display.invert(config.display_invert)
-        self._l_display.rotate(config.display_rotate)
-        self._r_display.rotate(config.display_rotate)
-        self._l_display_fonts = fonts(self._l_display)
-        self._r_display_fonts = fonts(self._r_display)
-
-
-    def _initPanels(self):
-        def fonts(p):
             return {
                 'heading' : ezFBfont(p, heading),
                 'subhead' : ezFBfont(p, subhead),
@@ -121,51 +106,16 @@ class outputRRF:
                 'd_major' : ezFBfont(p, double_major, halign='right', valign='baseline'),
                 'd_minor' : ezFBfont(p, double_minor, valign='baseline'),
                 }
-        self._l_panel = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
-        self._r_panel = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
-        self._l_panel_fonts = fonts(self._l_panel)
-        self._r_panel_fonts = fonts(self._r_panel)
+        self._left = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
+        self._right = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
+        self._left.invert(config.display_invert)
+        self._right.invert(config.display_invert)
+        self._left.rotate(config.display_rotate)
+        self._right.rotate(config.display_rotate)
+        self._left_fonts = fonts(self._left)
+        self._right_fonts = fonts(self._right)
 
-    def _bright(self, bright):
-        bright = int(bright * 255)
-        self._l_display.contrast(bright)
-        self._r_display.contrast(bright)
-
-    def _clean(self, c=0):
-        self._l_display.fill_rect(0, 0, 128, 64, c)
-        self._r_display.fill_rect(0, 0, 128, 64, c)
-
-    def _show(self):
-        self._l_display.show()
-        self._r_display.show()
-
-    def _swipeOff(self):
-        self.pause = True
-        s = 16
-        for x in range(0, 129, 8):
-            self._l_display.scroll(s, 0)
-            self._l_display.rect(0, 0, s, 64, 0, True)
-            self._r_display.scroll(-s, 0)
-            self._r_display.rect(128 - s, 0, s, 64, 0, True)
-            self._show()
-        self.pause = False
-
-    def _swipeOn(self):
-        self.pause = True
-        s = 16
-        l_fb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
-        r_fb = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
-        l_fb.blit(self._l_display,0,0)
-        r_fb.blit(self._r_display,0,0)
-        self._clean()
-        for x in range(0, 129, s):
-            self._l_display.blit(l_fb, 128 - x, 0)
-            self._r_display.blit(r_fb, -128 + x, 0)
-            self._show()
-        del(l_fb, r_fb)
-        self.pause = False
-
-    def _dhms(self,t):
+    def _dhms(self, t):
         # A local function to provide human readable uptime
         d = int(t / 86400)
         h = int((t / 3600) % 24)
@@ -181,93 +131,122 @@ class outputRRF:
             hrs = ''
         mins = "%02.f" % m + ':'
         secs = "%02.f" % s
-        return days+hrs+mins+secs
+        return join(days, hrs, mins, secs)
 
-    def on(self):
-        if self.standby:
-            self._l_display.poweron()
-            self._r_display.poweron()
+    def _bright(self, bright):
+        bright = int(bright * 255)
+        self._left.contrast(bright)
+        self._right.contrast(bright)
+
+    def _clean(self, c=0):
+        self._left.fill_rect(0, 0, 128, 64, c)
+        self._right.fill_rect(0, 0, 128, 64, c)
+
+    def _show(self):
+        self._left.show()
+        self._right.show()
+
+    def _swipeOff(self):
+        self.noMarquee = True
+        s = 16
+        for x in range(0, 129, 8):
+            self._left.scroll(s, 0)
+            self._left.rect(0, 0, s, 64, 0, True)
+            self._right.scroll(-s, 0)
+            self._right.rect(128 - s, 0, s, 64, 0, True)
+            self._show()
+        self.noMarquee = False
+
+    def _swipeOn(self):
+        self.noMarquee = True
+        s = 16
+        self._lbuf.blit(self._left,0,0)
+        self._rbuf.blit(self._right,0,0)
+        self._clean()
+        for x in range(0, 129, s):
+            self._left.blit(self._lbuf, 128 - x, 0)
+            self._right.blit(self._rbuf, -128 + x, 0)
+            self._show()
+        self.noMarquee = False
+
+    def _marquee(self):
+        print('marquee start: ', mem32[0xd0000000])   # DEBUG
+        def frame():
+            '''
+                Run by the animation loop (in a seperate thread on second CPU)
+                - Animates the status and message marquee on the main display
+                - Can be stopped when we are doing 'on/off/waiting' animations
+            '''
+            if self.noMarquee:
+                return
+            print('+',end='')   # DEBUG
+            if self._marquee is not None:
+                # step marquee and add a pause whenever it rolls over
+                if self._marquee.step(config.marquee_step):
+                    self._marquee.pause(config.marquee_pause)
+            else:
+                self._left.rect(0,0,128,16,1,False)   # DEBUG, should fill completely black
+            self._show()
+
+        # Start the animation loop
+        while self.watchdog > ticks_ms():
+            frame()
+            nextFrame = ticks_ms() + config.animation_interval
+            while ticks_ms() < nextFrame:
+                sleep_ms(1)
+        print('marquee exit')   # DEBUG
+        self.running = False
+
+    def on(self, force = False):
+        if self.standby or force:
+            self._left.poweron()
+            self._right.poweron()
             self._swipeOn()
             self.standby = False
-            
 
     def off(self):
         if not self.standby:
             self._swipeOff()
-            self._l_display.poweroff()
-            self._r_display.poweroff()
+            self._left.poweroff()
+            self._right.poweroff()
             self.standby = True
 
     def splash(self):
-        self.showText('PrintPy\n2040', 'by Owen    ')
-        self._r_display_fonts['heading'].write('easytarget.org', 0, 36)
+        self._clean()
+        self._left_fonts['message'].write('PrintPy\n2040', 63, 16, halign='center')
+        self._right_fonts['message'].write('by Owen    ', 63, 16, halign='center')
+        self._right_fonts['heading'].write('easytarget.org', 0, 36)
+        self.on(true)
 
     def showText(self, left, right):
         self._clean()
-        self._l_display_fonts['message'].write(left, 63, 16, halign='center')
-        self._r_display_fonts['message'].write(right, 63, 16, halign='center')
-
-    def animate(self):
-        print('animation call: ', mem32[0xd0000000])
-        def frame():
-            '''
-                Run by the animation loop (in a seperate thread on second CPU)
-                - Copies (updated) model display panel to main display when available
-                - Animates the status and message marquee on the main display
-                - Show job progress as needed
-                Can be paused when we are doing 'on/off/waiting' animations
-            '''
-            if self.pause or (self._OM is None):
-                return
-            if not self._updating:
-                print('+',end='')
-                # copy panels in only when they are complete
-                self._l_display.blit(self._l_panel, 0, 0)
-                self._r_display.blit(self._r_panel, 0, 0)
-            else:
-                print('-',end='')
-            # Job progress bar TODO:
-            # Status and message marquee. TODO:
-            #if self._marquee is not None:
-            #    # step marquee and add a pause whenever it rolls over
-            #    if self._marquee.step(config.marquee_step):
-            #        self._marquee.pause(config.marquee_pause)
-            self._show()
-            collect()
-
-        # Start the animation loop
-        nextFrame = ticks_ms() + config.animation_interval
-        while self.watchdog > ticks_ms():
-            frame()
-            while ticks_ms() < nextFrame:
-                sleep_ms(1)
-            nextFrame = ticks_ms() + config.animation_interval
-        print('animation exit')
-        self.running = False
+        self._left_fonts['message'].write(left, 63, 16, halign='center')
+        self._right_fonts['message'].write(right, 63, 16, halign='center')
+        self.on(true)
 
     def updatePanels(self, model):
-        self._updating = True  # simple mutex lock
         if model is None:
             self._failcount += 1
             if self._failcount > config.failcount:
                 # TODO: fix the fail counter..   IN MAIN LOOP?????
                 self.showText('no\nresponse','retrying\n...')
-                self._show()
-                self._updating = False
                 return('update data unavailable\n')
         else:
             self._failcount = 0
-
         # Update the local model
         self._OM = model
+        # Clean just the panel area of the screen (not status/marquee bar)
+        self._left.fill_rect(0, 16, 128, 48, 1, False)   # DEBUG DEBUG DEBUG
+        self._right.fill_rect(0, 0, 128, 64, 1, False)   # Fill all black once area verified
+        # Put the model data in that area
         self._putModel()
-        self._updating = False
 
         # Turn screen on/off as needed    TODO: Move to main loop?
         show = not self._OM['state']["status"] in config.offstates
         if show:
             self.on()
         else:
+            # todo.. add an off timer
             self.off()
 
         # Return the last generated status line
@@ -309,9 +288,10 @@ class outputRRF:
         # common items to always show
         cstate = self._OM['state']["status"]
         cstate = cstate[0].upper() + cstate[1:]
-        if cstate == 'Simulating':
-            cstate = 'Processing'
-        self._l_panel_fonts['heading'].write(cstate, 0, 1)
+        #if cstate == 'Simulating':
+        #    cstate = 'Processing'
+        # ToDO; pass this to marquee as needed..
+        #self._left_fonts['heading'].write(cstate, 0, 1)
         return ' | {}'.format(cstate)
 
     def _putNetwork(self):
@@ -332,10 +312,12 @@ class outputRRF:
             icon = C_STANDBY
         else:
             icon = C_WARN
-        self._r_panel_fonts['icons'].write(icon, 112, 0, halign = 'left')
-        if self._message == '':
-            # only show detailed network info when no messages are displaying
-            self._r_panel_fonts['subhead'].write(net, 110, 3, halign = 'right')
+        self._right_fonts['icons'].write(icon, 112, 0, halign = 'left')
+        # TODO:
+        #    network info when no job running...
+        #if self._message == '':
+        #    # only show detailed network info when no messages are displaying
+        #    self._right_fonts['subhead'].write(net, 110, 3, halign = 'right')
         return ' | {}'.format(net)
 
     def _putJob(self):
@@ -343,12 +325,14 @@ class outputRRF:
         if self._OM['job']['build']:
             try:
                 percent = self._OM['job']['filePosition'] / self._OM['job']['file']['size'] * 100
-            except ZeroDivisionError:  # file size might be 0 as the job starts
+            except ZeroDivisionError:  # file size can be reported as Zero during job start
                 percent = 0
             job_line = ' {:.1f}'.format(percent) if percent < 100 else '100'
-            self._l_panel_fonts['d_minor'].write(job_line, 120, 12, halign='right')  # TODO:
-            #self._l_panel_fonts['heading'].write(job_line, 120, 0, halign='right')  # decide which to use
-            self._l_panel_fonts['subhead'].write('%', 121, 2)
+            # TODO:
+            #         PROGRESS BAR ON rt-display
+            #self._left_fonts['d_minor'].write(job_line, 120, 12, halign='right')  # TODO:
+            #self._left_fonts['heading'].write(job_line, 120, 0, halign='right')  # decide which to use
+            #self._left_fonts['subhead'].write('%', 121, 2)
             return ' | Job: {}%'.format(job_line)
         return ''
 
@@ -358,11 +342,11 @@ class outputRRF:
         self._message = self._OM['state']['displayMessage']
         if self._message != '':
             r += ' | message: ' +  self._message
-            self._r_panel_fonts['heading'].write(self._message, 0, 0)
-            # Set up Marquee
+            # TODO: pass this onto the marquee
+            #self._right_fonts['heading'].write(self._message, 0, 0)
         #else:
-            # stop Marquee
-        # M291 messages
+            # stop Marquee and just display status : TODO:
+        # M291 messages : TODO:
         if self._OM['state']['messageBox']:
             if self._OM['state']['messageBox']['mode'] == 0:
                 r += ' | info: '
@@ -470,20 +454,20 @@ class outputRRF:
 
         # Display extruder heaters (max 2)
         if len(extruders) == 0:
-            self._l_panel_fonts['icons'].write(C_WARN, 64, 18, halign='center')
-            self._l_panel_fonts['message'].write('no extruders?', 64, 38, halign='center')
+            self._left_fonts['icons'].write(C_WARN, 64, 18, halign='center')
+            self._left_fonts['message'].write('no extruders?', 64, 38, halign='center')
         if len(extruders) == 1:
-            showHeater(*extruders[0], self._l_panel_fonts, 'full')
+            showHeater(*extruders[0], self._left_fonts, 'full')
         if len(extruders) >= 2:
-            showHeater(*extruders[0], self._l_panel_fonts, 'upper')
-            showHeater(*extruders[1], self._l_panel_fonts, 'lower')
+            showHeater(*extruders[0], self._left_fonts, 'upper')
+            showHeater(*extruders[1], self._left_fonts, 'lower')
 
         # Display bed and chamber heaters
         if len(heaters) == 0:
-            self._r_panel_fonts['icons'].write(C_WARN, 64, 18, halign='center')
-            self._r_panel_fonts['message'].write('no heaters?', 64, 38, halign='center')
+            self._right_fonts['icons'].write(C_WARN, 64, 18, halign='center')
+            self._right_fonts['message'].write('no heaters?', 64, 38, halign='center')
         if len(heaters) == 1:
-            showHeater(*heaters[0], self._r_panel_fonts, 'full')
+            showHeater(*heaters[0], self._right_fonts, 'full')
         if len(heaters) >= 2:
-            showHeater(*heaters[0], self._r_panel_fonts, 'upper')
-            showHeater(*heaters[1], self._r_panel_fonts, 'lower')
+            showHeater(*heaters[0], self._right_fonts, 'upper')
+            showHeater(*heaters[1], self._right_fonts, 'lower')

@@ -133,9 +133,7 @@ if config.button:
 while ticks_ms() < splashend:
     sleep_ms(25)
 blink(mood.emote(OM.model, config.net))
-out.off()
 out.showText('Starting','...')
-out.on()
 sleep_ms(500)
 out.updatePanels(OM.model)
 
