@@ -4,6 +4,7 @@ from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
 from machine import mem32
+from gc import collect
 import _thread
 # fonts
 path.append('fonts')
@@ -76,6 +77,7 @@ class outputRRF:
         self._OM = None
         self.pause = False
         self.running = False
+        self.watchdog = ticks_ms() + 10000
         self._lastOut = ''
         self._updating = False
         self._message = ''
@@ -88,14 +90,15 @@ class outputRRF:
         self._bright(config.display_bright)
         self._clean()
         print('display init: ', mem32[0xd0000000])
-        _thread.start_new_thread(animate, ())
+        _thread.start_new_thread(self.animate, ())
+        self.running = True
 
     def _initDisplays(self):
         def fonts(d):
-            return [
+            return {
                 'heading' : ezFBfont(d, heading),
                 'message' : ezFBfont(d, message),
-                ]
+                }
         self._l_display = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
         self._r_display = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
         self._l_display.invert(config.display_invert)
@@ -105,9 +108,10 @@ class outputRRF:
         self._l_display_fonts = fonts(self._l_display)
         self._r_display_fonts = fonts(self._r_display)
 
+
     def _initPanels(self):
         def fonts(p):
-            return [
+            return {
                 'heading' : ezFBfont(p, heading),
                 'subhead' : ezFBfont(p, subhead),
                 'icons'   : ezFBfont(p, icons),
@@ -116,7 +120,7 @@ class outputRRF:
                 's_minor' : ezFBfont(p, single_minor, valign='baseline'),
                 'd_major' : ezFBfont(p, double_major, halign='right', valign='baseline'),
                 'd_minor' : ezFBfont(p, double_minor, valign='baseline'),
-            ]
+                }
         self._l_panel = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
         self._r_panel = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
         self._l_panel_fonts = fonts(self._l_panel)
@@ -185,8 +189,7 @@ class outputRRF:
             self._r_display.poweron()
             self._swipeOn()
             self.standby = False
-        else:
-            self._show()
+            
 
     def off(self):
         if not self.standby:
@@ -205,8 +208,7 @@ class outputRRF:
         self._r_display_fonts['message'].write(right, 63, 16, halign='center')
 
     def animate(self):
-        print('animate call: ', mem32[0xd0000000])
-
+        print('animation call: ', mem32[0xd0000000])
         def frame():
             '''
                 Run by the animation loop (in a seperate thread on second CPU)
@@ -215,14 +217,15 @@ class outputRRF:
                 - Show job progress as needed
                 Can be paused when we are doing 'on/off/waiting' animations
             '''
-            #print('.',end='')
-            print('animate step: ', mem32[0xd0000000])
             if self.pause or (self._OM is None):
                 return
             if not self._updating:
+                print('+',end='')
                 # copy panels in only when they are complete
-                self._l_display.blit(self.l_panel, 0, 0)
-                self._l_display.blit(self.l_panel, 0, 0)
+                self._l_display.blit(self._l_panel, 0, 0)
+                self._r_display.blit(self._r_panel, 0, 0)
+            else:
+                print('-',end='')
             # Job progress bar TODO:
             # Status and message marquee. TODO:
             #if self._marquee is not None:
@@ -230,15 +233,16 @@ class outputRRF:
             #    if self._marquee.step(config.marquee_step):
             #        self._marquee.pause(config.marquee_pause)
             self._show()
+            collect()
 
         # Start the animation loop
-        nextFrame = ticks_ms + animation_interval
-        while True:   # Add a watchdog?
-            self.running = True
+        nextFrame = ticks_ms() + config.animation_interval
+        while self.watchdog > ticks_ms():
             frame()
             while ticks_ms() < nextFrame:
                 sleep_ms(1)
-            nextFrame = ticks_ms + config.animation_interval
+            nextFrame = ticks_ms() + config.animation_interval
+        print('animation exit')
         self.running = False
 
     def updatePanels(self, model):
@@ -379,7 +383,7 @@ class outputRRF:
                 return
             else:
                 temp = self._OM['heat']['heaters'][number]['current']
-                val =int(temp)
+                val = int(temp)
                 dec = abs(int((temp - val) * 10))
                 # Note the following, it builds hysterisys into turning decimal display on/off
                 if temp >= 100 or temp <= -10:

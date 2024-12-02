@@ -106,7 +106,7 @@ class config():
     '''
     animation_interval = 1000
     marquee_step = 2
-    marquee_pause = 
+    marquee_pause = 20
 
     '''
         REPL output Options:

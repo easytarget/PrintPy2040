@@ -18,7 +18,7 @@ from time import sleep_ms, ticks_ms, ticks_diff, localtime
 
 # local print function so we can suppress info messages.
 def pp(*args, **kwargs):
-    if not config.verbose:
+    if config.verbose:
         print(*args, **kwargs)
 
 # Do a minimum drama restart/reboot
@@ -78,7 +78,7 @@ def blink(state):
 
 # Always log that we are starting to console.
 print('printXIAO is starting')
-print('main thread: ', mem32[0xd0000000])
+pp('main thread: ', mem32[0xd0000000])
 
 # LEDs
 if config.mood:
@@ -92,7 +92,7 @@ rrf.init(baudrate=config.baud)
 if not rrf:
     hardwareFail('No UART device found')
 else:
-    print('UART connected')
+    pp('UART connected')
 # UART port and buffer will be in a unknown state; there may be junk in it
 # So; send a newline, then wait a bit (display init), then empty the buffer
 rrf.write('\n')
@@ -103,9 +103,6 @@ pp('starting output')
 out = outputRRF()
 if not out.running:
     hardwareFail('Failed to start output device')
-
-#else:
-#    sleep_ms(333)
 out.splash()
 out.on()
 splashend = ticks_ms() + config.splashtime
@@ -158,6 +155,7 @@ while True:
     except Exception as e:
         restartNow('Error while fetching machine state\n' + str(e))
     om_end = ticks_ms()
+    out.watchdog = ticks_ms() + (3 * config.updateTime)
     # output the results if successful
     if have_data:
         blink(mood.emote(OM.model, config.net))
