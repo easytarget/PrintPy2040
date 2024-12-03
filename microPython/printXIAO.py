@@ -34,7 +34,7 @@ def restartNow(why, display='error'):
         out.on()
         sleep_ms(1000)
     pp()
-    #exit()   # Useful while debugging, drops to REPL
+    #exit()   # DEBUG: Useful while debugging; drop to REPL
     reset()  # Reboot module
 
 def hardwareFail(why):
@@ -56,13 +56,9 @@ def buttonPressed(irqTime):
     global buttonTime
     if button.value() == config.buttonDown:
         buttonTime = irqTime
-        print('+',end='')
-        outputText = 'PrintPy Free Memory: ' + str(mem_free())
-        if outputText:
-            print(outputText,end='')
+        print('Button Pressed | ',end='')
+        out.awake()
     else:
-        print('-',end='')
-        # This should really require a second press /while/ the status is showing.
         if config.buttonLong > 0 and buttonTime is not None:
             if ticks_diff(ticks_ms(),buttonTime) > config.buttonLong:
                 print('WIFI TRIGGER') # TODO: Wifi enable/disable cycle
@@ -78,7 +74,6 @@ def blink(state):
 
 # Always log that we are starting to console.
 print('printXIAO is starting')
-pp('main thread: ', mem32[0xd0000000])
 
 # LEDs
 if config.mood:
@@ -152,7 +147,7 @@ while True:
         restartNow('Error while fetching machine state\n' + str(e))
     om_end = ticks_ms()
     collect()
-    # bump the watchdog
+    # bump the marquee thread watchdog
     out.watchdog = ticks_ms() + (3 * config.updateTime)
     # output the results if successful
     if have_data:

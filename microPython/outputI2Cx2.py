@@ -82,6 +82,7 @@ class outputRRF:
         self._message = ''
         self._show_decimal = {}
         self._failcount = 0
+        self._offtime = ticks_ms() + config.offtime
         # Init hardware
         self._initDisplays()
         self._marquee = ezFBmarquee(self._left, heading, pause=config.marquee_pause)
@@ -206,6 +207,9 @@ class outputRRF:
             self._swipeOff()
             self.standby = True
 
+    def awake(self):
+        self._offtime = ticks_ms() + config.offtime
+
     def splash(self):
         self._clean()
         self._left_fonts['message'].write('PrintPy\n2040', 63, 16, halign='center')
@@ -238,12 +242,13 @@ class outputRRF:
         if self._marquee.string != mstring:
             self._marquee.start(mstring)
 
-        # Turn screen on/off as needed    TODO: Move to main loop?
+        # Turn screen on/off as needed
         show = not self._OM['state']["status"] in config.offstates
         if show:
+            self.awake()
+        if ticks_ms() < self._offtime:
             self.on()
         else:
-            # todo.. add an off timer
             self.off()
 
         # Return the last generated status line
