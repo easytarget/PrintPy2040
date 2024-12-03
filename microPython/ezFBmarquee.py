@@ -192,7 +192,7 @@ class ezFBmarquee():
             if self._stepping:
                 self._outframe.blit(self._scrollframe, -self._count, 0)
             # Catch rollover
-            if self._count >= self._end:
+            if self._count + steps >= self._end:
                 self._count = self._start
                 res = True
                 if self._verbose:
