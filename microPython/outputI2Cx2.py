@@ -3,7 +3,6 @@ from ssd1306 import SSD1306_I2C
 from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
-from machine import mem32
 import _thread
 from gc import collect
 # fonts
@@ -79,14 +78,13 @@ class outputRRF:
         self.noMarquee = True
         self.running = False
         self.watchdog = ticks_ms() + 10000
-        self._lastOut = ''
+        self._state = ''
         self._message = ''
         self._show_decimal = {}
         self._failcount = 0
         # Init hardware
         self._initDisplays()
-        print('display init: ', mem32[0xd0000000])
-        self._marquee = ezFBmarquee(self._left, heading)
+        self._marquee = ezFBmarquee(self._left, heading, pause=config.marquee_pause)
         self._thread = _thread.start_new_thread(self._startMarquee, ())
         self._update_lock = _thread.allocate_lock()
         self.running = True
@@ -133,7 +131,7 @@ class outputRRF:
             hrs = ''
         mins = "%02.f" % m + ':'
         secs = "%02.f" % s
-        return days.join([hrs, mins, secs])
+        return days + hrs + mins + secs
 
     def _bright(self, bright):
         bright = int(bright * 255)
@@ -184,29 +182,19 @@ class outputRRF:
                 - Animates the status and message marquee on the main display
                 - Can be stopped when we are doing 'on/off/waiting' animations
             '''
-            #if self.noMarquee:
-            #    print('*',end='')   # DEBUG
-            #    return
-            #else:
-            #    print('.',end='')   # DEBUG
-            # step marquee and add a pause whenever it rolls over
             with self._update_lock:
                 if self._marquee.step(config.marquee_step):
                     self._marquee.pause(config.marquee_pause)
-                print('+',end='')   # DEBUG
                 self._show()
 
         # Start the animation loop
-        print('marquee on CPU: ', mem32[0xd0000000])   # DEBUG
         while self.watchdog > ticks_ms():
             frame()
             nextFrame = ticks_ms() + config.animation_interval
             while ticks_ms() < nextFrame:
                 sleep_ms(1)
-        print('marquee exit')   # DEBUG
         self.running = False
         _thread.exit()
-        print('marquee deinit')   # DEBUG
 
     def on(self, force = False):
         if self.standby or force:
@@ -244,7 +232,11 @@ class outputRRF:
         self._OM = model
         # Put the model data on display
         with self._update_lock:
-            self._lastOut = self._putModel()
+            out = self._putModel()
+        # Set the marquee to state and messages
+        mstring = self._state + self._message
+        if self._marquee.string != mstring:
+            self._marquee.start(mstring)
 
         # Turn screen on/off as needed    TODO: Move to main loop?
         show = not self._OM['state']["status"] in config.offstates
@@ -255,7 +247,7 @@ class outputRRF:
             self.off()
 
         # Return the last generated status line
-        return self._lastOut + '\n'
+        return out + '\n'
 
     '''
         All the routines below tediously walk/grok the OM and update the
@@ -267,8 +259,6 @@ class outputRRF:
         #  Constructs the twin-panel model status display
         #  and puts it on the panel framebuffers
         #  also returns a text summary of status
-        if self._update_lock.locked():           # DEBUG
-            print('put',end='')
         if self._OM is None:
             # No data == no viable output
             return('No data available')
@@ -291,20 +281,27 @@ class outputRRF:
             self.showText('\'{}\'\nmode'.format(mode), 'not\nsupported')
         m = self._putMessages()
         r += self._putNetwork()
-        # Return results
+        # return the console text line
         return r + m
 
     def _putStatus(self):
-        # common items to always show
-        cstate = self._OM['state']["status"]
-        cstate = cstate[0].upper() + cstate[1:]
-        #if cstate == 'Simulating':
-        #    cstate = 'Processing'
-        # ToDO; pass this to marquee as needed..
-        #self._left_fonts['heading'].write(cstate, 0, 1)
-        if self._marquee.string != cstate:
-            self._marquee.start(cstate)
-        return ' | {}'.format(cstate)
+        state = self._OM['state']["status"]
+        self._state = state[0].upper() + state[1:]
+        return ' | {}'.format(self._state)
+
+    def _putMessages(self):
+        # M117 messages
+        msg = self._OM['state']['displayMessage']
+        r = '' if msg == '' else ' | {}'.format(msg)
+        # M291 messages
+        inf = ''
+        if self._OM['state']['messageBox']:
+            if self._OM['state']['messageBox']['title']:
+                inf += self._OM['state']['messageBox']['title'] + '::'
+            inf += self._OM['state']['messageBox']['message']
+        r += '' if inf == '' else ' | {}'.format(inf)
+        self._message = r.replace('|',':')
+        return r
 
     def _putNetwork(self):
         if config.net is None:
@@ -327,8 +324,8 @@ class outputRRF:
         self._right_fonts['icons'].write(icon, 112, 0, halign = 'left')
         # TODO:
         #    network info when no job running...
-        if True:
-            self._right_fonts['subhead'].write(net, 110, 3, halign = 'right')
+        if not self._OM['job']['build']:
+            self._right_fonts['subhead'].write(net, 108, 2, halign = 'right')
         return ' | {}'.format(net)
 
     def _putJob(self):
@@ -338,35 +335,17 @@ class outputRRF:
                 percent = self._OM['job']['filePosition'] / self._OM['job']['file']['size'] * 100
             except ZeroDivisionError:  # file size can be reported as Zero during job start
                 percent = 0
-            job_line = ' {:.1f}'.format(percent) if percent < 100 else '100'
+            job_line = '{:.1f}'.format(percent) if percent < 100 else '100'
             # TODO:
             #         PROGRESS BAR ON rt-display
-            #self._left_fonts['d_minor'].write(job_line, 120, 12, halign='right')  # TODO:
-            #self._left_fonts['heading'].write(job_line, 120, 0, halign='right')  # decide which to use
-            #self._left_fonts['subhead'].write('%', 121, 2)
+            xoff, _ = self._right_fonts['s_minor'].size(job_line)
+            self._right_fonts['s_minor'].write(job_line, 0, 14)
+            self._right_fonts['heading'].write('%', xoff+2, 4)
+            #xoff, _ = self._right_fonts['heading'].size(job_line)
+            #self._right_fonts['heading'].write(job_line, 0, 0)
+            #self._right_fonts['subhead'].write('%', xoff+2, 2)
             return ' | Job: {}%'.format(job_line)
         return ''
-
-    def _putMessages(self):
-        # M117 messages
-        r = ''
-        self._message = self._OM['state']['displayMessage']
-        if self._message != '':
-            r += ' | message: ' +  self._message
-            # TODO: pass this onto the marquee
-            #self._right_fonts['heading'].write(self._message, 0, 0)
-        #else:
-            # stop Marquee and just display status : TODO:
-        # M291 messages : TODO:
-        if self._OM['state']['messageBox']:
-            if self._OM['state']['messageBox']['mode'] == 0:
-                r += ' | info: '
-            else:
-                r += ' | query: '
-            if self._OM['state']['messageBox']['title']:
-                r += '== ' + self._OM['state']['messageBox']['title'] + ' == '
-            r += self._OM['state']['messageBox']['message']
-        return r
 
     def _putFFF(self):
         # a local function to return state and temperature details for a heater
