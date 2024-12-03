@@ -47,22 +47,37 @@ def hardwareFail(why):
 def buttonDown(_p):
     # Button event IRQ handler
     state = button.value()
-    now = ticks_ms()
+    presstime = ticks_ms()
     sleep_ms(config.buttonTm)
     if button.value() == state:
-        buttonPressed(now)
+        buttonPressed(presstime)
 
 def buttonPressed(irqTime):
     global buttonTime
     if button.value() == config.buttonDown:
         buttonTime = irqTime
-        print('Button Pressed | ',end='')
+        print('Button Pressed | ',end='')    #   DEBUG
         out.awake()
     else:
         if config.buttonLong > 0 and buttonTime is not None:
             if ticks_diff(ticks_ms(),buttonTime) > config.buttonLong:
-                print('WIFI TRIGGER') # TODO: Wifi enable/disable cycle
+                print('WIFI TRIGGER')        #   DEBUG
+                if config.net is not None:
+                    networkToggle()
         buttonTime = None
+
+def networkToggle:
+    if OM.model is None:
+        return
+    if len(OM.model['network']['interfaces']) == 0:
+        return
+    interface = OM.model['network']['interfaces'][config.net]
+    if interface['state'] in config.net_map.keys():
+        sendcmd = config.net_map[interface['state']]
+    else
+        sendcmd = config.net_map['DEFAULT']
+    print('SEND: {}'.format(sendcmd.replace('{NET}',str(config.net))))
+    rrf.send(sendcmd.replace('{NET}',str(config.net)))
 
 def blink(state):
     if config.mood:

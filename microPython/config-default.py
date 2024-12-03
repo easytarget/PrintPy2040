@@ -39,11 +39,25 @@ class config():
     baud   = 57600
 
     '''
-        Machine Config:
-        net:    Default Network Interface number
-                (`None` to disable network status display and functions)
+        Network Config:
+
+        NOTE: Defaults here assume a WiFi enabled board that connects to a client network.
+              You will need to adjust as needed if you have an Ethernet board (no -1 disabled state..),
+              connect to a specific network (the 'P' option to M552) or run as an Access Point.
+
+        net:      (int) Default Network Interface number
+                  - (`None` to disable network status display and functions)
+        net_map: (dict) defines the 'wifi toggle' button press command
+                  to be sent to the machine for each wifi state defined in the OM
+                  - The '{NET}' will be replaced by the network number given above
+                  - The list of possible states is defined in:
+                    https://github.com/Duet3D/RepRapFirmware/wiki/Object-Model-Documentation#networkinterfacesstate
+                  - If the network state is not specifically matched the DEFAULT entry will be used.
+                  - https://docs.duet3d.com/User_manual/Reference/Gcodes#m552-set-ip-address-enabledisable-network-interface
     '''
-    net = 0
+    net     = 0
+    net_map = { 'disabled' : 'M552 I{NET} S1',
+                 'DEFAULT' : 'M552 I{NET} S-1',}
 
     '''
         Display hardware settings
@@ -94,17 +108,10 @@ class config():
         offstates:  (list) states where the screen should turn off
                     - set to an empty list '[]' to keep permanently on
                     - set to '['off','idle']' to only turn on when active
-        wifi_map:   (dict) defines the 'wifi toggle' button press command
-                    to be sent to the machine for each wifi state
-                    - TODO: OM documentation and GCODE references
     '''
     splashtime = 2 * 1000
     offtime    = 16 * 1000
     offstates  = ['off']
-    wifi_map   = { -1 : 'M541 S1',
-                    0 : 'M541 S0',
-                    1 : 'M541 S0',
-                    2 : 'M541 S0',}
 
     '''
         Display animation:
