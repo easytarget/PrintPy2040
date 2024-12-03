@@ -19,6 +19,7 @@ class lumen:
         self.bright = bright
         self.standby = standby
         self.flash = flash
+        self._timer = None   # otherwise timer gets garbage collected..
         self._moods = {'off':(255,128,0),
                       'idle':(0,255,0),
                       'busy':(255,255,255),
@@ -53,7 +54,7 @@ class lumen:
                           int(neo[1]*bright),
                           int(neo[2]*bright))
         self._pixel.write()
-        Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
+        self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
 
     def emote(self,model,net=None):
         '''
