@@ -22,12 +22,12 @@ class config():
         I2C_right:     Currently uses default pins and hardware interfaces and
                        can be adapted with softI2C+alternate pins as needed.
     '''
-    button = Pin(2, Pin.IN, Pin.PULL_UP)
+    button     = Pin(2, Pin.IN, Pin.PULL_UP)
     buttonDown = 0
-    buttonTm = 50
-    buttonLong = 500
-    I2C_left = I2C(1, sda=Pin(6), scl=Pin(7))
-    I2C_right = I2C(0, sda=Pin(28), scl=Pin(29))
+    buttonTm   = 50
+    buttonLong = 1500
+    I2C_left   = I2C(1, sda=Pin(6), scl=Pin(7))
+    I2C_right  = I2C(0, sda=Pin(28), scl=Pin(29))
 
     '''
         Serial Device Config:
@@ -36,7 +36,7 @@ class config():
                   eg: TODO!!!!
     '''
     device = UART(0)
-    baud = 57600
+    baud   = 57600
 
     '''
         Machine Config:
@@ -46,7 +46,7 @@ class config():
     net = 0
 
     '''
-        Display settings
+        Display hardware settings
         display_bright: Display Brightness (float, 0 to 1)
         display_invert: Display inversion (bool)
         display_rotate: Display flip display vertically (bool)
@@ -62,10 +62,10 @@ class config():
         mood_standby:   (float) Indicator LED brightness when machine off
         mood_flash:     (int)   Mood indicator flash time (ms)
     '''
-    mood = True
-    mood_bright = float(1.0)
-    mood_standby = float(0.33)
-    mood_flash = 66
+    mood         = True
+    mood_bright  = float(1.0)
+    mood_standby = float(0.2)
+    mood_flash   = 66
 
     '''
         Communications heartbeat on auxillary RGB
@@ -73,9 +73,9 @@ class config():
         heart_bright:  (float) Heartbeat LED brightness (0 to 1)
         heart_standby: (float) Heartbeat LED brightness when machine off
     '''
-    heart = True
-    heart_bright = float(1.0)
-    heart_standby = float(0.5)
+    heart         = True
+    heart_bright  = float(1.0)
+    heart_standby = float(0.33)
 
     '''
         Timing and timeout config:
@@ -83,30 +83,40 @@ class config():
         rebootDelay: (int) Countdown in seconds when auto-restarting/rebooting printPy
         failcount:   (int) Number of failed update cycles before declaring comms fail
     '''
-    updateTime = 1000
+    updateTime  = 1000
     rebootDelay = 5
-    failcount = 5
+    failcount   = 5
 
     '''
         UI:
         splashtime: (int) splash screen time in milliseconds
-        offtime:    (int) screen off delay in seconds
+        offtime:    (int) screen wake / off time in milliseconds
         offstates:  (list) states where the screen should turn off
+                    - set to an empty list '[]' to keep permanently on
+                    - set to '['off','idle']' to only turn on when active
+        wifi_map:   (dict) defines the 'wifi toggle' button press command
+                    to be sent to the machine for each wifi state
+                    - TODO: OM documentation and GCODE references
     '''
-    splashtime = 2000
-    offtime = 16
-    offstates = ['off']
-    
+    splashtime = 2 * 1000
+    offtime    = 16 * 1000
+    offstates  = ['off']
+    wifi_map   = { -1 : 'M541 S1',
+                    0 : 'M541 S0',
+                    1 : 'M541 S0',
+                    2 : 'M541 S0',}
+
     '''
         Display animation:
-        - 
+        - These are tuned for the XIAO2040 + two I2C OLED's
+        - Animation interval will cause lockups and races if too low.
         animation_interval: (int) Display animation interval, ms
         marquee_step:       (int) Number of pixels moved for each marquee step
         marquee_pause:      (int) Number of step cycles to pause for when scrolling long text
     '''
-    animation_interval = 1000
-    marquee_step = 2
-    marquee_pause = 20
+    animation_interval = 150
+    marquee_step       = 4
+    marquee_pause      = 12
 
     '''
         REPL output Options:
@@ -116,6 +126,6 @@ class config():
         stats:  (bool) Show printPy fetch speed and memory stats when info=True
         verbose: (bool) Show init and serialOM comms info messages
     '''
-    info = False
-    stats = False
+    info    = False
+    stats   = False
     verbose = False
