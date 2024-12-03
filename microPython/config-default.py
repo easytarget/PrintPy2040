@@ -125,7 +125,11 @@ class config():
         info:   (bool) Show machine status lines in REPL console
         stats:  (bool) Show printPy fetch speed and memory stats when info=True
         verbose: (bool) Show init and serialOM comms info messages
+        debug:   (int)  If 0 start immediately
+                        if > 0 count down to start (so you can keyboard interrupt)
+                        if < 0 drop immediately to REPL
     '''
     info    = False
     stats   = False
     verbose = False
+    debug   = 0
