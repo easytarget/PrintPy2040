@@ -132,16 +132,14 @@ if config.button:
 # Now pause, then blink initial status and destroy splash after timeout
 while ticks_ms() < splashend:
     sleep_ms(25)
+out.off()
 blink(mood.emote(OM.model, config.net))
-out.showText('Starting','...')
-sleep_ms(500)
 out.updatePanels(OM.model)
 
 '''
     Main loop
 '''
 while True:
-    collect()  # do this before every loop because.. microPython
     begin = ticks_ms()
     # Do a OM update
     if config.heart:
@@ -153,12 +151,15 @@ while True:
     except Exception as e:
         restartNow('Error while fetching machine state\n' + str(e))
     om_end = ticks_ms()
+    collect()
+    # bump the watchdog
     out.watchdog = ticks_ms() + (3 * config.updateTime)
     # output the results if successful
     if have_data:
         blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and print any response
         outputText = out.updatePanels(OM.model)
+        collect()
         if config.stats:
             om_time = om_end - om_start
             stats = '[{}ms, {}b] '.format(om_time, str(mem_free()))
