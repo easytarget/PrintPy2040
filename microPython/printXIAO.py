@@ -22,19 +22,19 @@ def pp(*args, **kwargs):
         print(*args, **kwargs)
 
 # Do a minimum drama restart/reboot
-def restartNow(why, display='error'):
+def restartNow(why, display='PrintPY\nerror'):
     pp('Error: ' + why)
-    # Countdown and restart
     pp('Restarting in ',end='')
-
+    out.watchdog = 0   # kill the marquee
     for c in range(config.rebootDelay,0,-1):
         pp(c,end=' ')
-        blink('err')
-        out.showText(display, 'restarting\n{}'.format(c))
-        out.on()
+        blink('err', auto=False)
+        out.showText(display, 'Restarting\nin: {}s'.format(c))
         sleep_ms(1000)
     pp()
-    #exit()   # DEBUG: Useful while debugging; drop to REPL
+    out.off()
+    if config.debug < 0:
+        exit()   # drop to REPL
     reset()  # Reboot module
 
 def hardwareFail(why):
@@ -56,32 +56,33 @@ def buttonPressed(irqTime):
     global buttonTime
     if button.value() == config.buttonDown:
         buttonTime = irqTime
-        print('Button Pressed | ',end='')    #   DEBUG
         out.awake()
     else:
         if config.buttonLong > 0 and buttonTime is not None:
             if ticks_diff(ticks_ms(),buttonTime) > config.buttonLong:
-                print('WIFI TRIGGER')        #   DEBUG
                 if config.net is not None:
                     networkToggle()
         buttonTime = None
 
-def networkToggle:
+def networkToggle():
     if OM.model is None:
         return
     if len(OM.model['network']['interfaces']) == 0:
         return
     interface = OM.model['network']['interfaces'][config.net]
     if interface['state'] in config.net_map.keys():
-        sendcmd = config.net_map[interface['state']]
-    else
-        sendcmd = config.net_map['DEFAULT']
-    print('SEND: {}'.format(sendcmd.replace('{NET}',str(config.net))))
-    rrf.send(sendcmd.replace('{NET}',str(config.net)))
+        cmd = config.net_map[interface['state']]
+    else:
+        cmd = config.net_map['DEFAULT']
+    cmd = cmd.replace('{NET}',str(config.net))
+    net = interface['type']
+    pp('{} change requested via button: {}'.format(net, cmd))
+    OM.sendGcode(cmd)
+    out.flashConfirm()
 
-def blink(state):
+def blink(state, auto=True):
     if config.mood:
-        mood.blink(state, out.standby)
+        mood.blink(state, out.standby, auto)
 
 '''
     Init
@@ -126,11 +127,8 @@ while rrf.any():
 try:
     OM = serialOM(rrf, out.omKeys, quiet=config.verbose, noCheck=True)
 except Exception as e:
-    restartNow('Failed to start ObjectModel communications\n' + str(e))
-
-# TODO: handle this better?
-if OM.machineMode == '' or OM.model is None:
-    restartNow('Failed to connect to controller, or unsupported controller mode.')
+    restartNow('Failed to start ObjectModel communications\n' + str(e),
+               'Connection\nError')
 
 # hardware button
 buttonTime = None
@@ -143,8 +141,14 @@ if config.button:
 while ticks_ms() < splashend:
     sleep_ms(25)
 out.off()
+# Initial comms fail (Reversed RX/TX?)
+if OM.machineMode == '' or OM.model is None:
+    restartNow('Failed to connect to controller, or unknown controller mode.',
+               'Failed to\nConnect')
+
 blink(mood.emote(OM.model, config.net))
 out.updatePanels(OM.model)
+failcount = 0
 
 '''
     Main loop
@@ -159,13 +163,14 @@ while True:
     try:
         have_data = OM.update()
     except Exception as e:
-        restartNow('Error while fetching machine state\n' + str(e))
+        restartNow('Error while fetching machine state\n' + str(e),'Communication\nError')
     om_end = ticks_ms()
     collect()
     # bump the marquee thread watchdog
     out.watchdog = ticks_ms() + (3 * config.updateTime)
     # output the results if successful
     if have_data:
+        failcount = 0
         blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and print any response
         outputText = out.updatePanels(OM.model)
@@ -177,11 +182,14 @@ while True:
         if config.info:
             print('{}'.format(outputText.strip()))
     else:
+        failcount += 1
         blink('err')
-        pp('failed to fetch ObjectModel data')
+        pp('failed to fetch ObjectModel data, #{}'.format(failcount))
+        if failcount > config.failcount:
+            out.showFail(failcount)
     # check output is running and restart if not
     if not out.running:
-        restartNow('Output device has failed')
+        restartNow('Output device has failed','Output\nFailing')
     # Request cycle ended, wait for next
     while ticks_diff(ticks_ms(),begin) < config.updateTime:
         sleep_ms(1)

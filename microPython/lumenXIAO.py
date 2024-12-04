@@ -34,12 +34,11 @@ class lumen:
         self._pixel[0]=(0,0,0)
         self._pixel.write()
 
-    def blink(self, mood, dim=False):
+    def blink(self, mood, dim=False, auto=True):
         '''
             flash the mood after an update finishes
-            use an interrupt timer
-            to turn off after self.flash time
-            timer features vary by MCU, example here is for RP2040, ymmv
+            if auto=True it uses an interrupt timer
+            to turn off after 'self.flash' time
         '''
         def unblink(t):
             # called by timer
@@ -54,7 +53,8 @@ class lumen:
                           int(neo[1]*bright),
                           int(neo[2]*bright))
         self._pixel.write()
-        self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
+        if auto:
+            self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
 
     def emote(self,model,net=None):
         '''
