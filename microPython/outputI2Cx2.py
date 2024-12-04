@@ -12,7 +12,7 @@ from ezFBmarquee import ezFBmarquee
 import ezFBfont_15_helvB10_ascii as heading
 import ezFBfont_13_helvR08_full as subhead
 import ezFBfont_16_open_iconic_all_2x_full as icons
-import ezFBfont_18_helvB14_ascii as message
+import ezFBfont_18_helvB14_ascii as message        #  <----- TODO: try regular..
 import ezFBfont_12_spleen_8x16_num as double_minor
 import ezFBfont_20_spleen_12x24_num as single_minor
 import ezFBfont_20_spleen_16x32_time as double_major
@@ -216,8 +216,8 @@ class outputRRF:
             self._swipeOff()
             self.standby = True
 
-    def awake(self):
-        self._offtime = ticks_ms() + config.offtime
+    def awake(self, ontime=config.offtime):
+        self._offtime = ticks_ms() + ontime
 
     def splash(self):
         self._clean()
@@ -326,7 +326,7 @@ class outputRRF:
         inf = ''
         if self._OM['state']['messageBox']:
             if self._OM['state']['messageBox']['title']:
-                inf += self._OM['state']['messageBox']['title'] + '::'
+                inf += '=' + self._OM['state']['messageBox']['title'] + '= '
             inf += self._OM['state']['messageBox']['message']
         r += '' if inf == '' else ' | {}'.format(inf)
         self._message = r.replace('|',':')

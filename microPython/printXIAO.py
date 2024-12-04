@@ -77,6 +77,7 @@ def networkToggle():
     cmd = cmd.replace('{NET}',str(config.net))
     net = interface['type']
     pp('{} change requested via button: {}'.format(net, cmd))
+    out.awake(config.offtime * 4)   # stay alive longer while network is changing state
     OM.sendGcode(cmd)
     out.flashConfirm()
 
