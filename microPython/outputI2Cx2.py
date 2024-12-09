@@ -82,11 +82,14 @@ class outputRRF:
         self._show_decimal = {}
         self._failcount = 0
         self._offtime = ticks_ms() + config.offtime
+        self._notify = True  # Force an initial flash at power up.. ??????
         # Init hardware
         self._initDisplays()
+        # Marquee
         self._marquee = ezFBmarquee(self._left, heading, pause=config.marquee_pause)
+        # Threading
         self._thread = _thread.start_new_thread(self._startMarquee, ())
-        self._update_lock = _thread.allocate_lock()
+        self._display_lock = _thread.allocate_lock()
         # Spare framebuffers used for on/off slide animation
         self._lbuf = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
         self._rbuf = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
@@ -162,7 +165,7 @@ class outputRRF:
         self._right.show()
 
     def _swipeOn(self):
-        with self._update_lock:
+        with self._display_lock:
             self._powerOn()
             s = 16
             self._lbuf.blit(self._left,0,0)
@@ -174,7 +177,7 @@ class outputRRF:
                 self._show()
 
     def _swipeOff(self):
-        with self._update_lock:
+        with self._display_lock:
             s = 16
             for x in range(0, 129, 8):
                 self._left.scroll(s, 0)
@@ -184,7 +187,6 @@ class outputRRF:
                 self._show()
             self._powerOff()
 
-
     def _startMarquee(self):
         def frame():
             '''
@@ -192,15 +194,35 @@ class outputRRF:
                 - Animates the status and message marquee on the main display
                 - Can be stopped when we are doing 'on/off/waiting' animations
             '''
-            with self._update_lock:
-                if self._marquee.step(config.marquee_step):
-                    self._marquee.pause(config.marquee_pause)
-                self._show()
+            if self._marquee.step(config.marquee_step):
+                self._marquee.pause(config.marquee_pause)
+
+        def notify():
+            '''
+                Run by animator loop, flashes the display inverse biefly to
+                notify the user of button press actions
+                - invert() is instant, you do not need to call show()
+            '''
+            if self._notify:
+                self._notify = False
+                self._left.invert(not config.display_invert)
+                self._right.invert(not config.display_invert)
+                sleep_ms(50)
+                self._left.invert(config.display_invert)
+                self._right.invert(config.display_invert)
 
         # Start the animation loop
+        '''
+            Runs continually on the second CPU core; handles the marquee and
+            notifications.
+            Has a watchdog to ensure it dies after the main thread.
+        '''
         while self.watchdog > ticks_ms():
-            frame()
             nextFrame = ticks_ms() + config.animation_interval
+            with self._display_lock:
+                frame()
+                notify()
+                self._show()
             while ticks_ms() < nextFrame:
                 sleep_ms(1)
         self.running = False
@@ -219,6 +241,10 @@ class outputRRF:
     def awake(self, ontime=config.offtime):
         self._offtime = ticks_ms() + ontime
 
+    def flash(self):
+        # Flash a notification after the next marquee update cycle
+        self._notify = True
+
     def splash(self):
         self._clean()
         self._left_fonts['message'].write('PrintPy\n2040', 63, 16, halign='center')
@@ -227,7 +253,7 @@ class outputRRF:
         self.on(True)
 
     def showText(self, ltext, rtext):
-        with self._update_lock:
+        with self._display_lock:
             self._clean()
             self._left_fonts['message'].write(ltext, 63, 16, halign='center')
             self._right_fonts['message'].write(rtext, 63, 16, halign='center')
@@ -241,7 +267,7 @@ class outputRRF:
         htext += 'is running correctly; and that all wiring is secure.'
         if self._marquee.string != htext:
             self._marquee.start(htext)
-        with self._update_lock:
+        with self._display_lock:
             self._cleanPanels()
             self._left_fonts['message'].write(ltext, 63, 18, halign='center')
             self._right_fonts['message'].write(rtext, 63, 18, halign='center')
@@ -249,19 +275,11 @@ class outputRRF:
             self._show()
         self.awake()
 
-    def flashConfirm(self):
-        with self._update_lock:
-            self._left.invert(not config.display_invert)
-            self._right.invert(not config.display_invert)
-            sleep_ms(50)
-            self._left.invert(config.display_invert)
-            self._right.invert(config.display_invert)
-
     def updatePanels(self, model):
         # Update the local model
         self._OM = model
         # Put the model data on display
-        with self._update_lock:
+        with self._display_lock:
             out = self._putModel()
         # Set the marquee to state and messages
         mstring = self._state + self._message

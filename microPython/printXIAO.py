@@ -56,6 +56,7 @@ def buttonPressed(irqTime):
     global buttonTime
     if button.value() == config.buttonDown:
         buttonTime = irqTime
+        out.flash()
         out.awake()
     else:
         if config.buttonLong > 0 and buttonTime is not None:
@@ -79,7 +80,7 @@ def networkToggle():
     pp('{} change requested via button: {}'.format(net, cmd))
     out.awake(config.offtime * 4)   # stay alive longer while network is changing state
     OM.sendGcode(cmd)
-    out.flashConfirm()
+    out.flash()
 
 def blink(state, auto=True):
     if config.mood:
