@@ -11,28 +11,26 @@ from machine import UART, Pin, I2C
 class config():
     '''
         Hardware config:
-        button:        Status button pin object
-                        (set '= None' to disable)
-                        eg: button = Pin(2, Pin.IN, Pin.PULL_UP)
-                        see the micropython 'machine.Pin()' docs
-        buttonDown:    Pin value when button depressed
-        buttonTm:      debounce time (ms); keep this as low as practical
-        buttonLong:    long press time (ms) for WiFi toggle, 0 to disable
-        I2C_left:      I2C interface definitions for left and right screens
-        I2C_right:     Currently uses default pins and hardware interfaces and
-                       can be adapted with softI2C+alternate pins as needed.
+        button:      Status button pin object
+                     (set '= None' to disable)
+        button_down: Pin value when button depressed
+        button_time: debounce time (ms); keep this as low as practical
+        button_long: long press time (ms) for WiFi toggle, 0 to disable
+        I2C_left:    I2C interface definitions for left and right screens
+        I2C_right:   Currently uses default pins and hardware interfaces and
+                     can be adapted with softI2C+alternate pins as needed.
     '''
-    button     = Pin(2, Pin.IN, Pin.PULL_UP)
-    buttonDown = 0
-    buttonTm   = 50
-    buttonLong = 1500
-    I2C_left   = I2C(1, sda=Pin(6), scl=Pin(7))
-    I2C_right  = I2C(0, sda=Pin(28), scl=Pin(29))
+    button      = Pin(2, Pin.IN, Pin.PULL_UP)
+    button_down = 0
+    button_time = 50
+    button_long = 1500
+    I2C_left    = I2C(1, sda=Pin(6), scl=Pin(7))
+    I2C_right   = I2C(0, sda=Pin(28), scl=Pin(29))
 
     '''
         Serial Device Config:
-        device:   UART device
-        baud:     (int) Serial baud rate; should match the setting used in config.g
+        device: UART device
+        baud:   (int) Serial baud rate; should match the setting used in config.g
                   eg: TODO!!!!
     '''
     device = UART(0)
@@ -61,9 +59,9 @@ class config():
 
     '''
         Display hardware settings
-        display_bright: Display Brightness (float, 0 to 1)
-        display_invert: Display inversion (bool)
-        display_rotate: Display flip display vertically (bool)
+        display_bright: (float) Display Brightness (0 to 1)
+        display_invert: (bool) Invert display colors
+        display_rotate: (bool) Flip display vertically
     '''
     display_bright = float(0.66)
     display_invert = False
@@ -71,10 +69,10 @@ class config():
 
     '''
         NeiPixel 'mood' illumination
-        mood:          (bool)  Indicate status via onboard Neopixel
-        mood_bright:    (float) Indicator LED brightnessx (0 to 1)
-        mood_standby:   (float) Indicator LED brightness when machine off
-        mood_flash:     (int)   Mood indicator flash time (ms)
+        mood:         (bool)  Indicate status via onboard Neopixel
+        mood_bright:  (float) Indicator LED brightnessx (0 to 1)
+        mood_standby: (float) Indicator LED brightness when machine off
+        mood_flash:   (int)   Mood indicator flash time (ms)
     '''
     mood         = True
     mood_bright  = float(1.0)
@@ -93,29 +91,29 @@ class config():
 
     '''
         Timing and timeout config:
-        updateTime:  (int) Basic time interval between update cycles (ms)
-        rebootDelay: (int) Countdown in seconds when auto-restarting/rebooting printPy
-        failcount:   (int) Number of failed update cycles before declaring comms fail
+        update_time:  (int) Basic time interval between update cycles (ms)
+        reboot_delay: (int) Countdown in seconds when auto-restarting/rebooting printPy
+        fail_count:   (int) Number of failed update cycles before declaring comms fail
     '''
-    updateTime  = 1000
-    rebootDelay = 5
-    failcount   = 5
+    update_time  = 1000
+    reboot_delay = 5
+    fail_count   = 5
 
     '''
         UI:
-        splashtime:  (int) splash screen time in milliseconds
-        offstates:   (list) states where the screen should turn off
+        splash_time: (int) splash screen time in milliseconds
+        off_states:  (list) states where the screen should turn off
                      - set to an empty list '[]' to keep permanently on
                      - set to '['off','idle']' to only turn on when active
-       offtime:     (int) screen standby off time in milliseconds
-       buttonAwake: (int) keep screen awake this long after button press
-       netAwake:    (int) keep screen awake this long after network toggle
+       off_time:     (int) screen standby off time in milliseconds
+       button_awake: (int) keep screen awake this long after button press
+       net_awake:    (int) keep screen awake this long after network toggle
     '''
-    splashtime  = 2 * 1000
-    offstates   = ['off']
-    offtime     = 16 * 1000
-    buttonAwake = offtime * 2
-    netAwake    = offtime * 4
+    splash_time  = 2 * 1000
+    off_states   = ['off']
+    off_time     = 16 * 1000
+    button_awake = off_time * 2
+    net_awake    = off_time * 4
 
     '''
         Display animation:
@@ -133,8 +131,8 @@ class config():
         REPL output Options:
         - For development you want these all on (probably...)
         - Turn off for production use
-        info:   (bool) Show machine status lines in REPL console
-        stats:  (bool) Show printPy fetch speed and memory stats when info=True
+        info:    (bool) Show machine status lines in REPL console
+        stats:   (bool) Show printPy fetch speed and memory stats when info=True
         verbose: (bool) Show init and serialOM comms info messages
         debug:   (int)  If 0 start immediately
                         if > 0 count down to start (so you can keyboard interrupt)

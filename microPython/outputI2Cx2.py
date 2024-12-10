@@ -80,8 +80,8 @@ class outputRRF:
         self._state = ''
         self._message = ''
         self._show_decimal = {}
-        self._failcount = 0
-        self._offtime = ticks_ms() + config.offtime
+        self._fail_count = 0
+        self._off_time = ticks_ms() + config.off_time
         self._notify = False
         # Init hardware
         self._initDisplays()
@@ -237,8 +237,8 @@ class outputRRF:
             self._swipeOff()
             self.standby = True
 
-    def awake(self, ontime=config.offtime):
-        self._offtime = ticks_ms() + ontime
+    def awake(self, ontime=config.off_time):
+        self._off_time = ticks_ms() + ontime
 
     def alert(self):
         # Flash a notification after the next marquee update cycle
@@ -287,10 +287,10 @@ class outputRRF:
             self._marquee.start(mstring)
 
         # Turn screen on/off as needed
-        show = not self._OM['state']["status"] in config.offstates
+        show = not self._OM['state']["status"] in config.off_states
         if show:
             self.awake()
-        if ticks_ms() < self._offtime:
+        if ticks_ms() < self._off_time:
             self.on()
         else:
             self.off()

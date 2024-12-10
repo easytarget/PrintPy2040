@@ -26,7 +26,7 @@ def restartNow(why, display='PrintPY\nerror'):
     pp('Error: ' + why)
     pp('Restarting in ',end='')
     out.watchdog = 0   # kill the marquee
-    for c in range(config.rebootDelay,0,-1):
+    for c in range(config.reboot_delay,0,-1):
         pp(c,end=' ')
         blink('err', auto=False)
         out.showText(display, 'Restarting\nin: {}s'.format(c))
@@ -44,23 +44,23 @@ def hardwareFail(why):
     while True:  # loop forever
         sleep_ms(60000)
 
-def buttonDown(_p):
+def button_down(_p):
     # Button event IRQ handler
     state = button.value()
     presstime = ticks_ms()
-    sleep_ms(config.buttonTm)
+    sleep_ms(config.button_time)
     if button.value() == state:
         buttonPressed(presstime)
 
 def buttonPressed(irqTime):
     global buttonTime
-    if button.value() == config.buttonDown:
+    if button.value() == config.button_down:
         buttonTime = irqTime
-        out.awake(config.buttonAwake)  # wake for longer than default offtime
+        out.awake(config.button_awake)  # wake for longer than default off_time
     else:
-        if config.buttonLong > 0 and buttonTime is not None:
-            if ticks_diff(ticks_ms(),buttonTime) > config.buttonLong:
-                if (config.net is not None) and (failcount == 0):
+        if config.button_long > 0 and buttonTime is not None:
+            if ticks_diff(ticks_ms(),buttonTime) > config.button_long:
+                if (config.net is not None) and (fail_count == 0):
                     networkToggle()
         buttonTime = None
 
@@ -77,7 +77,7 @@ def networkToggle():
     cmd = cmd.replace('{NET}',str(config.net))
     net = interface['type']
     pp('{} change requested via button: {}'.format(net, cmd))
-    out.awake(config.netAwake)   # awake longer while network is changing state
+    out.awake(config.net_awake)   # awake longer while network is changing state
     OM.sendGcode(cmd)
     out.alert()
 
@@ -117,7 +117,7 @@ if not out.running:
     hardwareFail('Failed to start output device')
 out.splash()
 out.on()
-splashend = ticks_ms() + config.splashtime
+splashend = ticks_ms() + config.splash_time
 
 # Now that the display is running we read+discard from the UART until it stays empty
 while rrf.any():
@@ -135,7 +135,7 @@ except Exception as e:
 buttonTime = None
 if config.button:
     button = config.button
-    button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=buttonDown)
+    button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=button_down)
     pp('button present on:',repr(button).split('(')[1].split(',')[0])
 
 # Now pause, then blink initial status and destroy splash after timeout
@@ -149,7 +149,7 @@ if OM.machineMode == '' or OM.model is None:
 
 blink(mood.emote(OM.model, config.net))
 out.updatePanels(OM.model)
-failcount = 0
+fail_count = 0
 
 '''
     Main loop
@@ -168,10 +168,10 @@ while True:
     om_end = ticks_ms()
     collect()
     # bump the marquee thread watchdog
-    out.watchdog = ticks_ms() + (3 * config.updateTime)
+    out.watchdog = ticks_ms() + (3 * config.update_time)
     # output the results if successful
     if have_data:
-        failcount = 0
+        fail_count = 0
         blink(mood.emote(OM.model, config.net))
         # pass the results to the output module and collect status line
         outputText = out.updatePanels(OM.model)
@@ -183,14 +183,14 @@ while True:
         if config.info:
             print('{}'.format(outputText.strip()))
     else:
-        failcount += 1
+        fail_count += 1
         blink('err')
-        pp('failed to fetch ObjectModel data, #{}'.format(failcount))
-        if failcount > config.failcount:
-            out.showFail(failcount)
+        pp('failed to fetch ObjectModel data, #{}'.format(fail_count))
+        if fail_count > config.fail_count:
+            out.showFail(fail_count)
     # check output is running and restart if not
     if not out.running:
         restartNow('Output device has failed','Output\nFailing')
     # Request cycle ended, wait for next
-    while ticks_diff(ticks_ms(),begin) < config.updateTime:
+    while ticks_diff(ticks_ms(),begin) < config.update_time:
         sleep_ms(1)
