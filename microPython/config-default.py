@@ -14,7 +14,6 @@ class config():
         button:      Status button pin object
                      (set '= None' to disable)
         button_down: Pin value when button depressed
-        button_time: debounce time (ms); keep this as low as practical
         button_long: long press time (ms) for WiFi toggle, 0 to disable
         I2C_left:    I2C interface definitions for left and right screens
         I2C_right:   Currently uses default pins and hardware interfaces and
@@ -22,7 +21,6 @@ class config():
     '''
     button      = Pin(2, Pin.IN, Pin.PULL_UP)
     button_down = 0
-    button_time = 50
     button_long = 1500
     I2C_left    = I2C(1, sda=Pin(6), scl=Pin(7))
     I2C_right   = I2C(0, sda=Pin(28), scl=Pin(29))

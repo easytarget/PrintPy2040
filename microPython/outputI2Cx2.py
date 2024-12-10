@@ -10,7 +10,7 @@ path.append('fonts')
 from ezFBfont import ezFBfont
 from ezFBmarquee import ezFBmarquee
 import ezFBfont_helvB10_ascii_15 as heading
-import ezFBfont_helvR08_full_13 as subhead
+import ezFBfont_helvR08_ascii_11 as subhead
 import ezFBfont_open_iconic_all_2x_0x0_0xFFF_16 as icons
 import ezFBfont_helvB14_ascii_18 as message
 import ezFBfont_spleen_8x16_num_12 as double_minor

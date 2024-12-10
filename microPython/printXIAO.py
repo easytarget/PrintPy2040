@@ -7,9 +7,8 @@ from config import config
 # The microPython standard libs
 from sys import exit
 
-
 from gc import collect, mem_free
-from machine import reset, disable_irq, enable_irq, mem32
+from machine import reset, mem32
 from time import sleep_ms, ticks_ms, ticks_diff, localtime
 
 '''
@@ -44,25 +43,12 @@ def hardwareFail(why):
     while True:  # loop forever
         sleep_ms(60000)
 
-def button_down(_p):
-    # Button event IRQ handler
-    state = button.value()
-    presstime = ticks_ms()
-    sleep_ms(config.button_time)
-    if button.value() == state:
-        buttonPressed(presstime)
-
-def buttonPressed(irqTime):
-    global buttonTime
-    if button.value() == config.button_down:
-        buttonTime = irqTime
-        out.awake(config.button_awake)  # wake for longer than default off_time
-    else:
-        if config.button_long > 0 and buttonTime is not None:
-            if ticks_diff(ticks_ms(),buttonTime) > config.button_long:
-                if (config.net is not None) and (fail_count == 0):
-                    networkToggle()
-        buttonTime = None
+def buttonPressed(_p):
+    # Any button activity triggers this.
+    # - we look for a long button press in the main loop.
+    global button_time     # we are in an interrupt, context is everything..
+    button_time = ticks_ms() + config.button_long
+    out.awake(config.button_awake)  # wake for longer than default off_time
 
 def networkToggle():
     if OM.model is None:
@@ -132,10 +118,10 @@ except Exception as e:
                'Connection\nError')
 
 # hardware button
-buttonTime = None
-if config.button:
+button_time = None
+if config.button is not None:
     button = config.button
-    button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=button_down)
+    button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=buttonPressed)
     pp('button present on:',repr(button).split('(')[1].split(',')[0])
 
 # Now pause, then blink initial status and destroy splash after timeout
@@ -193,4 +179,12 @@ while True:
         restartNow('Output device has failed','Output\nFailing')
     # Request cycle ended, wait for next
     while ticks_diff(ticks_ms(),begin) < config.update_time:
+        # button...
+        if button_time is not None:
+            if button.value() == config.button_down:
+                if (ticks_ms() > config.button_time) and config.net:
+                    button_time = 0
+                    toggleNetwork()
+            else:
+                button_time = None
         sleep_ms(1)
