@@ -9,10 +9,10 @@ from gc import collect
 path.append('fonts')
 from ezFBfont import ezFBfont
 from ezFBmarquee import ezFBmarquee
-import ezFBfont_15_helvB10_ascii as heading
+import ezFBfont_helvB10_ascii_15 as heading
 import ezFBfont_13_helvR08_full as subhead
 import ezFBfont_16_open_iconic_all_2x_full as icons
-import ezFBfont_18_helvB14_ascii as message        #  <----- TODO: try regular..
+import ezFBfont_18_helvB14_ascii as message
 import ezFBfont_12_spleen_8x16_num as double_minor
 import ezFBfont_20_spleen_12x24_num as single_minor
 import ezFBfont_20_spleen_16x32_time as double_major
@@ -61,7 +61,7 @@ class outputRRF:
             omKeys  : see below
             running : (bool) set False if the output device fails
             standby : (bool) set True when the display is off
-'''
+    '''
 
     # ObjectModel keys for each supported mode
     # We will always get the 'state' key from serialOM
@@ -82,7 +82,7 @@ class outputRRF:
         self._show_decimal = {}
         self._failcount = 0
         self._offtime = ticks_ms() + config.offtime
-        self._notify = True  # Force an initial flash at power up.. ??????
+        self._notify = False
         # Init hardware
         self._initDisplays()
         # Marquee
@@ -151,14 +151,13 @@ class outputRRF:
         self._right.contrast(bright)
 
     def _clean(self, c=0):
-        self._left.fill_rect(0, 0, 128, 64, c)
-        self._right.fill_rect(0, 0, 128, 64, c)
+        self._left.fill(c)
+        self._right.fill(c)
 
     def _cleanPanels(self):
         # Clean just the panel area of the screen (not status/marquee bar)
         self._left.rect(0, 16, 128, 48, 0, True)
         self._right.rect(0, 0, 128, 64, 0, True)
-
 
     def _show(self):
         self._left.show()
@@ -221,8 +220,8 @@ class outputRRF:
             nextFrame = ticks_ms() + config.animation_interval
             with self._display_lock:
                 frame()
-                notify()
                 self._show()
+                notify()
             while ticks_ms() < nextFrame:
                 sleep_ms(1)
         self.running = False
@@ -241,7 +240,7 @@ class outputRRF:
     def awake(self, ontime=config.offtime):
         self._offtime = ticks_ms() + ontime
 
-    def flash(self):
+    def alert(self):
         # Flash a notification after the next marquee update cycle
         self._notify = True
 
@@ -263,8 +262,8 @@ class outputRRF:
     def showFail(self, count):
         ltext = 'Connection\nfailure'
         rtext = 'Attempt\n# {:g}'.format(count)
-        htext = 'A communications failure has occurred; check the controller '
-        htext += 'is running correctly; and that all wiring is secure.'
+        htext = 'Cannot communicate with controller; check that it is '
+        htext += 'running correctly; and that all wiring is secure.'
         if self._marquee.string != htext:
             self._marquee.start(htext)
         with self._display_lock:
@@ -284,6 +283,7 @@ class outputRRF:
         # Set the marquee to state and messages
         mstring = self._state + self._message
         if self._marquee.string != mstring:
+            self.awake()
             self._marquee.start(mstring)
 
         # Turn screen on/off as needed

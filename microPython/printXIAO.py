@@ -56,12 +56,11 @@ def buttonPressed(irqTime):
     global buttonTime
     if button.value() == config.buttonDown:
         buttonTime = irqTime
-        out.flash()
-        out.awake()
+        out.awake(config.buttonAwake)  # wake for longer than default offtime
     else:
         if config.buttonLong > 0 and buttonTime is not None:
             if ticks_diff(ticks_ms(),buttonTime) > config.buttonLong:
-                if config.net is not None:
+                if (config.net is not None) and (failcount == 0):
                     networkToggle()
         buttonTime = None
 
@@ -78,9 +77,9 @@ def networkToggle():
     cmd = cmd.replace('{NET}',str(config.net))
     net = interface['type']
     pp('{} change requested via button: {}'.format(net, cmd))
-    out.awake(config.offtime * 4)   # stay alive longer while network is changing state
+    out.awake(config.netAwake)   # awake longer while network is changing state
     OM.sendGcode(cmd)
-    out.flash()
+    out.alert()
 
 def blink(state, auto=True):
     if config.mood:
@@ -174,7 +173,7 @@ while True:
     if have_data:
         failcount = 0
         blink(mood.emote(OM.model, config.net))
-        # pass the results to the output module and print any response
+        # pass the results to the output module and collect status line
         outputText = out.updatePanels(OM.model)
         collect()
         if config.stats:

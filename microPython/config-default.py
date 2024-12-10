@@ -103,15 +103,19 @@ class config():
 
     '''
         UI:
-        splashtime: (int) splash screen time in milliseconds
-        offtime:    (int) screen wake / off time in milliseconds
-        offstates:  (list) states where the screen should turn off
-                    - set to an empty list '[]' to keep permanently on
-                    - set to '['off','idle']' to only turn on when active
+        splashtime:  (int) splash screen time in milliseconds
+        offstates:   (list) states where the screen should turn off
+                     - set to an empty list '[]' to keep permanently on
+                     - set to '['off','idle']' to only turn on when active
+       offtime:     (int) screen standby off time in milliseconds
+       buttonAwake: (int) keep screen awake this long after button press
+       netAwake:    (int) keep screen awake this long after network toggle
     '''
-    splashtime = 2 * 1000
-    offtime    = 16 * 1000
-    offstates  = ['off']
+    splashtime  = 2 * 1000
+    offstates   = ['off']
+    offtime     = 16 * 1000
+    buttonAwake = offtime * 2
+    netAwake    = offtime * 4
 
     '''
         Display animation:
@@ -121,7 +125,7 @@ class config():
         marquee_step:       (int) Number of pixels moved for each marquee step
         marquee_pause:      (int) Number of step cycles to pause for when scrolling long text
     '''
-    animation_interval = 150
+    animation_interval = 200
     marquee_step       = 4
     marquee_pause      = 12
 
