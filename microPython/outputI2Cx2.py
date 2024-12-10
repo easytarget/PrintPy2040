@@ -10,13 +10,13 @@ path.append('fonts')
 from ezFBfont import ezFBfont
 from ezFBmarquee import ezFBmarquee
 import ezFBfont_helvB10_ascii_15 as heading
-import ezFBfont_13_helvR08_full as subhead
-import ezFBfont_16_open_iconic_all_2x_full as icons
-import ezFBfont_18_helvB14_ascii as message
-import ezFBfont_12_spleen_8x16_num as double_minor
-import ezFBfont_20_spleen_12x24_num as single_minor
-import ezFBfont_20_spleen_16x32_time as double_major
-import ezFBfont_40_spleen_32x64_time as single_major
+import ezFBfont_helvR08_full_13 as subhead
+import ezFBfont_open_iconic_all_2x_0x0_0xFFF_16 as icons
+import ezFBfont_helvB14_ascii_18 as message
+import ezFBfont_spleen_8x16_num_12 as double_minor
+import ezFBfont_spleen_12x24_num_20 as single_minor
+import ezFBfont_spleen_16x32_time_20 as double_major
+import ezFBfont_spleen_32x64_time_40 as single_major
 
 # define some icon chars
 C_BOLT = chr(96)
