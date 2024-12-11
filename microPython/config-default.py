@@ -10,18 +10,34 @@ from machine import UART, Pin, I2C
 
 class config():
     '''
+        UI:
+        button_long:  (int) long press time (ms) for WiFi toggle, 0 to disable
+        off_states:   (list) states where the screen should turn off
+                      - set to an empty list '[]' to keep permanently on
+                      - set to '['off','idle']' to only turn on when active
+        off_time:     (int) screen standby off time (ms)
+        button_awake: (int) keep screen awake this long after button press
+        net_awake:    (int) keep screen awake this long after network toggle
+        splash_time:  (int) splash screen time in milliseconds
+    '''
+    button_long  = 2 * 1000
+    off_states   = ['off']
+    off_time     = 15 * 1000
+    button_awake = off_time * 2
+    net_awake    = off_time * 4
+    splash_time  = 3 * 1000
+
+    '''
         Hardware config:
         button:      Status button pin object
                      (set '= None' to disable)
         button_down: Pin value when button depressed
-        button_long: long press time (ms) for WiFi toggle, 0 to disable
         I2C_left:    I2C interface definitions for left and right screens
         I2C_right:   Currently uses default pins and hardware interfaces and
                      can be adapted with softI2C+alternate pins as needed.
     '''
     button      = Pin(2, Pin.IN, Pin.PULL_UP)
     button_down = 0
-    button_long = 1500
     I2C_left    = I2C(1, sda=Pin(6), scl=Pin(7))
     I2C_right   = I2C(0, sda=Pin(28), scl=Pin(29))
 
@@ -29,10 +45,10 @@ class config():
         Serial Device Config:
         device: UART device
         baud:   (int) Serial baud rate; should match the setting used in config.g
-                  eg: TODO!!!!
+                - for example: M575 P1 B230400 S0
     '''
     device = UART(0)
-    baud   = 57600
+    baud   = 230400
 
     '''
         Network Config:
@@ -98,22 +114,6 @@ class config():
     fail_count   = 5
 
     '''
-        UI:
-        splash_time: (int) splash screen time in milliseconds
-        off_states:  (list) states where the screen should turn off
-                     - set to an empty list '[]' to keep permanently on
-                     - set to '['off','idle']' to only turn on when active
-       off_time:     (int) screen standby off time in milliseconds
-       button_awake: (int) keep screen awake this long after button press
-       net_awake:    (int) keep screen awake this long after network toggle
-    '''
-    splash_time  = 2 * 1000
-    off_states   = ['off']
-    off_time     = 16 * 1000
-    button_awake = off_time * 2
-    net_awake    = off_time * 4
-
-    '''
         Display animation:
         - These are tuned for the XIAO2040 + two I2C OLED's
         - Animation interval will cause lockups and races if too low.
@@ -121,9 +121,9 @@ class config():
         marquee_step:       (int) Number of pixels moved for each marquee step
         marquee_pause:      (int) Number of step cycles to pause for when scrolling long text
     '''
-    animation_interval = 200
-    marquee_step       = 4
-    marquee_pause      = 12
+    animation_interval = 100
+    marquee_step       = 3
+    marquee_pause      = 8
 
     '''
         REPL output Options:

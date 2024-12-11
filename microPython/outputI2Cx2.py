@@ -79,6 +79,7 @@ class outputRRF:
         self.watchdog = ticks_ms() + 10000
         self._state = ''
         self._message = ''
+        self._panels_updated = False
         self._show_decimal = {}
         self._fail_count = 0
         self._off_time = ticks_ms() + config.off_time
@@ -86,13 +87,19 @@ class outputRRF:
         # Init hardware
         self._initDisplays()
         # Marquee
+        self._status_string = ''
         self._marquee = ezFBmarquee(self._left, heading, pause=config.marquee_pause)
-        # Threading
-        self._thread = _thread.start_new_thread(self._startMarquee, ())
+        # Threading lock for display
         self._display_lock = _thread.allocate_lock()
         # Spare framebuffers used for on/off slide animation
         self._lbuf = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
         self._rbuf = FrameBuffer(bytearray(16 * 64), 128, 64, MONO_VLSB)
+        # Panel framebuffers used for updating without locking display
+        self._tpanel = FrameBuffer(bytearray(16 * 16), 128, 16, MONO_VLSB)
+        self._lpanel = FrameBuffer(bytearray(16 * 48), 128, 48, MONO_VLSB)
+        self._rpanel = FrameBuffer(bytearray(16 * 48), 128, 48, MONO_VLSB)
+        # Init Panels
+        self._initPanels()
         # set the 'so far, so good' flag.
         self.running = True
 
@@ -100,13 +107,7 @@ class outputRRF:
         def fonts(d):
             return {
                 'heading' : ezFBfont(d, heading),
-                'subhead' : ezFBfont(d, subhead),
-                'icons'   : ezFBfont(d, icons),
                 'message' : ezFBfont(d, message, vgap=2),
-                's_major' : ezFBfont(d, single_major, halign='right', valign='baseline'),
-                's_minor' : ezFBfont(d, single_minor, valign='baseline'),
-                'd_major' : ezFBfont(d, double_major, halign='right', valign='baseline'),
-                'd_minor' : ezFBfont(d, double_minor, valign='baseline'),
                 }
         self._left = SSD1306_I2C(128, 64, config.I2C_left, addr=0x3c)
         self._right = SSD1306_I2C(128, 64, config.I2C_right, addr=0x3c)
@@ -118,6 +119,23 @@ class outputRRF:
         self._clean()
         self._left_fonts = fonts(self._left)
         self._right_fonts = fonts(self._right)
+
+    def _initPanels(self):
+        def fonts(d):
+            return {
+                'heading' : ezFBfont(d, heading),
+                'subhead' : ezFBfont(d, subhead),
+                'icons'   : ezFBfont(d, icons),
+                'message' : ezFBfont(d, message, vgap=2),
+                's_major' : ezFBfont(d, single_major, halign='right', valign='baseline'),
+                's_minor' : ezFBfont(d, single_minor, valign='baseline'),
+                'd_major' : ezFBfont(d, double_major, halign='right', valign='baseline'),
+                'd_minor' : ezFBfont(d, double_minor, valign='baseline'),
+                }
+        self._clean()
+        self._tpanel_fonts = fonts(self._tpanel)
+        self._lpanel_fonts = fonts(self._lpanel)
+        self._rpanel_fonts = fonts(self._rpanel)
 
     def _dhms(self, t):
         # A local function to provide human readable uptime
@@ -137,6 +155,10 @@ class outputRRF:
         secs = "%02.f" % s
         return days + hrs + mins + secs
 
+    def _show(self):
+        self._left.show()
+        self._right.show()
+
     def _powerOn(self):
         self._left.poweron()
         self._right.poweron()
@@ -155,13 +177,9 @@ class outputRRF:
         self._right.fill(c)
 
     def _cleanPanels(self):
-        # Clean just the panel area of the screen (not status/marquee bar)
-        self._left.rect(0, 16, 128, 48, 0, True)
-        self._right.rect(0, 0, 128, 64, 0, True)
-
-    def _show(self):
-        self._left.show()
-        self._right.show()
+        self._tpanel.fill(0)
+        self._lpanel.fill(0)
+        self._rpanel.fill(0)
 
     def _swipeOn(self):
         with self._display_lock:
@@ -186,13 +204,26 @@ class outputRRF:
                 self._show()
             self._powerOff()
 
-    def _startMarquee(self):
-        def frame():
+    def _runMarquee(self):
+        def panels():
             '''
                 Run by the animation loop (in a seperate thread on second CPU)
-                - Animates the status and message marquee on the main display
-                - Can be stopped when we are doing 'on/off/waiting' animations
+                - blits the contents of the update panels onto the main display
             '''
+            if self._panels_updated:
+                self._left.blit(self._lpanel,0,16)
+                self._right.blit(self._rpanel,0,16)
+                self._right.blit(self._tpanel,0,0)
+                self._panels_updated = False
+
+        def frame():
+            '''
+                Run by animator loop
+                - Animates the status and message marquee on the main display
+            '''
+            if self._marquee.string != self._status_string:
+                self.awake()
+                self._marquee.start(self._status_string)
             if self._marquee.step(config.marquee_step):
                 self._marquee.pause(config.marquee_pause)
 
@@ -219,6 +250,7 @@ class outputRRF:
         while self.watchdog > ticks_ms():
             nextFrame = ticks_ms() + config.animation_interval
             with self._display_lock:
+                panels()
                 frame()
                 self._show()
                 notify()
@@ -226,6 +258,9 @@ class outputRRF:
                 sleep_ms(1)
         self.running = False
         _thread.exit()
+
+    def animator(self):
+        self._thread = _thread.start_new_thread(self._runMarquee, ())
 
     def on(self, force = False):
         if self.standby or force:
@@ -241,7 +276,7 @@ class outputRRF:
         self._off_time = ticks_ms() + ontime
 
     def alert(self):
-        # Flash a notification after the next marquee update cycle
+        # Request a notification 'flash' from the marquee animation loop
         self._notify = True
 
     def splash(self):
@@ -251,7 +286,7 @@ class outputRRF:
         self._right_fonts['heading'].write('easytarget.org', 0, 36)
         self.on(True)
 
-    def showText(self, ltext, rtext):
+    def showError(self, ltext, rtext):
         with self._display_lock:
             self._clean()
             self._left_fonts['message'].write(ltext, 63, 16, halign='center')
@@ -268,24 +303,20 @@ class outputRRF:
             self._marquee.start(htext)
         with self._display_lock:
             self._cleanPanels()
-            self._left_fonts['message'].write(ltext, 63, 18, halign='center')
-            self._right_fonts['message'].write(rtext, 63, 18, halign='center')
+            self._lpanel_fonts['message'].write(ltext, 63, 18, halign='center')
+            self._rpanel_fonts['message'].write(rtext, 63, 18, halign='center')
             self._powerOn()
-            self._show()
+            # self._show()    < not needed if using marquee.. TODO: check
         self.awake()
 
     def updatePanels(self, model):
         # Update the local model
         self._OM = model
-        # Put the model data on display
-        with self._display_lock:
-            out = self._putModel()
-        # Set the marquee to state and messages
-        mstring = self._state + self._message
-        if self._marquee.string != mstring:
-            self.awake()
-            self._marquee.start(mstring)
-
+        # Put the model data on panels
+        out = self._putModel()
+        self._panels_updated = True
+        # Set the string for the marquee
+        self._status_string = self._state + self._message
         # Turn screen on/off as needed
         show = not self._OM['state']["status"] in config.off_states
         if show:
@@ -294,7 +325,6 @@ class outputRRF:
             self.on()
         else:
             self.off()
-
         # Return the last generated status line
         return out + '\n'
 
@@ -313,19 +343,19 @@ class outputRRF:
             return('No data available')
         # clean the panel display area
         self._cleanPanels()
-        # Construct results string
+        # Construct panels and the results string
         r = 'Up: {}'.format(self._dhms(self._OM['state']["upTime"]))
-        if self._OM['state']['status'] in ['halted','updating','starting']:
-            r += ' | {}: please wait'.format(self._OM['state']['status'])
-            return r
         r += self._putStatus()
+        if self._state in ['Halted','Updating','Starting']:
+            return r   # Nothing to output, model may be incomplete
         r += self._putJob()
         if self._OM['state']['machineMode'] == 'FFF':
             self._putFFF()
         else:
             mode = self._OM['state']['machineMode']
+            self._lpanel_fonts['message'].write('\'{}\'\nmode'.format(mode), 63, 16, halign='center')
+            self._rpanel_fonts['message'].write('not\nsupported', 63, 16, halign='center')
             r += ', Unsupported mode: {}'.format(mode)
-            self.showText('\'{}\'\nmode'.format(mode), 'not\nsupported')
         m = self._putMessages()
         r += self._putNetwork()
         # return the console text line
@@ -368,9 +398,9 @@ class outputRRF:
             icon = C_STANDBY
         else:
             icon = C_WARN
-        self._right_fonts['icons'].write(icon, 112, 0, halign = 'left')
+        self._tpanel_fonts['icons'].write(icon, 112, 0, halign = 'left')
         if not self._OM['job']['build']:
-            self._right_fonts['subhead'].write(net, 108, 2, halign = 'right')
+            self._tpanel_fonts['subhead'].write(net, 108, 2, halign = 'right')
         return ' | {}'.format(net)
 
     def _putJob(self):
@@ -381,12 +411,9 @@ class outputRRF:
             except ZeroDivisionError:  # file size can be reported as Zero during job start
                 percent = 0
             job_line = '{:.1f}'.format(percent) if percent < 100 else '100'
-            xoff, _ = self._right_fonts['s_minor'].size(job_line)
-            self._right_fonts['s_minor'].write(job_line, 0, 14)
-            self._right_fonts['heading'].write('%', xoff+2, 4)
-            #xoff, _ = self._right_fonts['heading'].size(job_line)
-            #self._right_fonts['heading'].write(job_line, 0, 0)
-            #self._right_fonts['subhead'].write('%', xoff+2, 2)
+            xoff, _ = self._tpanel_fonts['s_minor'].size(job_line)
+            self._tpanel_fonts['s_minor'].write(job_line, 0, 14)
+            self._tpanel_fonts['heading'].write('%', xoff+2, 4)
             return ' | Job: {}%'.format(job_line)
         return ''
 
@@ -426,20 +453,20 @@ class outputRRF:
 
         def panelfull(name, icon, target, val, dec, panel_fonts):
                 # Full panel heater display
-                panel_fonts['heading'].write(name, 0, 16)
-                panel_fonts['icons'].write(icon,2,48)
-                panel_fonts['subhead'].write(target, 0, 30)
+                panel_fonts['heading'].write(name, 0, 1)
+                panel_fonts['icons'].write(icon,2,32)
+                panel_fonts['subhead'].write(target, 0, 14)
                 if self._show_decimal[name]:
-                    panel_fonts['s_minor'].write('°', 102, 32)
-                    panel_fonts['s_major'].write('{}'.format(val), 106, 61)
-                    panel_fonts['s_minor'].write('.{:01d}'.format(dec), 104, 61)
+                    panel_fonts['s_minor'].write('°', 102, 16)
+                    panel_fonts['s_major'].write('{}'.format(val), 106, 45)
+                    panel_fonts['s_minor'].write('.{:01d}'.format(dec), 104, 45)
                 else:
-                    panel_fonts['s_minor'].write('°', 119, 31)
-                    panel_fonts['s_major'].write('{}'.format(val), 127, 61)
+                    panel_fonts['s_minor'].write('°', 119, 15)
+                    panel_fonts['s_major'].write('{}'.format(val), 127, 45)
 
         def panelhalf(name, icon, target, val, dec, panel_fonts, top):
                 # Half panel heater display
-                y = 16 if top else 40
+                y = 1 if top else 24
                 panel_fonts['heading'].write(name, 0, y)
                 panel_fonts['icons'].write(icon, 38, y + 4)
                 panel_fonts['subhead'].write(target, 2, y + 12)
@@ -455,15 +482,15 @@ class outputRRF:
         def panelfault(name, panel_fonts, position):
                 # Display 'fault!' in a heater panel
                 if position == 'upper':
-                    panel_fonts['icons'].write(C_BOLT, 0, 18)
-                    panel_fonts['message'].write('{} FAULT'.format(name), 18, 18)
+                    panel_fonts['icons'].write(C_BOLT, 0, 2)
+                    panel_fonts['message'].write('{} FAULT'.format(name), 18, 2)
                 elif position == 'lower':
-                    panel_fonts['icons'].write(C_BOLT, 0, 42)
-                    panel_fonts['message'].write('{} FAULT'.format(name), 18, 42)
+                    panel_fonts['icons'].write(C_BOLT, 0, 26)
+                    panel_fonts['message'].write('{} FAULT'.format(name), 18, 26)
                 else:
-                    panel_fonts['icons'].write(C_BOLT, 0, 30)
-                    panel_fonts['message'].write('{}'.format(name), 21, 22)
-                    panel_fonts['message'].write('FAULT', 21, 42)
+                    panel_fonts['icons'].write(C_BOLT, 0, 14)
+                    panel_fonts['message'].write('{}'.format(name), 21, 6)
+                    panel_fonts['message'].write('FAULT', 21, 26)
 
         extruders = []
         heaters = []
@@ -481,27 +508,25 @@ class outputRRF:
         if len(self._OM['heat']['chamberHeaters']) > 0:
             if self._OM['heat']['chamberHeaters'][0] != -1:
                 heaters.append((self._OM['heat']['chamberHeaters'][0], 'enc', C_ENCL))
-
-        # This is how to add fake devices for testing multi-panel stuff..
-        #extruders.append((extruders[0][0],'E1',C_TOOL))
-        #heaters.append((heaters[0][0],'encl',C_ENCL))
-
+        '''This is how to add fake devices for testing multi-panel stuff..
+        extruders.append((extruders[0][0],'E1',C_TOOL))
+        heaters.append((heaters[0][0],'encl',C_ENCL))'''
         # Display extruder heaters (max 2)
         if len(extruders) == 0:
-            self._left_fonts['icons'].write(C_WARN, 64, 18, halign='center')
-            self._left_fonts['message'].write('no extruders?', 64, 38, halign='center')
+            self._lpanel_fonts['icons'].write(C_WARN, 64, 2, halign='center')
+            self._lpanel_fonts['message'].write('no extruders?', 64, 22, halign='center')
         if len(extruders) == 1:
-            showHeater(*extruders[0], self._left_fonts, 'full')
+            showHeater(*extruders[0], self._lpanel_fonts, 'full')
         if len(extruders) >= 2:
-            showHeater(*extruders[0], self._left_fonts, 'upper')
-            showHeater(*extruders[1], self._left_fonts, 'lower')
+            showHeater(*extruders[0], self._lpanel_fonts, 'upper')
+            showHeater(*extruders[1], self._lpanel_fonts, 'lower')
 
         # Display bed and chamber heaters
         if len(heaters) == 0:
-            self._right_fonts['icons'].write(C_WARN, 64, 18, halign='center')
-            self._right_fonts['message'].write('no heaters?', 64, 38, halign='center')
+            self._rpanel_fonts['icons'].write(C_WARN, 64, 2, halign='center')
+            self._rpanel_fonts['message'].write('no heaters?', 64, 22, halign='center')
         if len(heaters) == 1:
-            showHeater(*heaters[0], self._right_fonts, 'full')
+            showHeater(*heaters[0], self._rpanel_fonts, 'full')
         if len(heaters) >= 2:
-            showHeater(*heaters[0], self._right_fonts, 'upper')
-            showHeater(*heaters[1], self._right_fonts, 'lower')
+            showHeater(*heaters[0], self._rpanel_fonts, 'upper')
+            showHeater(*heaters[1], self._rpanel_fonts, 'lower')

@@ -21,20 +21,21 @@ def pp(*args, **kwargs):
         print(*args, **kwargs)
 
 # Do a minimum drama restart/reboot
-def restartNow(why, display='PrintPY\nerror'):
+def restartNow(why, message='PrintPY\nerror'):
     pp('Error: ' + why)
     pp('Restarting in ',end='')
     out.watchdog = 0   # kill the marquee
     for c in range(config.reboot_delay,0,-1):
         pp(c,end=' ')
         blink('err', auto=False)
-        out.showText(display, 'Restarting\nin: {}s'.format(c))
+        out.showError(message, 'Restarting\nin: {}s'.format(c))
         sleep_ms(1000)
     pp()
     out.off()
     if config.debug < 0:
-        exit()   # drop to REPL
-    reset()  # Reboot module
+        exit()   # Drop to REPL when debugging
+    else:
+        reset()  # Reboot module
 
 def hardwareFail(why):
     # Fatal error; halt.
@@ -47,8 +48,9 @@ def buttonPressed(_p):
     # Any button activity triggers this.
     # - we look for a long button press in the main loop.
     global button_time     # we are in an interrupt, context is everything..
-    button_time = ticks_ms() + config.button_long
-    out.awake(config.button_awake)  # wake for longer than default off_time
+    if config.button_long > 0:
+        button_time = ticks_ms() + config.button_long
+    out.awake(config.button_awake)
 
 def networkToggle():
     if OM.model is None:
@@ -117,6 +119,11 @@ except Exception as e:
     restartNow('Failed to start ObjectModel communications\n' + str(e),
                'Connection\nError')
 
+# Initial model fail
+if OM.machineMode == '' or OM.model is None:
+    restartNow('Failed to connect to controller, or unknown controller mode.',
+               'Failed to\nConnect')
+
 # hardware button
 button_time = None
 if config.button is not None:
@@ -124,18 +131,16 @@ if config.button is not None:
     button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=buttonPressed)
     pp('button present on:',repr(button).split('(')[1].split(',')[0])
 
-# Now pause, then blink initial status and destroy splash after timeout
+# Now pause, then blink initial status, setup initial panels and destroy splash
 while ticks_ms() < splashend:
     sleep_ms(25)
-out.off()
-# Initial comms fail (Reversed RX/TX?)
-if OM.machineMode == '' or OM.model is None:
-    restartNow('Failed to connect to controller, or unknown controller mode.',
-               'Failed to\nConnect')
-
 blink(mood.emote(OM.model, config.net))
 out.updatePanels(OM.model)
 fail_count = 0
+# end splash, output will turn on again at the next update cycle
+out.off()
+# Start the marquee and model output (will run in a new thread)
+out.animator()
 
 '''
     Main loop
@@ -179,12 +184,11 @@ while True:
         restartNow('Output device has failed','Output\nFailing')
     # Request cycle ended, wait for next
     while ticks_diff(ticks_ms(),begin) < config.update_time:
-        # button...
         if button_time is not None:
             if button.value() == config.button_down:
-                if (ticks_ms() > config.button_time) and config.net:
-                    button_time = 0
-                    toggleNetwork()
+                if (ticks_ms() > button_time) and (config.net is not None):
+                    button_time = None
+                    networkToggle()
             else:
                 button_time = None
         sleep_ms(1)
