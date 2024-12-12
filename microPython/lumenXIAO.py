@@ -84,3 +84,12 @@ class lumen:
         if status in ['processing','simulating']:
             return('job')
         return None
+
+    def off(self):
+        # Instant off
+        self._pixel[0] = (0,0,0)
+        self._pixel.write()
+        try:
+            self._timer.deinit()
+        except:
+            pass

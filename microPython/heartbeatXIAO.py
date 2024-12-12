@@ -37,3 +37,7 @@ class heartbeat:
         self._setRGB(self._rgbstate, bright)
         # Rotate the state tuple
         self._rgbstate = (self._rgbstate[2],self._rgbstate[0],self._rgbstate[1])
+
+    def off(self):
+        # Instant off
+        self._setRGB((0,0,0),0)
