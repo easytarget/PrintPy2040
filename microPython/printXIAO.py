@@ -6,47 +6,33 @@ from heartbeatXIAO import heartbeat
 from config import config
 # The microPython standard libs
 from sys import exit
-
 from gc import collect, mem_free
-from machine import reset, mem32
+from machine import reset
 from time import sleep_ms, ticks_ms, ticks_diff, localtime
 
 '''
     PrintMPy is a serialOM.py loop for MicroPython devices.
 '''
 
+# Placeholder objects for timers and IRQ's; declared here so
+# that we can safely test for and disable as needed whyenever we exit.
+button = None
+animator_thread = None
+mood = None
+heart = None
+
 # local print function so we can suppress info messages.
 def pp(*args, **kwargs):
     if config.verbose:
         print(*args, **kwargs)
 
-# Do a minimum drama restart/reboot
-def restartNow(why, message='PrintPY\nerror'):
-    pp('Error: ' + why)
-    pp('Restarting in ',end='')
-    out.watchdog = 0   # kill the marquee
-    for c in range(config.reboot_delay,0,-1):
-        pp(c,end=' ')
-        blink('err', auto=False)
-        out.showError(message, 'Restarting\nin: {}s'.format(c))
-        sleep_ms(1000)
-    pp()
-    out.off()
-    if config.debug < 0:
-        exit()   # Drop to REPL when debugging
-    else:
-        reset()  # Reboot module
-
-def hardwareFail(why):
-    # Fatal error; halt.
-    pp('A critical hardware error has occured!')
-    pp('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
-    while True:  # loop forever
-        sleep_ms(60000)
+def blink(state, auto=True):
+    if config.mood:
+        mood.blink(state, out.standby, auto)
 
 def buttonPressed(_p):
-    # Any button activity triggers this.
-    # - we look for a long button press in the main loop.
+    # ISR: Any button activity triggers this; does not need debouncing.
+    # - we check for a long button press in the main loop.
     global button_time     # we are in an interrupt, context is everything..
     if config.button_long > 0:
         button_time = ticks_ms() + config.button_long
@@ -65,13 +51,69 @@ def networkToggle():
     cmd = cmd.replace('{NET}',str(config.net))
     net = interface['type']
     pp('{} change requested via button: {}'.format(net, cmd))
-    out.awake(config.net_awake)   # awake longer while network is changing state
+    out.awake(config.long_awake)   # awake longer while network is changing state
     OM.sendGcode(cmd)
     out.alert()
 
-def blink(state, auto=True):
-    if config.mood:
-        mood.blink(state, out.standby, auto)
+def restartNow(why, message='PrintPY\nerror'):
+    # Do a minimum drama restart/reboot, mostly useful so we
+    # get a re-check-loop at startup if comms are failing
+    # - really unlikely to get called otherwise..
+    pp('Error: ' + why)
+    pp('Restarting in ',end='')
+    killAll()
+    for c in range(config.reboot_delay,0,-1):
+        pp(c,end=' ')
+        blink('err', auto=False)
+        out.showError(message, 'Restarting\nin: {}s'.format(c))
+        sleep_ms(1000)
+    pp()
+    out.off()
+    if config.debug < 0:
+        print('Debug mode: exiting to REPL')
+        exit()
+    else:
+        reset()  # Reboot module
+
+def hardFail(why):
+    # Fatal error; halt.
+    pp('A critical hardware error has occured!')
+    pp('- Do a full power off/on cycle and check wiring etc.\n' + why + '\n')
+    while True:  # loop forever
+        sleep_ms(60000)
+
+def killAll():
+    # attempt to kill the animator threads, button IRQ
+    # and notification LEDs. Useful when debugging.
+    try:
+        # kill the animator thread
+        animator_thread.exit()
+        out.watchdog = 0   # for completeness..
+    except:
+        pass  # dont care, we are exiting
+    try:
+        # Remove the button IRQ
+        # (allegedly.. docs not really clear about this)
+        button.irq(handler=None)
+    except:
+        pass  # dont care, we are exiting
+    # Mood and heartbeat LED's off
+    try:
+        mood.off()
+    except:
+        pass  # dont care, we are exiting
+    try:
+        heart.off()
+    except:
+        pass  # dont care, we are exiting
+
+# Firmware with atexit() enabled helps debugging..
+try:
+    from sys import atexit
+    atexit.register(killAll)
+except:
+    pp('Firmware does not support atexit() handler')
+
 
 '''
     Init
@@ -90,7 +132,7 @@ if config.heart:
 rrf = config.device
 rrf.init(baudrate=config.baud)
 if not rrf:
-    hardwareFail('No UART device found')
+    hardFail('No UART device found')
 else:
     pp('UART connected')
 # UART port and buffer will be in a unknown state; there may be junk in it
@@ -102,7 +144,7 @@ rrf.flush()
 pp('starting output')
 out = outputRRF()
 if not out.running:
-    hardwareFail('Failed to start output device')
+    hardFail('Failed to start output device')
 out.splash()
 out.on()
 splashend = ticks_ms() + config.splash_time
@@ -135,12 +177,12 @@ if config.button is not None:
 while ticks_ms() < splashend:
     sleep_ms(25)
 blink(mood.emote(OM.model, config.net))
-out.updatePanels(OM.model)
+out.updatePanels(OM.model)   # 
 fail_count = 0
 # end splash, output will turn on again at the next update cycle
 out.off()
 # Start the marquee and model output (will run in a new thread)
-out.animator()
+animator_thread = out.animator()
 
 '''
     Main loop
@@ -177,8 +219,8 @@ while True:
         fail_count += 1
         blink('err')
         pp('failed to fetch ObjectModel data, #{}'.format(fail_count))
-        if fail_count > config.fail_count:
-            out.showFail(fail_count)
+        if fail_count >= config.fail_count:
+            out.updateFail(fail_count)
     # check output is running and restart if not
     if not out.running:
         restartNow('Output device has failed','Output\nFailing')

@@ -204,6 +204,14 @@ class outputRRF:
                 self._show()
             self._powerOff()
 
+    def _awakeOnOff(self):
+        if not self._OM['state']["status"] in config.off_states:
+            self.awake()
+        if ticks_ms() < self._off_time:
+            self.on()
+        else:
+            self.off()
+
     def _runMarquee(self):
         def panels():
             '''
@@ -219,7 +227,8 @@ class outputRRF:
         def frame():
             '''
                 Run by animator loop
-                - Animates the status and message marquee on the main display
+                - Follows the contents of self._status_string
+                - Step animates the status and message marquee
             '''
             if self._marquee.string != self._status_string:
                 self.awake()
@@ -229,8 +238,7 @@ class outputRRF:
 
         def notify():
             '''
-                Run by animator loop, flashes the display inverse biefly to
-                notify the user of button press actions
+                Flashes the display inverse briefly to acknowlege button.
                 - invert() is instant, you do not need to call show()
             '''
             if self._notify:
@@ -257,10 +265,10 @@ class outputRRF:
             while ticks_ms() < nextFrame:
                 sleep_ms(1)
         self.running = False
-        _thread.exit()
+        print('Animator exiting due to watchdog')
 
     def animator(self):
-        self._thread = _thread.start_new_thread(self._runMarquee, ())
+        return _thread.start_new_thread(self._runMarquee, ())
 
     def on(self, force = False):
         if self.standby or force:
@@ -273,7 +281,7 @@ class outputRRF:
             self.standby = True
 
     def awake(self, ontime=config.off_time):
-        self._off_time = ticks_ms() + ontime
+        self._off_time = max(self._off_time, ticks_ms() + ontime)
 
     def alert(self):
         # Request a notification 'flash' from the marquee animation loop
@@ -294,20 +302,22 @@ class outputRRF:
             self._powerOn()
             self._show()
 
-    def showFail(self, count):
-        ltext = 'Connection\nfailure'
-        rtext = 'Attempt\n# {:g}'.format(count)
-        htext = 'Cannot communicate with controller; check that it is '
-        htext += 'running correctly; and that all wiring is secure.'
+    def updateFail(self, count):
+        ptext = 'Attempt: {:g}'.format(count)
+        htext = ' Error: Cannot communicate with controller; check that it '
+        htext += 'is running correctly; and that all wiring is secure.'
         if self._marquee.string != htext:
-            self._marquee.start(htext)
-        with self._display_lock:
-            self._cleanPanels()
-            self._lpanel_fonts['message'].write(ltext, 63, 18, halign='center')
-            self._rpanel_fonts['message'].write(rtext, 63, 18, halign='center')
-            self._powerOn()
-            # self._show()    < not needed if using marquee.. TODO: check
-        self.awake()
+            self._status_string = htext
+        self._cleanPanels()
+        self._tpanel_fonts['subhead'].write(ptext, 63, 2, halign = 'center')
+        self._lpanel_fonts['message'].write('Connection', 63, 8, halign='center')
+        self._rpanel_fonts['message'].write('Failed', 63, 8, halign='center')
+        self._panels_updated = True
+        # Turn screen on when first called
+        if count == config.fail_count:
+            self._clean()
+            self.awake(config.long_awake)        # ?????????????
+        self._awakeOnOff()
 
     def updatePanels(self, model):
         # Update the local model
@@ -318,13 +328,7 @@ class outputRRF:
         # Set the string for the marquee
         self._status_string = self._state + self._message
         # Turn screen on/off as needed
-        show = not self._OM['state']["status"] in config.off_states
-        if show:
-            self.awake()
-        if ticks_ms() < self._off_time:
-            self.on()
-        else:
-            self.off()
+        self._awakeOnOff()
         # Return the last generated status line
         return out + '\n'
 
@@ -336,7 +340,7 @@ class outputRRF:
 
     def _putModel(self):
         #  Constructs the twin-panel model status display
-        #  and puts it on the panel area of screen
+        #  and puts it on the panel framebuffers
         #  - also returns a text summary of status
         if self._OM is None:
             # No data == no viable output
