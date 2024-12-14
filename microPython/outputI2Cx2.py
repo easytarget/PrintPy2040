@@ -13,6 +13,7 @@ import ezFBfont_helvB10_ascii_15 as heading
 import ezFBfont_helvR08_ascii_11 as subhead
 import ezFBfont_open_iconic_all_2x_0x0_0xFFF_16 as icons
 import ezFBfont_helvB14_ascii_18 as message
+import ezFBfont_spleen_6x12_num_10 as target
 import ezFBfont_spleen_8x16_num_12 as double_minor
 import ezFBfont_spleen_12x24_num_20 as single_minor
 import ezFBfont_spleen_16x32_time_20 as double_major
@@ -127,10 +128,11 @@ class outputRRF:
                 'subhead' : ezFBfont(d, subhead),
                 'icons'   : ezFBfont(d, icons),
                 'message' : ezFBfont(d, message, vgap=2),
-                's_major' : ezFBfont(d, single_major, halign='right', valign='baseline'),
-                's_minor' : ezFBfont(d, single_minor, valign='baseline'),
-                'd_major' : ezFBfont(d, double_major, halign='right', valign='baseline'),
-                'd_minor' : ezFBfont(d, double_minor, valign='baseline'),
+                'target' : ezFBfont(d, target, tkey=0),
+                's_major' : ezFBfont(d, single_major, halign='right', valign='baseline', tkey=0),
+                's_minor' : ezFBfont(d, single_minor, valign='baseline', tkey=0),
+                'd_major' : ezFBfont(d, double_major, halign='right', valign='baseline', tkey=0),
+                'd_minor' : ezFBfont(d, double_minor, valign='baseline', tkey=0),
                 }
         self._clean()
         self._tpanel_fonts = fonts(self._tpanel)
@@ -457,9 +459,9 @@ class outputRRF:
 
         def panelfull(name, icon, target, val, dec, panel_fonts):
                 # Full panel heater display
-                panel_fonts['heading'].write(name, 0, 1)
+                panel_fonts['heading'].write(name, 0, 0)
+                panel_fonts['target'].write(target, 1, 17)
                 panel_fonts['icons'].write(icon,2,32)
-                panel_fonts['subhead'].write(target, 0, 14)
                 if self._show_decimal[name]:
                     panel_fonts['s_minor'].write('°', 102, 16)
                     panel_fonts['s_major'].write('{}'.format(val), 106, 45)
@@ -470,10 +472,10 @@ class outputRRF:
 
         def panelhalf(name, icon, target, val, dec, panel_fonts, top):
                 # Half panel heater display
-                y = 1 if top else 24
+                y = 0 if top else 24
                 panel_fonts['heading'].write(name, 0, y)
+                panel_fonts['target'].write(target, 1, y + 14)
                 panel_fonts['icons'].write(icon, 38, y + 4)
-                panel_fonts['subhead'].write(target, 2, y + 12)
                 if self._show_decimal[name]:
                     panel_fonts['d_minor'].write('°', 108, y + 10)
                     panel_fonts['d_major'].write('{}'.format(val), 108, y + 19)
@@ -486,14 +488,14 @@ class outputRRF:
         def panelfault(name, panel_fonts, position):
                 # Display 'fault!' in a heater panel
                 if position == 'upper':
-                    panel_fonts['icons'].write(C_BOLT, 0, 2)
                     panel_fonts['message'].write('{} FAULT'.format(name), 18, 2)
+                    panel_fonts['icons'].write(C_BOLT, 0, 2)
                 elif position == 'lower':
-                    panel_fonts['icons'].write(C_BOLT, 0, 26)
                     panel_fonts['message'].write('{} FAULT'.format(name), 18, 26)
+                    panel_fonts['icons'].write(C_BOLT, 0, 26)
                 else:
-                    panel_fonts['icons'].write(C_BOLT, 0, 14)
                     panel_fonts['message'].write('{}'.format(name), 21, 6)
+                    panel_fonts['icons'].write(C_BOLT, 0, 14)
                     panel_fonts['message'].write('FAULT', 21, 26)
 
         extruders = []
