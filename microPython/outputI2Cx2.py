@@ -68,9 +68,11 @@ class outputRRF:
     # We will always get the 'state' key from serialOM
     # All other keys need to be specified below
     #omKeys = {'FFF':['heat','tools','job','boards','network'],
+    # CNC and Laser mode are not supported..but these are the
+    # keys you would probably need (at present)
     omKeys = {'FFF':['heat','tools','job','network'],
-              'CNC':['network'],
-              'Laser':['network']}
+              'CNC':['job','move','spindles','network'],
+              'Laser':['job','move','network']}
 
     def __init__(self):
         self.standby = True
@@ -359,8 +361,8 @@ class outputRRF:
             self._putFFF()
         else:
             mode = self._OM['state']['machineMode']
-            self._lpanel_fonts['message'].write('\'{}\'\nmode'.format(mode), 63, 16, halign='center')
-            self._rpanel_fonts['message'].write('not\nsupported', 63, 16, halign='center')
+            self._lpanel_fonts['message'].write('\'{}\'\nmode'.format(mode), 63, 6, halign='center')
+            self._rpanel_fonts['message'].write('not yet\nsupported', 63, 6, halign='center')
             r += ', Unsupported mode: {}'.format(mode)
         m = self._putMessages()
         r += self._putNetwork()
