@@ -17,14 +17,14 @@ class config():
                       - set to '['off','idle']' to only turn on when active
         off_time:     (int) screen standby off time (ms)
         button_awake: (int) keep screen awake this long after button press
-        net_awake:    (int) keep screen awake this long after network toggle
+        long_awake:   (int) awake for longer when wifi or comms status changes
         splash_time:  (int) splash screen time in milliseconds
     '''
     button_long  = 2 * 1000
     off_states   = ['off']
     off_time     = 15 * 1000
     button_awake = off_time * 2
-    net_awake    = off_time * 4
+    long_awake    = off_time * 4
     splash_time  = 3 * 1000
 
     '''

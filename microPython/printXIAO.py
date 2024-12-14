@@ -61,7 +61,7 @@ def restartNow(why, message='PrintPY\nerror'):
     # - really unlikely to get called otherwise..
     pp('Error: ' + why)
     pp('Restarting in ',end='')
-    killAll()
+    # killAll() <- not needed..
     for c in range(config.reboot_delay,0,-1):
         pp(c,end=' ')
         blink('err', auto=False)
@@ -71,6 +71,7 @@ def restartNow(why, message='PrintPY\nerror'):
     out.off()
     if config.debug < 0:
         print('Debug mode: exiting to REPL')
+        killAll()
         exit()
     else:
         reset()  # Reboot module
@@ -85,10 +86,11 @@ def hardFail(why):
 def killAll():
     # attempt to kill the animator threads, button IRQ
     # and notification LEDs. Useful when debugging.
+    print('exit(): killing background')
     try:
+        out.watchdog = 0   # for completeness..
         # kill the animator thread
         animator_thread.exit()
-        out.watchdog = 0   # for completeness..
     except:
         pass  # dont care, we are exiting
     try:
@@ -107,10 +109,13 @@ def killAll():
     except:
         pass  # dont care, we are exiting
 
-# Firmware with atexit() enabled helps debugging..
+# Firmware with atexit() enabled might help debugging..
+# but to be honest.. it doesn't really help.
+# I'm not sure if the call to killAll is being made,
+# it does not print() on the repl console to say it ran..
 try:
     from sys import atexit
-    atexit.register(killAll)
+    atexit(killAll)
 except:
     pp('Firmware does not support atexit() handler')
 
