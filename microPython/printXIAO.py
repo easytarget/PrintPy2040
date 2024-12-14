@@ -139,7 +139,7 @@ rrf.init(baudrate=config.baud)
 if not rrf:
     hardFail('No UART device found')
 else:
-    pp('UART connected')
+    pp('UART initialised')
 # UART port and buffer will be in a unknown state; there may be junk in it
 # So; send a newline, then wait a bit (display init), then empty the buffer
 rrf.write('\n')
@@ -171,6 +171,8 @@ if OM.machineMode == '' or OM.model is None:
     restartNow('Failed to connect to controller, or unknown controller mode.',
                'Failed to\nConnect')
 
+pp('connected to ObjectModel')
+
 # hardware button
 button_time = None
 if config.button is not None:
@@ -178,20 +180,34 @@ if config.button is not None:
     button.irq(trigger=button.IRQ_FALLING | button.IRQ_RISING, handler=buttonPressed)
     pp('button present on:',repr(button).split('(')[1].split(',')[0])
 
-# Now pause, then blink initial status, setup initial panels and destroy splash
+# Show initial mood
+blink(mood.emote(OM.model, config.net))
+
+# Put initial data into panels
+out.updatePanels(OM.model)
+
+# pause for splash timeout
 while ticks_ms() < splashend:
     sleep_ms(25)
-blink(mood.emote(OM.model, config.net))
-out.updatePanels(OM.model)   # 
-fail_count = 0
-# end splash, output will turn on again at the next update cycle
+
+pp('PrintPY::printXIAO is running')
+
+# end splash,
 out.off()
+
 # Start the marquee and model output (will run in a new thread)
 animator_thread = out.animator()
+
+# Pause for long enough that the animator completes its initial cycle
+sleep_ms(100)
+
+# Show initial update
+out.on()
 
 '''
     Main loop
 '''
+fail_count = 0
 while True:
     begin = ticks_ms()
     # Do a OM update
