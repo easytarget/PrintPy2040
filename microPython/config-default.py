@@ -105,6 +105,10 @@ class config():
 
     '''
         Timing and timeout config:
+	Note: these values are good for the RP2040 version of printPY, I do
+	      not recommend lowering the update interval. It currently takes
+              approx. 500ms to fetch and ingest the OM, then another 150ms to
+	      update the display buffer.
         update_time:  (int) Basic time interval between update cycles (ms)
         reboot_delay: (int) Countdown in seconds when auto-restarting/rebooting printPy
         fail_count:   (int) Number of failed update cycles before declaring comms fail
@@ -126,17 +130,32 @@ class config():
     marquee_pause      = 8
 
     '''
-        REPL output Options:
+        Console output Options:
         - For development you want these all on (probably...)
         - Turn off for production use
-        info:    (bool) Show machine status lines in REPL console
-        stats:   (bool) Show printPy fetch speed and memory stats when info=True
-        verbose: (bool) Show init and serialOM comms info messages
         debug:   (int)  If 0 start immediately
                         if > 0 count down to start (so you can keyboard interrupt)
                         if < 0 drop immediately to REPL
+        info:    (bool) Show machine status lines in REPL console
+        stats:   (bool) Show printPy fetch speed and memory stats when info=True
+        verbose: (bool) Show init and serialOM comms info messages
     '''
+    debug   = -1
+    info    = True
+    stats   = True
+    verbose = True
+    '''
+    THE ABOVE DEFAULTS ARE FOR COMISSIONING:
+
+    Once programmed and tested you should set debug
+    to '0' so that the system starts immediately!
+
+    The other options are less important but there is
+    no point in generating lots of REPL output outside
+    of testing and developing the code.
+
+    debug   = 0
     info    = False
     stats   = False
     verbose = False
-    debug   = 0
+    '''

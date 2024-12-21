@@ -1,5 +1,17 @@
-from config import config
+# main.py
+#
+# Place this in the root filesystem of the device, it
+# examines config.py to determine whether to autostart
+# printXIAO on device startup and hard reboots.
+
+from sys import exit
 from time import sleep_ms
+try:
+    from config import config
+except ModuleNotFoundError:
+    print('Cannot find config.py')
+    exit()
+
 if config.debug == 0:
     import printXIAO
 elif config.debug > 0:
@@ -11,3 +23,5 @@ elif config.debug > 0:
         sleep_ms(500)
     print('now')
     import printXIAO
+else:
+    print('Debug mode enabled; dropping to REPL:')
