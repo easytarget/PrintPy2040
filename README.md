@@ -12,20 +12,25 @@ It displays the current machine mode, current job status, network status, info m
 * Supports Heated beds and Heated Chambers.
 * Shows when a heater is in a fault state
 
-It uses two OLED displays for it's output, and these can be configured to turn off automatically in certain states (eg *off*/*idle*).
+It uses two OLED displays for it's output, and these can be configured to turn off automatically in certain states (eg *off* / *idle*).
 
 There is a button on the rear of the unit; this can wake the display for a (configurable) time when pressed.
 
-Wifi/Ethernet status is displayed, and the rear button can enable / disable the network on a long press (configurable).
+![Display detail](Docs/display.jpg)
 
-Messages set by `M117` and `M291` are displayed in a scrolling box along with the machine state; Job progress is displayed when *processing*, *simulating*, *paused* etc.
+Wifi / Ethernet connection status is displayed, and the rear button can enable or disable the network as appropriate on a long press (configurable).
 
-The onboard NeoPixel on the XiAO board is used to flash the current status after each update; it changes color depending on the printer 'mood'; red for machine or network errors, yellow for *off*, green for *idle*, etc..
+Messages set by `M117` and `M291` are displayed in a scrolling box along with the machine state.
+
+Job progress is displayed when *processing*, *simulating*, *paused* etc.. The IP address or interface (error) status is displayed otherwise.
+
+The onboard NeoPixel on the XiAO board is used to flash the current status after each update; it changes color depending on the printer 'mood':
+- 🔴 Red for machine or network *errors*, 🟡 Yellow for *off*, 🟢 Green for *idle*, ⚪ White while *busy*, 🟣 Purple when *processing* jobs and 🔵 Blue for *paused* states.
 
 # Hardware
 This is designed to be a relatively simple build using commonly available inexpensive parts.
 
-It needs some soldering skills and care, but little more; there are no Custom PCB's or unusual parts.
+It needs some soldering and 3d printing skills, and care, but little more; there are no custom PCB's or parts.
 
 [![Case Render](Case/exploded-thumb.png)](Case/exploded.png)
 
@@ -34,8 +39,8 @@ An alternate, angled, 'foot' design with a mounting hole is included in the mode
 See the [HARDWARE](HARDWARE.md) document for a parts list, important construction notes, wiring diagrams and more.
 
 # Software
-Code for the SeeedStudio XIAO RP2040 is in the [micropython](micropython) folder.
+Code for the SeeedStudio XIAO RP2040 is in the [micropython](microPython) folder.
 
 It is written in a well structured and modular way; the output is driven by a self-contained class that could be used as a template for alternative displays and hardware.
 
-See the [micropython README](micropython/README.md) document for install and comissioning details; plus some architecture /development notes.
+See the [micropython README](microPython/README.md) document for install and comissioning details; plus some architecture /development notes.
