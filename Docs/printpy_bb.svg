@@ -10,7 +10,7 @@
    width="6.432775in"
    id="svg337"
    sodipodi:docname="printpy_bb.svg"
-   inkscape:version="1.3.2 (091e20ef0f, 2023-11-25)"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -59,9 +59,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="in"
-     inkscape:zoom="1.0638886"
-     inkscape:cx="333.68157"
-     inkscape:cy="342.1411"
+     inkscape:zoom="2.1277772"
+     inkscape:cx="252.37605"
+     inkscape:cy="416.39698"
      inkscape:window-width="1920"
      inkscape:window-height="1003"
      inkscape:window-x="0"
@@ -2253,106 +2253,6 @@
     </g>
   </g>
   <g
-     partID="855141400"
-     id="g203"
-     transform="matrix(1.544068,0,0,1.5446692,-49.640798,-1.5245266)"
-     style="stroke-width:0.647514">
-    <g
-       transform="translate(0,99.9067)"
-       id="g202"
-       style="stroke-width:0.647514">
-      <g
-         id="g201"
-         style="stroke-width:0.647514">
-        <text
-           id="text200"
-           stroke-width="0"
-           font-family="'Droid Sans'"
-           x="117.779"
-           text-anchor="middle"
-           font-size="8.7244px"
-           y="7.8519702"
-           xml:space="preserve"
-           fill="#5e5c64">Alternate: Single I2C port:</text>
-      </g>
-    </g>
-  </g>
-  <g
-     partID="855141430"
-     id="g206"
-     transform="matrix(1.544068,0,0,1.5446692,-49.640798,-1.5245266)"
-     style="stroke-width:0.647514">
-    <g
-       transform="translate(17.2633,122.119)"
-       id="g205"
-       style="stroke-width:0.647514">
-      <g
-         id="g204"
-         style="stroke-width:0.647514">
-        <text
-           id="text203"
-           stroke-width="0"
-           font-family="'Droid Sans'"
-           x="101.393"
-           text-anchor="middle"
-           font-size="6.54148px"
-           y="5.8873301"
-           xml:space="preserve"
-           fill="#787878">I2C address jumpers on one OLED</text>
-      </g>
-    </g>
-  </g>
-  <g
-     partID="855141450"
-     id="g209"
-     transform="matrix(1.544068,0,0,1.5446692,-49.640798,-1.5245266)"
-     style="stroke-width:0.647514">
-    <g
-       transform="translate(17.9239,112.688)"
-       id="g208"
-       style="stroke-width:0.647514">
-      <g
-         id="g207"
-         style="stroke-width:0.647514">
-        <text
-           id="text206"
-           stroke-width="0"
-           font-family="'Droid Sans'"
-           x="94.8517"
-           text-anchor="middle"
-           font-size="6.5415px"
-           y="5.8873301"
-           xml:space="preserve"
-           fill="#787878">Share the I2C bus by changing</text>
-      </g>
-    </g>
-  </g>
-  <g
-     partID="855141500"
-     id="g212"
-     transform="matrix(1.544068,0,0,1.5446692,-49.640798,-1.5245266)"
-     style="stroke-width:0.647514">
-    <g
-       transform="translate(10.224,130.932)"
-       id="g211"
-       style="stroke-width:0.647514">
-      <g
-         id="g210"
-         style="stroke-width:0.647514">
-        <text
-           id="text209"
-           stroke-width="0"
-           font-family="'Droid Sans'"
-           x="101.393"
-           text-anchor="middle"
-           font-size="6.54148px"
-           y="5.8873301"
-           xml:space="preserve"
-           fill="#787878"> and wiring SDA/SCK in parallel</text>
-      </g>
-    </g>
-  </g>
-  <g
      partID="855141520"
      id="g215"
      transform="matrix(1.544068,0,0,1.5446692,-49.640798,-1.5245266)"
@@ -3820,4 +3720,34 @@
       </g>
     </g>
   </g>
+  <text
+     xml:space="preserve"
+     style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10px;line-height:1.05;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans, Italic';font-variant-ligatures:none;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;letter-spacing:0px;word-spacing:0px;stroke-width:0.75"
+     x="39.694141"
+     y="348.63242"
+     id="text1"><tspan
+       sodipodi:role="line"
+       id="tspan22"
+       x="39.694141"
+       y="348.63242">This is for a 5V power supply (Duet2)</tspan><tspan
+       sodipodi:role="line"
+       id="tspan23"
+       x="39.694141"
+       y="359.13242"></tspan><tspan
+       sodipodi:role="line"
+       id="tspan24"
+       x="39.694141"
+       y="369.63242">See Documentation:</tspan><tspan
+       sodipodi:role="line"
+       id="tspan25"
+       x="39.694141"
+       y="380.13242">- For Duet3 and later systems you can omit</tspan><tspan
+       sodipodi:role="line"
+       id="tspan26"
+       x="39.694141"
+       y="390.63242">the connection to the 5V xiao pin, and supply 3v3 directly from the loom.</tspan><tspan
+       sodipodi:role="line"
+       id="tspan27"
+       x="39.694141"
+       y="401.13242">- Be very careful not to connect 5V to any 3V3 pins/lines at any time!</tspan></text>
 </svg>
