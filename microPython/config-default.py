@@ -35,11 +35,15 @@ class config():
         I2C_left:    I2C interface definitions for left and right screens
         I2C_right:   Currently uses default pins and hardware interfaces and
                      can be adapted with softI2C+alternate pins as needed.
+        pixel_pin:   Onboard NeoPixel pin
+        pixel_power: Neopixel VCC is turned on via this pin on the XIAO
     '''
     button      = Pin(2, Pin.IN, Pin.PULL_UP)
     button_down = 0
     I2C_left    = I2C(1, sda=Pin(6), scl=Pin(7))
     I2C_right   = I2C(0, sda=Pin(28), scl=Pin(29))
+    pixel_pin   = Pin(12)
+    pixel_power = Pin(11,Pin.OUT)
 
     '''
         Serial Device Config:

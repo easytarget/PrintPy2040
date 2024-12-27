@@ -1,4 +1,4 @@
-from machine import Timer, Pin
+from machine import Timer
 from neopixel import NeoPixel
 '''
     Lumen (LED Indicator) for the Seeedstudio XIAO RP2040
@@ -27,10 +27,11 @@ class lumen:
                     'paused':(0,0,255),
                        'err':(255,0,0)}
 
-        # Neopixel
-        self._pixelVcc = Pin(11,Pin.OUT)   # Power on pin 11
-        self._pixelVcc.value(1)            # turn on immediately
-        self._pixel = NeoPixel(Pin(12),1)  # data on pin 12
+        # Neopixel; on the xiao the pixel VCC comes from a Pin; allowing  it to
+        # be fully powered off in low power modes.
+        self._pixelVcc = config.pixel_power   # Pixel VCC pin
+        self._pixelVcc.value(1)               # turn on immediately
+        self._pixel = NeoPixel(config.pixel_pin,1)  # data pin
         self._pixel[0]=(0,0,0)
         self._pixel.write()
 
