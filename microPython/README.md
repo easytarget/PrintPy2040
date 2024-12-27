@@ -1,10 +1,11 @@
 # Micropython code
 PrintPY is coded in micropython; and is intended to be uploaded by the user from a suitable IDE (tested with Thonny, but ViperIDE is also nice for more experienced developers).
 
-As with the Hardware I assume you can set up and connect to your device with MicroPython; if this is new to you I suggest you start with the XIAO setup guide from SeeedStudio, and use Thonny as an IDE.
+As with the Hardware I assume you can set up and connect to your device with MicroPython;
+* If this is new to you I suggest you start with the [XIAO2040 micropython guide](https://wiki.seeedstudio.com/XIAO-RP2040-with-MicroPython/) from SeeedStudio, and use [**Thonny**](https://thonny.org/) as an IDE.
 
 # RRF config:
-You need to set the Comms port you are using on the Duet/RRF board correctly for the speed; 230400 baud by default.
+You need to set up the Comms port on your printer correctly; No CRC/checksum, 230400 baud.
 * For a Duet2 or 3 machine using the default (panelDue) uart interface yur `config.g` needs to include the following:
   `M575 P1 B230400 S0`
 * This can normally go after the USB port setting (*M575 P0 ....*) line, you can also send it from the console for testing.
@@ -21,6 +22,10 @@ Start your micropython environment (Thonny, Viper, etc..) and connect to the XIA
   >>> 
 ```
 Upload the whole of this folder ('micropython') and ('micropython/fonts') onto the root of your device.
+* The 'Firmware' folder should not be copied; it just contains the latest reference firmware;
+  * This is the firmware I am using and have tested with, from the main download site.
+  * There is no 'precompiled firmware' available for PrintPy2040.
+
 * copy `config-default.py` to 'config.py` on the device
 * run `hwTest.py`:
 ```python
@@ -65,11 +70,9 @@ Development of the Font display system (Font Writer, Marquee and the Fonts thems
 https://github.com/easytarget/microPyEZfonts
 
 # Install (see [comissioning above](#Comissioning:))
-I do all development using the [**Thonny**](https://thonny.org/) IDE, this is a fairly simple tool, but I quite like it because of this it matches my needs. You can also use ViperIDE or any other development environment you are familiar with.
+I do all development using the  IDE, this is a fairly simple tool, but I quite like it because of this it matches my needs. You can also use ViperIDE or any other development environment you are familiar with.
 
-The 'Firmware' folder just contains the latest reference firmware; the image I am using and have tested with. This is just a copy of the generic firmware from the main microPython downloads site. There is no 'precompiled firmware' available for PrintPy2040.
-
-Simply put the whole contents of this folder (/microPython/) excluding the 'Firmware' folder) in to the root of your device, keeping the directory structure.
+Simply put the whole contents of this folder (/microPython/) excluding the 'Firmware' folder and this README, in to the root of your device, keeping the directory structure.
 
 ## Config
 You need to copy `config-default.py` to `config.py` in the root folder of your device.
@@ -82,7 +85,4 @@ Then make any changes you need (there are not many 'options' and the hardware de
 * Another important option here is the Baud rate for the serial port; you must match the speed here with the speed onfigured on your RRF controller. The default baud rate for PrintXIAO is 230400 baud, no parity.
 * Only mess with the Hardware settings if you are using alternate wiring or boards etc..
 * Do not try to 'speed up' the main (once per second by default) fetch/update cycle too much, the cpu needs at least 600ms to do each fetch/update cycle.
-* NeoPixel and display brightnesses can be set, you may want to reduce these for a very dim workshop.
-
-
-.. todo .. 'off' state list, Wifi mode settings, ?anything else..?
+* NeoPixel and display brightnesses can be set, you may want to reduce these in a dark workshop.
