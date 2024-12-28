@@ -1,5 +1,7 @@
 from machine import Timer
 from neopixel import NeoPixel
+from config import config
+
 '''
     Lumen (LED Indicator) for the Seeedstudio XIAO RP2040
     Drives the onboard NeoPixel with moods
