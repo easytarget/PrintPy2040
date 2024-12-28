@@ -1,14 +1,17 @@
 # Micropython code
 PrintPY is coded in micropython; and is intended to be uploaded by the user from a suitable IDE (tested with Thonny, but ViperIDE is also nice for more experienced developers).
 
-As with the Hardware I assume you can set up and connect to your device with MicroPython;
+As with the Hardware document assuming you can 3d Print, solder and read a wiring diagran, this document assumes you can set up and connect to your device with MicroPython without needing step-by-step instructions.
 * If this is new to you I suggest you start with the [XIAO2040 micropython guide](https://wiki.seeedstudio.com/XIAO-RP2040-with-MicroPython/) from SeeedStudio, and use [**Thonny**](https://thonny.org/) as an IDE.
 
 # RRF config:
-You need to set up the Comms port on your printer correctly; No CRC/checksum, 230400 baud.
-* For a Duet2 or 3 machine using the default (panelDue) uart interface yur `config.g` needs to include the following:
-  `M575 P1 B230400 S0`
-* This can normally go after the USB port setting (*M575 P0 ....*) line, you can also send it from the console for testing.
+You need to set up the Comms port on your printer correctly to 'no CRC/checksum, 230400 baud'.
+* For testing you can use the console to send:
+* `M575 P1 B230400 S0`
+* For a Duet2 or 3 machine using the default (panelDue) serial (UART) interface your `config.g` needs to include ths line:
+* This can normally go after the USB port setting (*M575 P0 ....*) line.
+* Later Duet models have additional UART ports that could be used; you will need to adjust ['M575'](https://docs.duet3d.com/User_manual/Reference/Gcodes#m575-set-serial-comms-parameters) as necesscary for them.
+* Do not change the `S0` parameter; PrintPY is not compatible with CRC or Checksumming.
 
 # Commissioning:
 Start your micropython environment (Thonny, Viper, etc..) and connect to the XIAO.
@@ -21,13 +24,20 @@ Start your micropython environment (Thonny, Viper, etc..) and connect to the XIA
   Type "help()" for more information.
   >>> 
 ```
+# Installing:
 Upload the whole of this folder ('micropython') and ('micropython/fonts') onto the root of your device.
 * The 'Firmware' folder should not be copied; it just contains the latest reference firmware;
   * This is the firmware I am using and have tested with, from the main download site.
   * There is no 'precompiled firmware' available for PrintPy2040.
 
-* copy `config-default.py` to 'config.py` on the device
-* run `hwTest.py`:
+## Initial Configuration:
+Copy `config-default.py` to 'config.py` on the device.
+* if you are using alternate hardware pins etc. you will need to adjust the hardware config definitions here
+* See the [config](#Config) section below for more.
+
+# Test Hardware:
+*Note: The hardware test script reads its configuration from the config file above.*
+* Run `hwTest.py` omn the device:
 ```python
 Testing printXIAO comms, screen, pixel and button
 UART initialised
@@ -38,16 +48,16 @@ button: Pressed
 sent: M122
 recieved: b'{"seq":28810,"resp":"=== Diagnostics ===\\n"}\n{"seq":28811,"resp":"RepRapFirmware for Duet 2 WiFi/Ethernet version 3.5.4 (2024-11-24 10:43:42) running on Duet WiFi 1.02 or later\\n"}\n{"seq":28812,"resp":"Board ID: 08DGM-9568A-F23SJ-6JTD0-3S46L-KVVVF\\n"}\n{"seq":28813,"resp":"Used output buffers: 3 of 26 (16 max)\\n"}\n'
 sent: M122
-recieved: b'{"seq":28900,"resp":"=== Diagnostics ===\\n"}\n{"seq":28901,"resp":"RepRapFirmware for Duet 2 WiFi/Ethernet version 3.5.4 (2024-11-24 10:43:42) running on Duet WiFi 1.02 or later\\n"}\n{"seq":28902,"resp":"Board ID: 08DGM-9568A-F23SJ-6JTD0-3S46L-KVVVF\\n"}\n{"seq":28903,"resp":"Used output buffers: 3 of 26 (16 max)\\n"}\n'
-etc..
+..etc..
 ```
-* You should see the displays showing 'left' and 'right' as appropriate; the NeoPixel shuld be cycling R->G->B, if you press the button you should see a message on REPL console.
+* You should see the OLED displays outlined and showing 'left' and 'right' as appropriate; the NeoPixel shuld be cycling R->G->B, if you press the button you should see a message on REPL console.
 * The script sends [`M115`](https://docs.duet3d.com/User_manual/Reference/Gcodes#m115-get-firmware-version-and-capabilities) every second to the connected RRF machine; and then returns the (JSON encoded) output to the REPL console:
 
 If you do not see any serial output the first thing to do is test (swap) the polarity of the RX and TX lines by reversing the connector on the PrintPY.
 * The second thing to test is that both the PrintPy and RRF controller have the baud rate configured properly.
 
-Once the test script is running you can try running 'printXIAO.py' directly from the IDE. You should now see everything running.
+# Commissioning:
+Once the test script is running correctly you can try running 'printXIAO.py' directly from the IDE. You should now see everything running, with a brief splash-screen and then the current printer status displayed. On the console you should see:
 ```
 printXIAO is starting
 UART initialised
@@ -60,9 +70,14 @@ PrintPY::printXIAO is running
 [505ms, 112000b] Up: 3d:12h:52:49 | Off | ip: 10.0.0.30
 etc..
 ```
-TODO: Explain about using 'machine.reset()' and the reset button.. also that device changes ACM0/1 etc.
+The (default configured) status lines show:
+* [Fetch cycle time, free memory after fetching and collect()ing]
+* Uptime reported by the Controller firmware
+* Main status | Wifi Status | Job Progress (if any) | System messages (if any)
 
-If you want to change screen brightnesses or timeouts look at the settings in the config file.
+The Neopixel will be flashing with the printer 'mood', the heartbeat LED should be cycling as requests are sent.
+
+TODO: Explain about using 'machine.reset()' and the reset button.. also that device changes ACM0/1 etc.
 
 Once configured; enable running at boot time by editing the last four lines of the config as described in the comments. Then mount on your machine, close the case, and enjoy seeing your printers status at-a-glance.
 
@@ -73,33 +88,31 @@ Once configured; enable running at boot time by editing the last four lines of t
 - `outputI2Cx2.py` : Displays the machine state on a twin OLED display, showing the overall status; current temperatures and heater statuses; job status (when active), messages and network status.
   - The display is built entirely out of fonts (using symbol fonts where necesscary) and uses my own microPython fonts, font writer and marquee.
   - Single or Twin extruders are supported, as are systems with enclosures.
-![Alpha demo](Docs/3-heaters-alpha3.jpg)
+![Alpha demo](../Docs/3-heaters-alpha3.jpg)
 
 # Requirements:
-There are no external dependencies or requirements needed, this folder contains the
-`printXIAO` code itself and the external libraries it uses.
+There are no external dependencies or requirements needed, this folder contains the `printXIAO` code itself and all the libraries it uses.
 
-## SerialOM and EZfont Libraries and fonts are in the `fonts` folder
+### SerialOM
 Development of the communications code happens in the `serialOM` repo:
 https://github.com/easytarget/serialOM
 
+### EZfont Libraries and fonts are in the `fonts` folder
 Development of the Font display system (Font Writer, Marquee and the Fonts themselves) happens in the `microPyEZfonts` repo:
 https://github.com/easytarget/microPyEZfonts
 
-# Install (see [comissioning above](#Comissioning:))
-I do all development using the  IDE, this is a fairly simple tool, but I quite like it because of this it matches my needs. You can also use ViperIDE or any other development environment you are familiar with.
-
-Simply put the whole contents of this folder (/microPython/) excluding the 'Firmware' folder and this README, in to the root of your device, keeping the directory structure.
-
 ## Config
-You need to copy `config-default.py` to `config.py` in the root folder of your device.
+As noted above, you need to copy `config-default.py` to `config.py` in the root folder of your device.
 
-Then make any changes you need (there are not many 'options' and the hardware defaults are set up for the XIAO 2040 board used here.
-* You can set the list of states where the Display should turn off;
+Then make any changes you might want.
+* See the comments in the config file.
+* There are not many 'user options' to play with, and the defaults are set up sensibly for the XIAO 2040 board used here.
+* You can set the list of states where the Display should turn off:
   * OLED displays can [burn in](https://forum.makerforums.info/t/oled-display-burn-in-the-evidence/90223) if left on all the time, making the output look reaaly ugly!
   * Turning the displays off when the Printer is `off` is a very good idea.
   * If your printer is permanently on it may be a good idea to add `[idle]` as well as `[off]` to the list of screen off states.
-* Another important option here is the Baud rate for the serial port; you must match the speed here with the speed onfigured on your RRF controller. The default baud rate for PrintXIAO is 230400 baud, no parity.
+* Another important option here is the Baud rate for the serial port; you must match the speed with the speed configured on your controller. The default baud rate for PrintXIAO is 230400 baud, no parity.
 * Only mess with the Hardware settings if you are using alternate wiring or boards etc..
-* Do not try to 'speed up' the main (once per second by default) fetch/update cycle too much, the cpu needs at least 600ms to do each fetch/update cycle.
-* NeoPixel and display brightnesses can be set, you may want to reduce these in a dark workshop.
+* Do not try to 'speed up' the main (once per second by default) fetch/update cycle too much, the cpu needs at least 500ms to do each fetch cycle, plus 150ms to render the updates to the display panels.
+* NeoPixel and display brightnesses can be set, you may want to reduce these in a dark workshop. You can set a different brightness for 'off states'.
+* THe default network interface can be defined (for controllers with more than one) as can the default commands sent to enable/disable the network.

@@ -40,6 +40,8 @@ You also need to mask (or remove) the 'Super Brite!' 5V power LED on the Xiao bo
 - I cut and heat-formed a very small square of black plastic which is glued in place, this was fiddly since the LED also shines out sideways from it's package, so I had to make a 'cap' that fits over it.
 - Desoldering it would be preferable, but it is in a very fiddly location and extremem cre would be needed, plus a good magnifier.
 
+After wiring consult the code install and comissioning document *before* you close the case and mount the unit. As well as attaching a USB-C cable for programming, you will need to access the reset button on the XIAO board as part of comissioning.
+
 ## Wiring 5V (Duet 2)
 ![Hookup Guide](Docs/printpy_bb.svg)
 

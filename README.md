@@ -41,6 +41,6 @@ See the [HARDWARE](HARDWARE.md) document for a parts list, important constructio
 # Software
 Code for the SeeedStudio XIAO RP2040 is in the [micropython](microPython) folder.
 
-It is written in a well structured and modular way; the output is driven by a self-contained class that could be used as a template for alternative displays and hardware.
+The code represents the majority of the work needed to create this, the hardware is simple, the code less so. It is written in a well structured and modular way; the output is driven by self-contained classes that can be used as templates for alternative displays and hardware.
 
-See the [micropython README](microPython/README.md) document for install and comissioning details; plus some architecture /development notes.
+See the [micropython README](microPython/README.md) document for install and comissioning details; plus some architecture / development notes.
