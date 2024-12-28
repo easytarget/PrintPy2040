@@ -23,7 +23,7 @@ Hold the 'boot' button on the XIAO board while connecting it to a USB port on yo
   * the version in this repo is the Firmware I have tested with
 * After sucessfully flashing you should see the REPL console of the device in your IDE:
 ```python
-  MicroPython v1.24.0 on 2024-10-25; Raspberry Pi Pico with RP2040
+  MicroPython v1.24.1 on 2024-11-29; Raspberry Pi Pico with RP2040
   Type "help()" for more information.
   >>> 
 ```
@@ -89,7 +89,7 @@ The Neopixel will be flashing with the printer 'mood', the heartbeat LED should 
 This is annoying; the RP2040 micropython port does not handle multi-cpu systems properly when they have threads running on the second CPU.
 
 *Once the main printXIAO code is running you can interrupt the main loop by pressing **ctrl-c** in the REPL console, but this fails to fully 'soft reset' the board.*
-1) *'Crtl-c' in the repl console should be followed immediately by running `micropython.reset()` to fully reset the hardware.*
+1) *'Crtl-c' in the repl console should be followed immediately by running `machine.reset()` to fully reset the hardware.*
 2) *or Press the reset button on the XIAO board (it's tiny and hard to access, especially once the wiring is done, use a small non-conductive plastic rod to do this)*
 3) *or Force the reset by unplugging it completely from the printer and usb-c.*
 
