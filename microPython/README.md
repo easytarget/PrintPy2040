@@ -29,25 +29,42 @@ Upload the whole of this folder ('micropython') and ('micropython/fonts') onto t
 * copy `config-default.py` to 'config.py` on the device
 * run `hwTest.py`:
 ```python
-  Testing printXIAO comms, screen, pixel and button
-  UART initialised
-  Button present on: GPIO2
-  etc.. TODO!
+Testing printXIAO comms, screen, pixel and button
+UART initialised
+Button present on: GPIO2
+sent: M122
+recieved: b'{"seq":28720,"resp":"=== Diagnostics ===\\n"}\n{"seq":28721,"resp":"RepRapFirmware for Duet 2 WiFi/Ethernet version 3.5.4 (2024-11-24 10:43:42) running on Duet WiFi 1.02 or later\\n"}\n{"seq":28722,"resp":"Board ID: 08DGM-9568A-F23SJ-6JTD0-3S46L-KVVVF\\n"}\n{"seq":28723,"resp":"Used output buffers: 3 of 26 (16 max)\\n"}\n'
+button: Pressed
+sent: M122
+recieved: b'{"seq":28810,"resp":"=== Diagnostics ===\\n"}\n{"seq":28811,"resp":"RepRapFirmware for Duet 2 WiFi/Ethernet version 3.5.4 (2024-11-24 10:43:42) running on Duet WiFi 1.02 or later\\n"}\n{"seq":28812,"resp":"Board ID: 08DGM-9568A-F23SJ-6JTD0-3S46L-KVVVF\\n"}\n{"seq":28813,"resp":"Used output buffers: 3 of 26 (16 max)\\n"}\n'
+sent: M122
+recieved: b'{"seq":28900,"resp":"=== Diagnostics ===\\n"}\n{"seq":28901,"resp":"RepRapFirmware for Duet 2 WiFi/Ethernet version 3.5.4 (2024-11-24 10:43:42) running on Duet WiFi 1.02 or later\\n"}\n{"seq":28902,"resp":"Board ID: 08DGM-9568A-F23SJ-6JTD0-3S46L-KVVVF\\n"}\n{"seq":28903,"resp":"Used output buffers: 3 of 26 (16 max)\\n"}\n'
+etc..
 ```
 * You should see the displays showing 'left' and 'right' as appropriate; the NeoPixel shuld be cycling R->G->B, if you press the button you should see a message on REPL console.
-* The script sends [`M115`](https://docs.duet3d.com/User_manual/Reference/Gcodes#m115-get-firmware-version-and-capabilities) every second to the connected RRF machine; and then returns the output to the REPL console:
+* The script sends [`M115`](https://docs.duet3d.com/User_manual/Reference/Gcodes#m115-get-firmware-version-and-capabilities) every second to the connected RRF machine; and then returns the (JSON encoded) output to the REPL console:
 
 If you do not see any serial output the first thing to do is test (swap) the polarity of the RX and TX lines by reversing the connector on the PrintPY.
 * The second thing to test is that both the PrintPy and RRF controller have the baud rate configured properly.
 
 Once the test script is running you can try running 'printXIAO.py' directly from the IDE. You should now see everything running.
 ```
-TODO:
+printXIAO is starting
+UART initialised
+starting output
+connected to ObjectModel
+button present on: GPIO2
+PrintPY::printXIAO is running
+[519ms, 112000b] Up: 3d:12h:52:47 | Off | ip: 10.0.0.30
+[504ms, 112000b] Up: 3d:12h:52:48 | Off | ip: 10.0.0.30
+[505ms, 112000b] Up: 3d:12h:52:49 | Off | ip: 10.0.0.30
+etc..
 ```
+TODO: Explain about using 'machine.reset()' and the reset button.. also that device changes ACM0/1 etc.
 
-If you want to change screen brightnesses or timeouts look at the settings in the onfig file.
+If you want to change screen brightnesses or timeouts look at the settings in the config file.
 
-Once happy with operation enable running at boot time by editing the last four lines of the config as described in the comments. Then mount on your machine, close the case, and enjoy seeing your printers status at-a-glance.
+Once configured; enable running at boot time by editing the last four lines of the config as described in the comments. Then mount on your machine, close the case, and enjoy seeing your printers status at-a-glance.
 
 # Architecture
 `printXIAO.py` is the main program; it runs a continual loop that queries the RRF controller to fetch the current objectModel (machine state). It then calls two output class modules to display data from the objectModel:

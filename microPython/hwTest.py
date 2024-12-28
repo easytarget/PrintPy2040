@@ -5,9 +5,9 @@ from time import sleep_ms, ticks_ms
 # Import config
 try:
     from config import config
-except Exception as e:
-    print('Failed to find config; copy config-default.py to config.py, edit of necesscary and try again')
-    print(e)
+except ImportError as e:
+    print('Failed to find config!\ncopy config-default.py to config.py, edit of necesscary and try again')
+    print('ImportError: {}'.format(e))
     exit()
 
 '''
@@ -37,8 +37,10 @@ rrf.write('\n')
 rrf.flush()
 
 # hardware button
-def buttonPressed():
-    print('Button Pressed')
+def buttonPressed(t):
+    state = t.value()
+    if state == config.button_down: 
+        print('button: Pressed')
     sleep_ms(100)   # crude debounce
 
 if config.button is not None:
@@ -61,29 +63,32 @@ left.invert(config.display_invert)
 right.invert(config.display_invert)
 left.rotate(config.display_rotate)
 right.rotate(config.display_rotate)
-left.contrast(int(config.bright * 255))
-right.contrast(int(config.bright * 255))
+left.contrast(int(config.display_bright * 255))
+right.contrast(int(config.display_bright * 255))
 left.fill(0)
 right.fill(0)
 left.rect(0, 0, 128, 64, 1, False)
 right.rect(0, 0, 128, 64, 1, False)
-left.text(16, 48, 'Left')
-right.text(16, 48, 'Right')
+left.text('Left', 48, 26)
+right.text('Right', 48, 28)
 left.show()
 right.show()
 left.poweron()
 right.poweron()
 
-rgb = (0, 255, 0)
+cmd = 'M122\n'
+rgb = (255, 0, 0)
 # Now read+print from the UART while flashing the neopixel
 # (and taking interrupts from the button)
 while True:
-    end = ticks_ms() + 1000
-    rrf.send('M122\n')
+    end = ticks_ms() + 2500
+    rrf.write(cmd)
+    print('sent: {}'.format(cmd.strip()))
     pixel[0] = rgb
     pixel.write()
-    rgb = (rgb[2],rgb[0],rgbs[1])
-    # wait for a second showing anything incoming on UART
-    while ticks_ms < end:
-        print(rrf.read())
+    rgb = (rgb[2],rgb[0],rgb[1])
+    while ticks_ms() < end:
+        resp = rrf.read()
+        if resp is not None:
+            print('recieved: {}'.format(resp))
         sleep_ms(10)
