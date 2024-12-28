@@ -2,17 +2,18 @@
 PrintPY is coded in [MicroPython](https://micropython.org/); and is intended to be uploaded by the user from a suitable IDE (tested with Thonny, but ViperIDE is also nice for more experienced developers).
 
 * If this is new to you I suggest you start with the [XIAO2040 micropython guide](https://wiki.seeedstudio.com/XIAO-RP2040-with-MicroPython/) from SeeedStudio, and use [**Thonny**](https://thonny.org/) as an IDE.
+ * You do not need to know Python programming, updating the firmware is drag-n-drop in your file manager, the IDE's are easy to use.
 * [**Viper IDE**](https://viper-ide.org/) is also excellent; it runs from the web directly in your web browser without needing to be 'installed'.
 
-As with the Hardware document assuming you can 3d Print, solder and read a wiring diagram, this document assumes you can set up and connect to your device with MicroPython without needing step-by-step instructions; the guides above, plus many more available online, will show you what you need.
+Just as the Hardware document assumes you can 3d Print, solder and read a wiring diagram; this document assumes you can follow the guides, set up and connect to your device without needing super detailed instructions here; the guide above will show you what you need.
 
 # RRF config:
-You need to set up the Comms port on your printer correctly to 'no CRC/checksum, 230400 baud'.
+You need to set up the second serial (UART) port on your printer to 'no CRC/checksum, 230400 baud'.
 * For testing you can use the console to send:
 * `M575 P1 B230400 S0`
-* For a Duet2 or 3 machine using the default (panelDue) serial (UART) interface your `config.g` needs to include ths line:
-* This can normally go after the USB port setting (*M575 P0 ....*) line.
-* Later Duet models have additional UART ports that could be used; you will need to adjust ['M575'](https://docs.duet3d.com/User_manual/Reference/Gcodes#m575-set-serial-comms-parameters) as necesscary for them.
+* For a Duet2 or 3 machine using the default (panelDue) UART interface your `config.g` needs to include that line.
+  * This can normally go after the USB port setting (*M575 P0 ....*) line.
+  * Later Duet models have additional UART ports that could be used; you will need to adjust ['M575'](https://docs.duet3d.com/User_manual/Reference/Gcodes#m575-set-serial-comms-parameters) as necesscary for them.
 * Do not change the `S0` parameter; PrintPY is not compatible with CRC or Checksumming.
 
 # RP2040 MicroPython Firmware:
@@ -20,15 +21,15 @@ Hold the 'boot' button on the XIAO board while connecting it to a USB port on yo
 * Flash with the Firmware `.uf2` file in the 'Firmware' folder by dragging and dropping that onto the XIAO drive. The XIAO will pause for a few seconds ingesting the file, then reboot.
   * ..or you can use a later firmware from the main MicroPython site
   * the version in this repo is the Firmware I have tested with
-* After sucessfully flashing you should be sitting at the REPL console of the device in your environement; eg:
+* After sucessfully flashing you should see the REPL console of the device in your IDE:
 ```python
   MicroPython v1.24.0 on 2024-10-25; Raspberry Pi Pico with RP2040
   Type "help()" for more information.
   >>> 
 ```
 # Installing:
-Upload all the `.py` files from this directory onto the root folder of your device in the IDE; and the whole fonts directory as 'fonts'.
-* The 'Firmware' folder should not be copied; the README does not need copying euther.
+Upload all the `.py` files from this directory onto the root folder of your device in the IDE; also copy the fonts directory to 'fonts'.
+* The 'Firmware' folder should not be copied; nor does the README.
 
 ## Initial Configuration:
 Copy `config-default.py` to `config.py` on the device.
@@ -37,8 +38,8 @@ Copy `config-default.py` to `config.py` on the device.
 
 # Test Hardware:
 *Note: The hardware test script will read its configuration from the config file we created above.*
-* Run `hwTest.py` omn the device:
-```python
+* Run `hwTest.py`:
+```console
 Testing printXIAO comms, screen, pixel and button
 UART initialised
 Button present on: GPIO2
