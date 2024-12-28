@@ -1,8 +1,10 @@
 # Micropython code
 PrintPY is coded in [MicroPython](https://micropython.org/); and is intended to be uploaded by the user from a suitable IDE (tested with Thonny, but ViperIDE is also nice for more experienced developers).
 
-As with the Hardware document assuming you can 3d Print, solder and read a wiring diagram, this document assumes you can set up and connect to your device with MicroPython without needing step-by-step instructions.
 * If this is new to you I suggest you start with the [XIAO2040 micropython guide](https://wiki.seeedstudio.com/XIAO-RP2040-with-MicroPython/) from SeeedStudio, and use [**Thonny**](https://thonny.org/) as an IDE.
+* [**Viper IDE**](https://viper-ide.org/) is also excellent; it runs from the web directly in your web browser without needing to be 'installed'.
+
+As with the Hardware document assuming you can 3d Print, solder and read a wiring diagram, this document assumes you can set up and connect to your device with MicroPython without needing step-by-step instructions; the guides above, plus many more available online, will show you what you need.
 
 # RRF config:
 You need to set up the Comms port on your printer correctly to 'no CRC/checksum, 230400 baud'.
@@ -25,7 +27,7 @@ Start your micropython environment (Thonny, Viper, etc..) and connect to the XIA
   >>> 
 ```
 # Installing:
-Upload the whole of this folder ('micropython') onto the root of your device; and ('micropython/fonts') as a folder on the device.
+Upload all the `.py` files from this directory onto the root folder of your device in the IDE; and the whole fonts directory as 'fonts'.
 * The 'Firmware' folder should not be copied; the README does not need copying euther.
 
 ## Initial Configuration:
@@ -34,7 +36,7 @@ Copy `config-default.py` to 'config.py` on the device.
 * See the [config](#Config) section below for more.
 
 # Test Hardware:
-*Note: The hardware test script reads its configuration from the config file above.*
+*Note: The hardware test script will read its configuration from the config file we created above.*
 * Run `hwTest.py` omn the device:
 ```python
 Testing printXIAO comms, screen, pixel and button
@@ -48,14 +50,14 @@ recieved: b'{"seq":28810,"resp":"=== Diagnostics ===\\n"}\n{"seq":28811,"resp":"
 sent: M122
 ..etc..
 ```
-* You should see the OLED displays outlined and showing 'left' and 'right' as appropriate; the NeoPixel shuld be cycling R->G->B, if you press the button you should see a message on REPL console.
-* The script sends [`M115`](https://docs.duet3d.com/User_manual/Reference/Gcodes#m115-get-firmware-version-and-capabilities) every second to the connected RRF machine; and then returns the (JSON encoded) output to the REPL console:
+* You should see the OLED displays outlined and showing 'left' and 'right' as appropriate; the NeoPixel shuld be cycling R->G->B, if you press the button you should see a 'button: pressed' message on the REPL console.
+* The script sends [`M115`](https://docs.duet3d.com/User_manual/Reference/Gcodes#m115-get-firmware-version-and-capabilities) every few seconds to the connected RRF machine; and then returns the (JSON encoded) output to the REPL console:
 
 If you do not see any serial output the first thing to do is test (swap) the polarity of the RX and TX lines by reversing the connector on the PrintPY.
 * The second thing to test is that both the PrintPy and RRF controller have the baud rate configured properly.
 
 # Commissioning:
-Once the test script is running correctly you can try running 'printXIAO.py' directly from the IDE. You should now see everything running, with a brief splash-screen and then the current printer status displayed. On the console you should see:
+Once the test script is running correctly you can try running `printXIAO.py` directly from REPL. You should now see everything running, with a brief splash-screen and then the current printer status displayed. On the console you should see:
 ```
 printXIAO is starting
 UART initialised
@@ -78,10 +80,10 @@ The Neopixel will be flashing with the printer 'mood', the heartbeat LED should 
 ## Dealing with multi-thread reset errors on the RP2040!
 This is annoying; the RP2040 micropython port does not handle multi-cpu systems properly when they have threads running on the second CPU. 
 
-*Important:* Once the main printXIAO code is running you can interrupt the main loop by pressing **ctrl-c** in the REPL console, but this fails to fully 'soft reset' the board. 
-1) Crtl-c' in the repl console should be followed immediately by running 'micropython.reset()' to fully reset the hardware.
-3) Press the reset button on the XIAO board (it's tiny and hard to access, especially once the wiring is done, use a small non-conductive plastic rod to do this)
-4) Force the reset by unplugging it completely from the printer and usb-c.
+*Once the main printXIAO code is running you can interrupt the main loop by pressing **ctrl-c** in the REPL console, but this fails to fully 'soft reset' the board.*
+1) *Crtl-c' in the repl console should be followed immediately by running 'micropython.reset()' to fully reset the hardware.*
+2) *Press the reset button on the XIAO board (it's tiny and hard to access, especially once the wiring is done, use a small non-conductive plastic rod to do this)*
+3) *Force the reset by unplugging it completely from the printer and usb-c.*
 
 *If you do not do this there is a high chance the board will quickly stop responding to REPL commands; it gets into some sort of bad USB state. This plagued me during the last stages of development.*
 
