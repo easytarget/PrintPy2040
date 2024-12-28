@@ -1,7 +1,7 @@
 # Micropython code
-PrintPY is coded in micropython; and is intended to be uploaded by the user from a suitable IDE (tested with Thonny, but ViperIDE is also nice for more experienced developers).
+PrintPY is coded in [MicroPython](https://micropython.org/); and is intended to be uploaded by the user from a suitable IDE (tested with Thonny, but ViperIDE is also nice for more experienced developers).
 
-As with the Hardware document assuming you can 3d Print, solder and read a wiring diagran, this document assumes you can set up and connect to your device with MicroPython without needing step-by-step instructions.
+As with the Hardware document assuming you can 3d Print, solder and read a wiring diagram, this document assumes you can set up and connect to your device with MicroPython without needing step-by-step instructions.
 * If this is new to you I suggest you start with the [XIAO2040 micropython guide](https://wiki.seeedstudio.com/XIAO-RP2040-with-MicroPython/) from SeeedStudio, and use [**Thonny**](https://thonny.org/) as an IDE.
 
 # RRF config:
@@ -18,17 +18,15 @@ Start your micropython environment (Thonny, Viper, etc..) and connect to the XIA
 * Flash with the Firmware in the 'Firmware' folder.
   * ..or a later firmware from the main MicroPython site
   * the version in this repo is the Firmware I have tested with
-* You want to be sitting at the REPL console in your environement; eg:
+* After sucessfully flashing you should be sitting at the REPL console of the device in your environement; eg:
 ```python
   MicroPython v1.24.0 on 2024-10-25; Raspberry Pi Pico with RP2040
   Type "help()" for more information.
   >>> 
 ```
 # Installing:
-Upload the whole of this folder ('micropython') and ('micropython/fonts') onto the root of your device.
-* The 'Firmware' folder should not be copied; it just contains the latest reference firmware;
-  * This is the firmware I am using and have tested with, from the main download site.
-  * There is no 'precompiled firmware' available for PrintPy2040.
+Upload the whole of this folder ('micropython') onto the root of your device; and ('micropython/fonts') as a folder on the device.
+* The 'Firmware' folder should not be copied; the README does not need copying euther.
 
 ## Initial Configuration:
 Copy `config-default.py` to 'config.py` on the device.
@@ -77,9 +75,20 @@ The (default configured) status lines show:
 
 The Neopixel will be flashing with the printer 'mood', the heartbeat LED should be cycling as requests are sent.
 
-TODO: Explain about using 'machine.reset()' and the reset button.. also that device changes ACM0/1 etc.
+## Dealing with multi-thread reset errors on the RP2040!
+This is annoying; the RP2040 micropython port does not handle multi-cpu systems properly when they have threads running on the second CPU. 
 
+*Important:* Once the main printXIAO code is running you can interrupt the main loop by pressing **ctrl-c** in the REPL console, but this fails to fully 'soft reset' the board. 
+1) Crtl-c' in the repl console should be followed immediately by running 'micropython.reset()' to fully reset the hardware.
+3) Press the reset button on the XIAO board (it's tiny and hard to access, especially once the wiring is done, use a small non-conductive plastic rod to do this)
+4) Force the reset by unplugging it completely from the printer and usb-c.
+
+*If you do not do this there is a high chance the board will quickly stop responding to REPL commands; it gets into some sort of bad USB state. This plagued me during the last stages of development.*
+
+# AutoStart at boot
 Once configured; enable running at boot time by editing the last four lines of the config as described in the comments. Then mount on your machine, close the case, and enjoy seeing your printers status at-a-glance.
+
+Once Autostart is enabled the multi-thread errors discussed above are more serious since the code is starting automatically after you reset it. The solution is pressing **ctrl-c** quickly after the reset/reboot, before the main code loop starts. This is why there is a startup countdown, to give console users a chance to interrupt the code *before* the second CPU thread starts.
 
 # Architecture
 `printXIAO.py` is the main program; it runs a continual loop that queries the RRF controller to fetch the current objectModel (machine state). It then calls two output class modules to display data from the objectModel:
