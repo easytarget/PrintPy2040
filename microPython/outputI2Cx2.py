@@ -1,4 +1,4 @@
-from time import sleep_ms,ticks_ms,ticks_diff
+from time import sleep_ms, ticks_ms, ticks_diff
 from ssd1306 import SSD1306_I2C
 from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
@@ -85,7 +85,7 @@ class outputRRF:
         self._panels_updated = False
         self._show_decimal = {}
         self._fail_count = 0
-        self._off_time = ticks_ms() + config.off_time
+        self._off_timer = ticks_ms() config.off_time
         self._notify = False
         # Init hardware
         self._initDisplays()
@@ -211,7 +211,7 @@ class outputRRF:
     def _awakeOnOff(self):
         if not self._OM['state']["status"] in config.off_states:
             self.awake()
-        if ticks_ms() < self._off_time:
+        if ticks_diff(ticks_ms(), self._off_timer) < :
             self.on()
         else:
             self.off()

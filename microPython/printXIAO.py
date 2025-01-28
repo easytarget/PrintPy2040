@@ -35,7 +35,7 @@ def buttonPressed(_p):
     # - we check for a long button press in the main loop.
     global button_time     # we are in an interrupt, context is everything..
     if config.button_long > 0:
-        button_time = ticks_ms() + config.button_long
+        button_time = ticks_ms()
     out.awake(config.button_awake)
 
 def networkToggle():
@@ -152,7 +152,7 @@ if not out.running:
     hardFail('Failed to start output device')
 out.splash()
 out.on()
-splashend = ticks_ms() + config.splash_time
+splashstart = ticks_ms()
 
 # Now that the display is running we read+discard from the UART until it stays empty
 while rrf.any():
@@ -187,7 +187,7 @@ blink(mood.emote(OM.model, config.net))
 out.updatePanels(OM.model)
 
 # pause for splash timeout
-while ticks_ms() < splashend:
+while ticks_diff(ticks_ms(), splashstart) < config.splash_time:
     sleep_ms(25)
 
 pp('PrintPY::printXIAO is running')
@@ -231,7 +231,7 @@ while True:
         outputText = out.updatePanels(OM.model)
         collect()
         if config.stats:
-            om_time = om_end - om_start
+            om_time = ticks_diff(om_end, om_start)
             stats = '[{}ms, {}b] '.format(om_time, str(mem_free()))
             outputText = stats + outputText
         if config.info:
@@ -245,11 +245,11 @@ while True:
     # check output is running and restart if not
     if not out.running:
         restartNow('Output device has failed','Output\nFailing')
-    # Request cycle ended, wait for next
+    # Request cycle ended, wait for next whilst checking for long button press
     while ticks_diff(ticks_ms(),begin) < config.update_time:
         if button_time is not None:
             if button.value() == config.button_down:
-                if (ticks_ms() > button_time) and (config.net is not None):
+                if (ticks_diff(ticks_ms(), button_time) > config.button_long) and (config.net is not None):
                     button_time = None
                     networkToggle()
             else:

@@ -1,6 +1,6 @@
 # The microPython standard libs
 from sys import exit
-from time import sleep_ms, ticks_ms
+from time import sleep_ms, ticks_ms, ticks_diff
 
 # Import config
 try:
@@ -39,7 +39,7 @@ rrf.flush()
 # hardware button
 def buttonPressed(t):
     state = t.value()
-    if state == config.button_down: 
+    if state == config.button_down:
         print('button: Pressed')
     sleep_ms(100)   # crude debounce
 
@@ -81,13 +81,13 @@ rgb = (255, 0, 0)
 # Now read+print from the UART while flashing the neopixel
 # (and taking interrupts from the button)
 while True:
-    end = ticks_ms() + 2500
+    start = ticks_ms()
     rrf.write(cmd)
     print('sent: {}'.format(cmd.strip()))
     pixel[0] = rgb
     pixel.write()
     rgb = (rgb[2],rgb[0],rgb[1])
-    while ticks_ms() < end:
+    while ticks_diff(ticks_ms(), start) < 2500:
         resp = rrf.read()
         if resp is not None:
             print('recieved: {}'.format(resp))
