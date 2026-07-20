@@ -88,7 +88,7 @@ while True:
     pixel.write()
     rgb = (rgb[2],rgb[0],rgb[1])
     while ticks_diff(ticks_ms(), start) < 2500:
-        resp = rrf.read()
-        if resp is not None:
-            print('recieved: {}'.format(resp))
+        response = rrf.read()
+        if response is not None:
+            print('recieved: {}'.format(response))
         sleep_ms(10)

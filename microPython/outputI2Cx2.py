@@ -85,7 +85,7 @@ class outputRRF:
         self._panels_updated = False
         self._show_decimal = {}
         self._fail_count = 0
-        self._off_timer = ticks_ms() config.off_time
+        self._off_time = ticks_ms() + config.off_time
         self._notify = False
         # Init hardware
         self._initDisplays()
@@ -211,7 +211,7 @@ class outputRRF:
     def _awakeOnOff(self):
         if not self._OM['state']["status"] in config.off_states:
             self.awake()
-        if ticks_diff(ticks_ms(), self._off_timer) < :
+        if ticks_diff(ticks_ms(), self._off_time) < 0:
             self.on()
         else:
             self.off()
