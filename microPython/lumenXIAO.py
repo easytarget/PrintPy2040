@@ -1,6 +1,7 @@
 from machine import Timer
 from neopixel import NeoPixel
 from config import config
+from gc import collect
 
 '''
     Lumen (LED Indicator) for the Seeedstudio XIAO RP2040
@@ -56,6 +57,8 @@ class lumen:
                           int(neo[1]*bright),
                           int(neo[2]*bright))
         self._pixel.write()
+        # neopixel driver seems to bleed memory. sigh.
+        collect()
         if auto:
             self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
 
