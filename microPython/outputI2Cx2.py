@@ -4,7 +4,6 @@ from framebuf import FrameBuffer, MONO_VLSB
 from sys import path
 from config import config
 import _thread
-from gc import collect
 # fonts
 path.append('fonts')
 from ezFBfont import ezFBfont
@@ -458,7 +457,6 @@ class outputRRF:
                 panelhalf(name, icon, target, val, dec, display, True)
             elif position == 'lower':
                 panelhalf(name, icon, target, val, dec, display, False)
-            collect()
 
         def panelfull(name, icon, target, val, dec, panel_fonts):
                 # Full panel heater display

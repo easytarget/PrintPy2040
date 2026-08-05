@@ -227,12 +227,13 @@ while True:
     if have_data:
         fail_count = 0
         blink(mood.emote(OM.model, config.net))
-        # pass the results to the output module and collect status line
+        # pass the results to the output module and recieve status line
         outputText = out.updatePanels(OM.model)
+        # cleanup after output (display) loop
         collect()
         if config.stats:
             om_time = ticks_diff(om_end, om_start)
-            stats = '[{}ms, {}b] '.format(om_time, str(mem_free()))
+            stats = '[{} ms, {} b] '.format(om_time, str(mem_free()))
             outputText = stats + outputText
         if config.info:
             print('{}'.format(outputText.strip()))
@@ -242,9 +243,9 @@ while True:
         pp('failed to fetch ObjectModel data, #{}'.format(fail_count))
         if fail_count >= config.fail_count:
             out.updateFail(fail_count)
-    # check output is running and restart if not
+    # check output (display) is running, and restart if not
     if not out.running:
-        restartNow('Output device has failed','Output\nFailing')
+        restartNow('Output (display) device has failed','Output\nFailing')
     # Request cycle ended, wait for next whilst checking for long button press
     while ticks_diff(ticks_ms(),begin) < config.update_time:
         if button_time is not None:
