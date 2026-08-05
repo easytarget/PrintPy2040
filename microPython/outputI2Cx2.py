@@ -269,6 +269,7 @@ class outputRRF:
             while ticks_ms() < nextFrame:
                 sleep_ms(1)
         self.running = False
+        self.showError('Main Loop\nExited', 'Display\nStopped')
         print('Animator exiting due to watchdog')
 
     def animator(self):
