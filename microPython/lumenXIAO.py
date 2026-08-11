@@ -37,6 +37,7 @@ class lumen:
         self._pixel = NeoPixel(config.pixel_pin,1)  # data pin
         self._pixel[0]=(0,0,0)
         self._pixel.write()
+        collect()
 
     def blink(self, mood, dim=False, auto=True):
         '''
@@ -48,6 +49,7 @@ class lumen:
             # called by timer
             self._pixel[0] = (0,0,0)
             self._pixel.write()
+            collect()
 
         if mood is None:
             return
@@ -57,7 +59,6 @@ class lumen:
                           int(neo[1]*bright),
                           int(neo[2]*bright))
         self._pixel.write()
-        # neopixel driver seems to bleed memory. sigh.
         collect()
         if auto:
             self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
