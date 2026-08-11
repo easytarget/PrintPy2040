@@ -26,10 +26,6 @@ def pp(*args, **kwargs):
     if config.verbose:
         print(*args, **kwargs)
 
-def blink(state, auto=True):
-    if config.mood:
-        mood.blink(state, out.standby, auto)
-
 def buttonPressed(_p):
     # ISR: Any button activity triggers this; does not need debouncing.
     # - we check for a long button press in the main loop.
@@ -181,7 +177,8 @@ if config.button is not None:
     pp('button present on:',repr(button).split('(')[1].split(',')[0])
 
 # Show initial mood
-blink(mood.emote(OM.model, config.net))
+if config.mood:
+    mood.blink(mood.emote(OM.model, config.net), out.standby, True)
 
 # Put initial data into panels
 out.updatePanels(OM.model)
@@ -226,7 +223,8 @@ while True:
     # output the results if successful
     if have_data:
         fail_count = 0
-        blink(mood.emote(OM.model, config.net))
+        if config.mood:
+            mood.blink(mood.emote(OM.model, config.net), out.standby, True)
         # pass the results to the output module and recieve status line
         outputText = out.updatePanels(OM.model)
         # cleanup after output (display) loop
