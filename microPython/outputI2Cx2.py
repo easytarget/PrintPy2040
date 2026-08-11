@@ -78,13 +78,13 @@ class outputRRF:
         # internals
         self._OM = None
         self.running = False
-        self.watchdog = ticks_ms() + 10000
+        self.watchdog = ticks_ms()
         self._state = ''
         self._message = ''
         self._panels_updated = False
         self._show_decimal = {}
         self._fail_count = 0
-        self._off_time = ticks_ms() + config.off_time
+        self._off_timer = ticks_ms()
         self._notify = False
         # Init hardware
         self._initDisplays()
@@ -210,10 +210,11 @@ class outputRRF:
     def _awakeOnOff(self):
         if not self._OM['state']["status"] in config.off_states:
             self.awake()
-        if ticks_diff(ticks_ms(), self._off_time) < 0:
+        if ticks_diff(ticks_ms(), self._sleep_time) < 0:
             self.on()
         else:
             self.off()
+            self._sleep_time = ticks_ms()
 
     def _runMarquee(self):
         def panels():
@@ -233,11 +234,14 @@ class outputRRF:
                 - Follows the contents of self._status_string
                 - Step animates the status and message marquee
             '''
+            # wake display and set string when it changes
             if self._marquee.string != self._status_string:
                 self.awake()
                 self._marquee.start(self._status_string)
-            if self._marquee.step(config.marquee_step):
-                self._marquee.pause(config.marquee_pause)
+            # Step the marquee
+            self._marquee.pause(config.marquee_pause)
+            #if self._marquee.step(config.marquee_step):       ?? is pause effect needed?
+            #    self._marquee.pause(config.marquee_pause)
 
         def notify():
             '''
@@ -256,16 +260,17 @@ class outputRRF:
         '''
             Runs continually on the second CPU core; handles the marquee and
             notifications.
-            Has a watchdog to ensure it dies after the main thread.
+            There is a watchdog to ensure it dies if the main thread does not
+            bump the instance.watchdog value correctly
         '''
-        while self.watchdog > ticks_ms():
-            nextFrame = ticks_ms() + config.animation_interval
+        while ticks_diff(self.watchdog, ticks_ms()) < config.display_watchdog:
+            lastFrame = ticks_ms()
             with self._display_lock:
                 panels()
                 frame()
                 self._show()
                 notify()
-            while ticks_ms() < nextFrame:
+            while ticks_diff(lastFrame, ticks_ms()) < config.animation_interval:
                 sleep_ms(1)
         self.running = False
         self.showError('Main Loop\nExited', 'Display\nStopped')
@@ -284,8 +289,9 @@ class outputRRF:
             self._swipeOff()
             self.standby = True
 
-    def awake(self, ontime=config.off_time):
-        self._off_time = max(self._off_time, ticks_ms() + ontime)
+    def awake(self, awake=config.off_time):
+        self._sleep_time = max(self._sleep_time, ticks_ms() + awake)
+        print('DEBUG: awake={}, _sleep_time={}'.format(awake,self._sleep_time))  ###########################
 
     def alert(self):
         # Request a notification 'flash' from the marquee animation loop

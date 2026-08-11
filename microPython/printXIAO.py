@@ -222,7 +222,7 @@ while True:
     om_end = ticks_ms()
     collect()
     # bump the marquee thread watchdog
-    out.watchdog = ticks_ms() + (3 * config.update_time)
+    out.watchdog = ticks_ms()
     # output the results if successful
     if have_data:
         fail_count = 0
