@@ -218,6 +218,12 @@ class outputRRF:
             self.off()
 
     def _runMarquee(self):
+        '''
+            Runs continually on the second CPU core; handles the marquee and
+            notifications.
+            There is a watchdog to ensure it dies if the main thread does not
+            bump the instance.watchdog value correctly
+        '''
         def panels():
             '''
                 Run by the animation loop (in a seperate thread on second CPU)
@@ -258,12 +264,6 @@ class outputRRF:
                 self._right.invert(config.display_invert)
 
         # Start the animation loop
-        '''
-            Runs continually on the second CPU core; handles the marquee and
-            notifications.
-            There is a watchdog to ensure it dies if the main thread does not
-            bump the instance.watchdog value correctly
-        '''
         while ticks_diff(ticks_ms(), self.watchdog) < config.display_watchdog:
             lastFrame = ticks_ms()
             with self._display_lock:
@@ -278,6 +278,7 @@ class outputRRF:
         print('Animator exiting due to watchdog')
 
     def animator(self):
+        # Starts the main animator thread
         return _thread.start_new_thread(self._runMarquee, ())
 
     def on(self, force = False):
