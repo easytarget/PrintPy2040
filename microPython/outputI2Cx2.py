@@ -210,11 +210,12 @@ class outputRRF:
     def _awakeOnOff(self):
         if not self._OM['state']["status"] in config.off_states:
             self.awake()
+        else:
+            self.awake(0)
         if ticks_diff(ticks_ms(), self._sleep_time) < 0:
             self.on()
         else:
             self.off()
-            self._sleep_time = ticks_ms()
 
     def _runMarquee(self):
         def panels():
@@ -263,14 +264,14 @@ class outputRRF:
             There is a watchdog to ensure it dies if the main thread does not
             bump the instance.watchdog value correctly
         '''
-        while ticks_diff(self.watchdog, ticks_ms()) < config.display_watchdog:
+        while ticks_diff(ticks_ms(), self.watchdog) < config.display_watchdog:
             lastFrame = ticks_ms()
             with self._display_lock:
                 panels()
                 status()
                 self._show()
                 notify()
-            while ticks_diff(lastFrame, ticks_ms()) < config.animation_interval:
+            while ticks_diff(ticks_ms(), lastFrame) < config.animation_interval:
                 sleep_ms(1)
         self.running = False
         self.showError('Main Loop\nExited', 'Display\nStopped')
@@ -292,7 +293,6 @@ class outputRRF:
     def awake(self, awake=config.off_time):
         # allow the sleep time to be extended (eg button press)
         self._sleep_time = max(self._sleep_time, ticks_ms() + awake)
-        print('DEBUG: awake={}, _sleep_time={}'.format(awake,self._sleep_time))  ###########################
 
     def alert(self):
         # Request a notification 'flash' from the marquee animation loop
@@ -327,7 +327,7 @@ class outputRRF:
         # Turn screen on when first called
         if count == config.fail_count:
             self._clean()
-            self.awake(config.long_awake)        # ?????????????
+            self.awake(config.long_awake)
         self._awakeOnOff()
 
     def updatePanels(self, model):
