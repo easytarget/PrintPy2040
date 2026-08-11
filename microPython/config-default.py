@@ -128,10 +128,13 @@ class config():
         animation_interval: (int) Display animation interval, ms
         marquee_step:       (int) Number of pixels moved for each marquee step
         marquee_pause:      (int) Number of step cycles to pause for when scrolling long text
+        display_watchdog:   (int) If the main loop stops (eg error/crash) for longer than this;
+                                  kill the animator thread, ms
     '''
     animation_interval = 100
     marquee_step       = 3
     marquee_pause      = 8
+    display_watchdog   = 10000
 
     '''
         Console output Options:
