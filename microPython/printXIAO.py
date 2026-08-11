@@ -60,7 +60,8 @@ def restartNow(why, message='PrintPY\nerror'):
     # killAll() <- not needed..
     for c in range(config.reboot_delay,0,-1):
         pp(c,end=' ')
-        blink('err', auto=False)
+        if config.mood:
+            mood.blink('err', out.standby, False)
         out.showError(message, 'Restarting\nin: {}s'.format(c))
         sleep_ms(1000)
     pp()
@@ -237,7 +238,8 @@ while True:
             print('{}'.format(outputText.strip()))
     else:
         fail_count += 1
-        blink('err')
+        if config.mood:
+            mood.blink('err', out.standby, True)
         pp('failed to fetch ObjectModel data, #{}'.format(fail_count))
         if fail_count >= config.fail_count:
             out.updateFail(fail_count)
