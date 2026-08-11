@@ -84,7 +84,7 @@ class outputRRF:
         self._panels_updated = False
         self._show_decimal = {}
         self._fail_count = 0
-        self._off_timer = ticks_ms()
+        self._sleep_time = ticks_ms() + config.off_time
         self._notify = False
         # Init hardware
         self._initDisplays()
@@ -228,7 +228,7 @@ class outputRRF:
                 self._right.blit(self._tpanel,0,0)
                 self._panels_updated = False
 
-        def frame():
+        def status():
             '''
                 Run by animator loop
                 - Follows the contents of self._status_string
@@ -239,8 +239,8 @@ class outputRRF:
                 self.awake()
                 self._marquee.start(self._status_string)
             # Step the marquee
-            self._marquee.pause(config.marquee_pause)
-            #if self._marquee.step(config.marquee_step):       ?? is pause effect needed?
+            self._marquee.step(config.marquee_step)
+            #if self._marquee.step(config.marquee_step):       ?? TEST: is pause effect needed, opinion ??
             #    self._marquee.pause(config.marquee_pause)
 
         def notify():
@@ -267,7 +267,7 @@ class outputRRF:
             lastFrame = ticks_ms()
             with self._display_lock:
                 panels()
-                frame()
+                status()
                 self._show()
                 notify()
             while ticks_diff(lastFrame, ticks_ms()) < config.animation_interval:
@@ -290,6 +290,7 @@ class outputRRF:
             self.standby = True
 
     def awake(self, awake=config.off_time):
+        # allow the sleep time to be extended (eg button press)
         self._sleep_time = max(self._sleep_time, ticks_ms() + awake)
         print('DEBUG: awake={}, _sleep_time={}'.format(awake,self._sleep_time))  ###########################
 
@@ -359,7 +360,7 @@ class outputRRF:
         self._cleanPanels()
         # Construct panels and the results string
         r = 'Up: {}'.format(self._dhms(self._OM['state']["upTime"]))
-        r += self._putStatus()
+        r += self._getStatus()
         if self._state in ['Halted','Updating','Starting']:
             return r   # Nothing to output, model may be incomplete
         r += self._putJob()
@@ -375,7 +376,7 @@ class outputRRF:
         # return the console text line
         return r + m
 
-    def _putStatus(self):
+    def _getStatus(self):
         state = self._OM['state']["status"]
         self._state = state[0].upper() + state[1:]
         return ' | {}'.format(self._state)
