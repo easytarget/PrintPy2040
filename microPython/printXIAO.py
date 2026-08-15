@@ -4,19 +4,24 @@ from outputI2Cx2 import outputRRF
 from lumenXIAO import lumen
 from heartbeatXIAO import heartbeat
 from config import config
+
 # The microPython standard libs
 from sys import exit
 from gc import collect, mem_free
 from machine import reset
-from time import sleep_ms, ticks_ms, ticks_us, ticks_diff, localtime
+from time import sleep_ms, ticks_us, ticks_diff, ticks_add, localtime
+
+# timers are in microseconds
+TIMESCALE = 1000000  # == 1 second
 
 '''
     PrintMPy is a serialOM.py loop for MicroPython devices.
 '''
 
 # Placeholder objects for timers and IRQ's; declared here so
-# that we can safely test for and disable as needed whyenever we exit.
+# that we can safely test for and disable as needed whenever we exit.
 button = None
+button_time = None
 animator_thread = None
 mood = None
 heart = None
@@ -29,10 +34,20 @@ def pp(*args, **kwargs):
 def buttonPressed(_p):
     # ISR: Any button activity triggers this; does not need debouncing.
     # - we check for a long button press in the main loop.
-    global button_time     # we are in an interrupt, context is everything..
+    #global button_time     # we are in an interrupt, bring this into context
     if config.button_long > 0:
-        button_time = ticks_ms()
-    out.awake(config.button_awake)
+        button_time = ticks_add(ticks_us(), int(config.button_long * TIMESCALE))
+    out.awake(int(config.long_awake * TIMESCALE))
+
+def buttonLong():
+    # has the button been long-pressed?
+    if button_time is not None:
+        if button.value() == config.button_down:
+            if (ticks_diff(ticks_us(), button_time) > 0) and (config.net is not None):
+                button_time = None
+                networkToggle()
+        else:
+            button_time = None
 
 def networkToggle():
     if OM.model is None:
@@ -57,7 +72,6 @@ def restartNow(why, message='PrintPY\nerror'):
     # - really unlikely to get called otherwise..
     pp('Error: ' + why)
     pp('Restarting in ',end='')
-    # killAll() <- not needed..
     for c in range(config.reboot_delay,0,-1):
         pp(c,end=' ')
         if config.mood:
@@ -66,7 +80,7 @@ def restartNow(why, message='PrintPY\nerror'):
         sleep_ms(1000)
     pp()
     out.off()
-    if config.debug < 0:
+    if config.debug is not None:
         print('Debug mode: exiting to REPL')
         killAll()
         exit()
@@ -85,10 +99,11 @@ def killAll():
     # and notification LEDs. Useful when debugging.
     print('exit(): killing background')
     try:
+        out.watchdog = 0   # for completeness..
         # kill the animator thread
         animator_thread.exit()
     except:
-        pass  # dont care, we are exiting, it has a watchdog
+        pass  # dont care, we are exiting
     try:
         # Remove the button IRQ
         # (allegedly.. docs not really clear about this)
@@ -148,7 +163,7 @@ if not out.running:
     hardFail('Failed to start output device')
 out.splash()
 out.on()
-splashstart = ticks_ms()
+splashend = ticks_add(ticks_us(), int(config.splash_time * TIMESCALE))
 
 # Now that the display is running we read+discard from the UART until it stays empty
 while rrf.any():
@@ -180,11 +195,11 @@ if config.button is not None:
 if config.mood:
     mood.blink(mood.emote(OM.model, config.net), out.standby, True)
 
-# Put initial data into panels
+# Put initial data into panels (it wont be displayed until splash ends)
 out.updatePanels(OM.model)
 
 # pause for splash timeout
-while ticks_diff(ticks_ms(), splashstart) < config.splash_time:
+while ticks_diff(ticks_us(), splashend) < 0:
     sleep_ms(25)
 
 pp('PrintPY::printXIAO is running')
@@ -206,17 +221,17 @@ out.on()
 '''
 fail_count = 0
 while True:
-    begin = ticks_ms()
+    next_update = ticks_add(ticks_us(), int(config.update_time * TIMESCALE))
     # Do a OM update
     if config.heart:
         heart.beat(out.standby)
     have_data = False
-    om_start = ticks_ms()
+    om_start = ticks_us()
     try:
         have_data = OM.update()
     except Exception as e:
         restartNow('Error while fetching machine state\n' + str(e),'Communication\nError')
-    om_end = ticks_ms()
+    om_end = ticks_us()
     collect()
     # bump the marquee thread watchdog
     out.watchdog = ticks_us()
@@ -230,9 +245,9 @@ while True:
         # cleanup after output (display) loop
         collect()
         if config.stats:
-            om_time = ticks_diff(om_end, om_start)
+            om_time = int(ticks_diff(om_end, om_start) / 1000)    # report in ms
             stats = '[{} ms, {} b] '.format(om_time, str(mem_free()))
-            outputText = stats + outputText
+            outputText = '{:030b}'.format(ticks_us()) + stats + outputText           ############################
         if config.info:
             print('{}'.format(outputText.strip()))
     else:
@@ -245,13 +260,9 @@ while True:
     # check output (display) is running, and restart if not
     if not out.running:
         restartNow('Output (display) device has failed','Output\nFailing')
-    # Request cycle ended, wait for next whilst checking for long button press
-    while ticks_diff(ticks_ms(),begin) < config.update_time:
-        if button_time is not None:
-            if button.value() == config.button_down:
-                if (ticks_diff(ticks_ms(), button_time) > config.button_long) and (config.net is not None):
-                    button_time = None
-                    networkToggle()
-            else:
-                button_time = None
-        sleep_ms(1)
+    # is the button being long-pressed?
+    buttonLong()
+    ## Request cycle ended, wait for next whilst checking for long button press     ######################
+    while ticks_diff(ticks_us(), next_update) < 0:
+        buttonLong()
+        sleep_us(1000)
