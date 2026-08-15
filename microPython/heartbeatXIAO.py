@@ -1,4 +1,4 @@
-from machine import Timer, PWM
+from machine import PWM
 '''
     Heartbeat (RGB LED Indicator) for the Seeedstudio XIAO RP2040
 '''
