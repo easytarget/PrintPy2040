@@ -1,13 +1,16 @@
 from machine import Timer
 from neopixel import NeoPixel
 from config import config
-from gc import collect
+from time import sleep_ms
 
 '''
     Lumen (LED Indicator) for the Seeedstudio XIAO RP2040
     Drives the onboard NeoPixel with moods
     The additional RGB 'user' led is cycled RGB to indocate send events
 '''
+
+# Need to let Neopixel (bitstream) finish writing after setting to avoid timer/memory issues
+BITSTREAM_PAUSE = 5
 
 class lumen:
     def __init__(self, bright, standby, flash):
@@ -37,7 +40,7 @@ class lumen:
         self._pixel = NeoPixel(config.pixel_pin,1)  # data pin
         self._pixel[0]=(0,0,0)
         self._pixel.write()
-        collect()
+        sleep_ms(BITSTREAM_PAUSE)
 
     def blink(self, mood, dim=False, auto=True):
         '''
@@ -49,7 +52,8 @@ class lumen:
             # called by timer
             self._pixel[0] = (0,0,0)
             self._pixel.write()
-            collect()
+            sleep_ms(BITSTREAM_PAUSE)
+            t.deinit()
 
         if mood is None:
             return
@@ -59,7 +63,7 @@ class lumen:
                           int(neo[1]*bright),
                           int(neo[2]*bright))
         self._pixel.write()
-        collect()
+        sleep_ms(BITSTREAM_PAUSE)
         if auto:
             self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
 
@@ -96,6 +100,7 @@ class lumen:
         # Instant off
         self._pixel[0] = (0,0,0)
         self._pixel.write()
+        sleep_ms(BITSTREAM_PAUSE)
         try:
             self._timer.deinit()
         except:
