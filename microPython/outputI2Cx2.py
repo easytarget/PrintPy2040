@@ -83,7 +83,7 @@ class outputRRF:
         self._OM = None
         self.running = False
         self.watchdog = ticks_us()
-        self._sleep_delay = int(config.off_time * TIMESCALE)
+        self._sleep_delay = int(config.sleep_time * TIMESCALE)
         self._last_wakeup = ticks_us()
         self._state = ''
         self._message = ''
@@ -298,7 +298,7 @@ class outputRRF:
             self._swipeOff()
             self.standby = True
 
-    def awake(self, awake=config.off_time):
+    def awake(self, awake=config.sleep_time):
         # sets the delay until we go to sleep and notes when this was updated
         self._sleep_delay = max(self._sleep_delay, int(awake * TIMESCALE))
         self._last_wakeup = ticks_us()

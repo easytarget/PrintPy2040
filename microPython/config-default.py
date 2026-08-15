@@ -11,20 +11,18 @@ from machine import UART, Pin, I2C
 class config():
     '''
         UI:
-        button_long:  (int) long press time (ms) for WiFi toggle, 0 to disable
         off_states:   (list) states where the screen should turn off
                       - set to an empty list '[]' to keep permanently on
                       - set to '['off','idle']' to only turn on when active
-        off_time:     (int) screen standby off time (seconds)
-        button_awake: (int) keep screen awake this long after button press
-        long_awake:   (int) awake for longer when wifi or comms status changes
-        splash_time:  (int) splash screen time in seconds
+        sleep_time:   (float) screen standby off time (seconds)
+        long_awake:   (float) wakeup time when button is pressed or status changes
+        button_long:  (float) button long press time (seconds) for WiFi toggle, 0 to disable
+        splash_time:  (float) splash screen time in seconds
     '''
-    button_long  = 2 * 1000
     off_states   = ['off']
-    off_time     = 15
-    button_awake = off_time * 2
-    long_awake   = off_time * 4
+    sleep_time   = 15
+    long_awake   = sleep_time * 4
+    button_long  = 2.5
     splash_time  = 3
 
     '''
@@ -109,15 +107,13 @@ class config():
 
     '''
         Timing and timeout config:
-        Note: these values are good for the RP2040 version of printPY, I do
-          not recommend lowering the update interval. It currently takes
-          approx. 500ms to fetch and ingest the OM, then another 150ms to
-          update the display buffer.
-        update_time:  (int) Basic time interval between update cycles (ms)
+        Note: on the RP2040 version of printPY it currently takes approx. 500ms to fetch
+            and ingest the OM, then another 150ms to update the display buffer.
+        update_time:  (float) Minimum time interval between data update cycles (seconds)
         reboot_delay: (int) Countdown in seconds when auto-restarting/rebooting printPy
         fail_count:   (int) Number of failed update cycles before declaring comms fail
     '''
-    update_time  = 1000
+    update_time  = 0.33
     reboot_delay = 5
     fail_count   = 5
 
@@ -125,10 +121,10 @@ class config():
         Display animation:
         - These are tuned for the XIAO2040 + two I2C OLED's
         - Animation interval will cause lockups and races if too low.
-        animation_interval: (int) Display animation interval, seconds
+        animation_interval: (float) Display animation interval, seconds
         marquee_step:       (int) Number of pixels moved for each marquee step
         marquee_pause:      (int) Number of step cycles to pause before starting to scroll
-        display_watchdog:   (int) If the main loop stops (eg error/crash) for longer than this;
+        display_watchdog:   (float) If the main loop stops (eg error/crash) for longer than this;
                                   kill the animator thread, seconds
     '''
     animation_interval = 0.1
@@ -142,6 +138,7 @@ class config():
         - Turn off for production use
         debug:   (int)  if > 0 count down to start (so you can keyboard interrupt)
                         if 0 drop immediately to REPL (debug)
+                        if None start immediately
         info:    (bool) Show machine status lines in REPL console
         stats:   (bool) Show printPy fetch speed and memory stats when info=True
         verbose: (bool) Show init and serialOM comms info messages
@@ -151,14 +148,12 @@ class config():
     stats   = True
     verbose = True
     '''
+
     THE ABOVE DEFAULTS ARE FOR COMISSIONING:
 
     Once programmed and tested you should set debug
-    to '5' so that printpy starts after a 5 second countdown
-
-    The other options are less important but there is
-    no point in generating lots of REPL output outside
-    of testing and developing the code.
+    to '0' so that printpy starts immediately;
+    and disable repl logging
 
     debug   = 5
     info    = False
