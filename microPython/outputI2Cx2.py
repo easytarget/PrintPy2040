@@ -83,7 +83,7 @@ class outputRRF:
         self._OM = None
         self.running = False
         self.watchdog = ticks_us()
-        self._sleep_delay = config.off_time * TIMESCALE
+        self._sleep_delay = int(config.off_time * TIMESCALE)
         self._last_wakeup = ticks_us()
         self._state = ''
         self._message = ''
@@ -270,15 +270,16 @@ class outputRRF:
                 self._right.invert(config.display_invert)
 
         # Start the animation loop
-        while ticks_diff(ticks_us(), self.watchdog) < (config.display_watchdog * TIMESCALE):
+        while ticks_diff(ticks_us(), self.watchdog) < int(config.display_watchdog * TIMESCALE):
             lastFrame = ticks_us()
             with self._display_lock:
                 panels()
                 status()
                 self._show()
                 notify()
-            while ticks_diff(ticks_us(), lastFrame) < (config.animation_interval * TIMESCALE):
+            while ticks_diff(ticks_us(), lastFrame) < int(config.animation_interval * TIMESCALE):
                 sleep_ms(1)
+        # The loop exits if the watchdog timer is exceeded
         self.running = False
         self.showError('Main Loop\nExited', 'Display\nStopped')
         print('Animator exiting due to watchdog')
@@ -299,7 +300,7 @@ class outputRRF:
 
     def awake(self, awake=config.off_time):
         # sets the delay until we go to sleep and notes when this was updated
-        self._sleep_delay = max(self._sleep_delay, awake * TIMESCALE)
+        self._sleep_delay = max(self._sleep_delay, int(awake * TIMESCALE))
         self._last_wakeup = ticks_us()
 
     def alert(self):
