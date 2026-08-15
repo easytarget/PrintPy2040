@@ -1,10 +1,11 @@
-from time import sleep_ms, ticks_ms, ticks_diff
+from config import config
+from sys import path
+from time import sleep_ms, ticks_us, ticks_diff, ticks_add
+import _thread
+
+# Displays
 from ssd1306 import SSD1306_I2C
 from framebuf import FrameBuffer, MONO_VLSB
-from sys import path
-from config import config
-import _thread
-# fonts
 path.append('fonts')
 from ezFBfont import ezFBfont
 from ezFBmarquee import ezFBmarquee
@@ -17,6 +18,9 @@ import ezFBfont_spleen_8x16_num_12 as double_minor
 import ezFBfont_spleen_12x24_num_20 as single_minor
 import ezFBfont_spleen_16x32_time_20 as double_major
 import ezFBfont_spleen_32x64_time_40 as single_major
+
+# timers are in microseconds
+TIMESCALE = 1000000  # == 1 second
 
 # define some icon chars
 C_BOLT = chr(96)
@@ -78,13 +82,14 @@ class outputRRF:
         # internals
         self._OM = None
         self.running = False
-        self.watchdog = ticks_ms()
+        self.watchdog = ticks_us()
+        self._sleep_delay = config.off_time * TIMESCALE
+        self._last_wakeup = ticks_us()
         self._state = ''
         self._message = ''
         self._panels_updated = False
         self._show_decimal = {}
         self._fail_count = 0
-        self._sleep_time = ticks_ms() + config.off_time
         self._notify = False
         # Init hardware
         self._initDisplays()
@@ -210,12 +215,13 @@ class outputRRF:
     def _awakeOnOff(self):
         if not self._OM['state']["status"] in config.off_states:
             self.awake()
-        else:
-            self.awake(0)
-        if ticks_diff(ticks_ms(), self._sleep_time) < 0:
+        sleep_time = ticks_add(self._last_wakeup, self._sleep_delay)
+        if ticks_diff(ticks_us(), sleep_time) < 0:
             self.on()
         else:
             self.off()
+            self._last_wakeup = ticks_us()
+            self._sleep_delay = 0
 
     def _runMarquee(self):
         '''
@@ -264,14 +270,14 @@ class outputRRF:
                 self._right.invert(config.display_invert)
 
         # Start the animation loop
-        while ticks_diff(ticks_ms(), self.watchdog) < config.display_watchdog:
-            lastFrame = ticks_ms()
+        while ticks_diff(ticks_us(), self.watchdog) < (config.display_watchdog * TIMESCALE):
+            lastFrame = ticks_us()
             with self._display_lock:
                 panels()
                 status()
                 self._show()
                 notify()
-            while ticks_diff(ticks_ms(), lastFrame) < config.animation_interval:
+            while ticks_diff(ticks_us(), lastFrame) < (config.animation_interval * TIMESCALE):
                 sleep_ms(1)
         self.running = False
         self.showError('Main Loop\nExited', 'Display\nStopped')
@@ -292,8 +298,9 @@ class outputRRF:
             self.standby = True
 
     def awake(self, awake=config.off_time):
-        # allow the sleep time to be extended (eg button press)
-        self._sleep_time = max(self._sleep_time, ticks_ms() + awake)
+        # sets the delay until we go to sleep and notes when this was updated
+        self._sleep_delay = max(self._sleep_delay, awake * TIMESCALE)
+        self._last_wakeup = ticks_us()
 
     def alert(self):
         # Request a notification 'flash' from the marquee animation loop

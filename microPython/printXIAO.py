@@ -8,7 +8,7 @@ from config import config
 from sys import exit
 from gc import collect, mem_free
 from machine import reset
-from time import sleep_ms, ticks_ms, ticks_diff, localtime
+from time import sleep_ms, ticks_ms, ticks_us, ticks_diff, localtime
 
 '''
     PrintMPy is a serialOM.py loop for MicroPython devices.
@@ -85,11 +85,10 @@ def killAll():
     # and notification LEDs. Useful when debugging.
     print('exit(): killing background')
     try:
-        out.watchdog = 0   # for completeness..
         # kill the animator thread
         animator_thread.exit()
     except:
-        pass  # dont care, we are exiting
+        pass  # dont care, we are exiting, it has a watchdog
     try:
         # Remove the button IRQ
         # (allegedly.. docs not really clear about this)
@@ -220,7 +219,7 @@ while True:
     om_end = ticks_ms()
     collect()
     # bump the marquee thread watchdog
-    out.watchdog = ticks_ms()
+    out.watchdog = ticks_us()
     # output the results if successful
     if have_data:
         fail_count = 0

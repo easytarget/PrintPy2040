@@ -15,17 +15,17 @@ class config():
         off_states:   (list) states where the screen should turn off
                       - set to an empty list '[]' to keep permanently on
                       - set to '['off','idle']' to only turn on when active
-        off_time:     (int) screen standby off time (ms)
+        off_time:     (int) screen standby off time (seconds)
         button_awake: (int) keep screen awake this long after button press
         long_awake:   (int) awake for longer when wifi or comms status changes
-        splash_time:  (int) splash screen time in milliseconds
+        splash_time:  (int) splash screen time in seconds
     '''
     button_long  = 2 * 1000
     off_states   = ['off']
-    off_time     = 15 * 1000
+    off_time     = 15
     button_awake = off_time * 2
-    long_awake    = off_time * 4
-    splash_time  = 3 * 1000
+    long_awake   = off_time * 4
+    splash_time  = 3
 
     '''
         Hardware config:
@@ -125,16 +125,16 @@ class config():
         Display animation:
         - These are tuned for the XIAO2040 + two I2C OLED's
         - Animation interval will cause lockups and races if too low.
-        animation_interval: (int) Display animation interval, ms
+        animation_interval: (int) Display animation interval, seconds
         marquee_step:       (int) Number of pixels moved for each marquee step
-        marquee_pause:      (int) Number of step cycles to pause for when scrolling long text
+        marquee_pause:      (int) Number of step cycles to pause before starting to scroll
         display_watchdog:   (int) If the main loop stops (eg error/crash) for longer than this;
-                                  kill the animator thread, ms
+                                  kill the animator thread, seconds
     '''
-    animation_interval = 100
+    animation_interval = 0.1
     marquee_step       = 3
     marquee_pause      = 8
-    display_watchdog   = 10000
+    display_watchdog   = 10
 
     '''
         Console output Options:
