@@ -9,8 +9,9 @@ from time import sleep_ms
     The additional RGB 'user' led is cycled RGB to indocate send events
 '''
 
-# Need to let Neopixel (bitstream) finish writing after setting to avoid timer/memory issues
-BITSTREAM_PAUSE = 5
+# Need to let Neopixel (bitstream) finish writing after setting to avoid
+# issues with the timer pool getting exhausted
+BITSTREAM_PAUSE = 10
 
 class lumen:
     def __init__(self, bright, standby, flash):
@@ -65,7 +66,13 @@ class lumen:
         self._pixel.write()
         sleep_ms(BITSTREAM_PAUSE)
         if auto:
-            self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
+            try:
+                self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
+            except Exception as e:
+                # neopixel (bitstream) semi-randomly exhausts available timers;
+                # catch this and clear the pixel anyway
+                self._pixel[0] = (0,0,0)
+                self._pixel.write()
 
     def emote(self,model,net=None):
         '''
