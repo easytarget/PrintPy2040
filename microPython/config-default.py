@@ -11,6 +11,9 @@ from machine import UART, Pin, I2C
 class config():
     '''
         UI:
+        update_time:  (float) MINIMUM time interval between data update cycles (seconds)
+        Note: on the RP2040 version of printPY it currently takes approx. 500ms to fetch
+            and ingest the OM, then another 150ms to update the display buffer.
         off_states:   (list) states where the screen should turn off
                       - set to an empty list '[]' to keep permanently on
                       - set to '['off','idle']' to only turn on when active
@@ -19,9 +22,10 @@ class config():
         button_long:  (float) button long press time (seconds) for WiFi toggle, 0 to disable
         splash_time:  (float) splash screen time in seconds
     '''
+    update_time  = 0.5
     off_states   = ['off']
-    sleep_time   = 15
-    long_awake   = sleep_time * 4
+    sleep_time   = 10
+    long_awake   = sleep_time * 3
     button_long  = 2.5
     splash_time  = 3
 
@@ -106,18 +110,6 @@ class config():
     heart_standby = float(0.33)
 
     '''
-        Timing and timeout config:
-        Note: on the RP2040 version of printPY it currently takes approx. 500ms to fetch
-            and ingest the OM, then another 150ms to update the display buffer.
-        update_time:  (float) Minimum time interval between data update cycles (seconds)
-        reboot_delay: (int) Countdown in seconds when auto-restarting/rebooting printPy
-        fail_count:   (int) Number of failed update cycles before declaring comms fail
-    '''
-    update_time  = 0.33
-    reboot_delay = 5
-    fail_count   = 5
-
-    '''
         Display animation:
         - These are tuned for the XIAO2040 + two I2C OLED's
         - Animation interval will cause lockups and races if too low.
@@ -131,6 +123,15 @@ class config():
     marquee_step       = 3
     marquee_pause      = 8
     display_watchdog   = 10
+
+
+    '''
+        Reboot and timeout config:
+        reboot_delay: (int) Countdown in seconds when auto-restarting/rebooting printPy
+        fail_count:   (int) Number of failed update cycles before declaring comms fail
+    '''
+    reboot_delay = 5
+    fail_count   = 5
 
     '''
         Console output Options:
@@ -152,10 +153,10 @@ class config():
     THE ABOVE DEFAULTS ARE FOR COMISSIONING:
 
     Once programmed and tested you should set debug
-    to '0' so that printpy starts immediately;
+    to 'None' so that printpy starts immediately;
     and disable repl logging
 
-    debug   = 5
+    debug   = None
     info    = False
     stats   = False
     verbose = False
