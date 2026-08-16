@@ -34,20 +34,21 @@ def pp(*args, **kwargs):
 def buttonPressed(_p):
     # ISR: Any button activity triggers this; does not need debouncing.
     # - we check for a long button press in the main loop.
-    #global button_time     # we are in an interrupt, bring this into context
+    global button_time     # we are in an interrupt, bring this into context
     if config.button_long > 0:
         button_time = ticks_add(ticks_us(), int(config.button_long * TIMESCALE))
-    out.awake(int(config.long_awake * TIMESCALE))
+    out.awake(int(config.long_awake))
 
-def buttonLong():
+def buttonLong(button_time):
     # has the button been long-pressed?
     if button_time is not None:
         if button.value() == config.button_down:
             if (ticks_diff(ticks_us(), button_time) > 0) and (config.net is not None):
-                button_time = None
                 networkToggle()
-        else:
-            button_time = None
+                return None
+            else:
+                return button_time
+    return None
 
 def networkToggle():
     if OM.model is None:
@@ -62,7 +63,7 @@ def networkToggle():
     cmd = cmd.replace('{NET}',str(config.net))
     net = interface['type']
     pp('{} change requested via button: {}'.format(net, cmd))
-    out.awake(config.long_awake)   # awake longer while network is changing state
+    out.awake(config.long_awake)
     OM.sendGcode(cmd)
     out.alert()
 
@@ -261,8 +262,8 @@ while True:
     if not out.running:
         restartNow('Output (display) device has failed','Output\nFailing')
     # is the button being long-pressed?
-    buttonLong()
+    button_time =  buttonLong(button_time)
     ## Request cycle ended, wait for next whilst checking for long button press     ######################
     while ticks_diff(ticks_us(), next_update) < 0:
-        buttonLong()
-        sleep_us(1000)
+        button_time = buttonLong(button_time)
+        sleep_ms(10)
