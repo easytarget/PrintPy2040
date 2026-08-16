@@ -248,7 +248,7 @@ while True:
         if config.stats:
             om_time = int(ticks_diff(om_end, om_start) / 1000)    # report in ms
             stats = '[{} ms, {} b] '.format(om_time, str(mem_free()))
-            outputText = '{:030b}'.format(ticks_us()) + stats + outputText           ############################
+            outputText = stats + outputText
         if config.info:
             print('{}'.format(outputText.strip()))
     else:
@@ -263,7 +263,7 @@ while True:
         restartNow('Output (display) device has failed','Output\nFailing')
     # is the button being long-pressed?
     button_time =  buttonLong(button_time)
-    ## Request cycle ended, wait for next whilst checking for long button press     ######################
+    ## Request cycle ended, wait for next whilst checking for long button press
     while ticks_diff(ticks_us(), next_update) < 0:
         button_time = buttonLong(button_time)
         sleep_ms(10)
