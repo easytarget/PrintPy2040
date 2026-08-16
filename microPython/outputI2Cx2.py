@@ -192,18 +192,21 @@ class outputRRF:
     def _swipeOn(self):
         with self._display_lock:
             self._powerOn()
-            s = 16
+            s = 32
             self._lbuf.blit(self._left,0,0)
             self._rbuf.blit(self._right,0,0)
             self._clean()
-            for x in range(0, 129, s):
+            for x in range(0, 126, s):
                 self._left.blit(self._lbuf, 128 - x, 0)
                 self._right.blit(self._rbuf, -128 + x, 0)
                 self._show()
+            self._left.blit(self._lbuf, 0, 0)
+            self._right.blit(self._rbuf, 0, 0)
+            self._show()
 
     def _swipeOff(self):
         with self._display_lock:
-            s = 16
+            s = 32
             for x in range(0, 129, 8):
                 self._left.scroll(s, 0)
                 self._left.rect(0, 0, s, 64, 0, True)
