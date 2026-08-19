@@ -137,6 +137,7 @@ class config():
         Console output Options:
         - For development you want these all on (probably...)
         - Turn off for production use
+        - The autostart option is used by main.py
         autostart: (int)  if > 0 count down to start (so you can keyboard interrupt)
                           if 0 start immediately
                           if None drop immediately to REPL (debug)
