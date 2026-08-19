@@ -137,27 +137,27 @@ class config():
         Console output Options:
         - For development you want these all on (probably...)
         - Turn off for production use
-        debug:   (int)  if > 0 count down to start (so you can keyboard interrupt)
-                        if 0 drop immediately to REPL (debug)
-                        if None start immediately
-        info:    (bool) Show machine status lines in REPL console
-        stats:   (bool) Show printPy fetch speed and memory stats when info=True
-        verbose: (bool) Show init and serialOM comms info messages
+        autostart: (int)  if > 0 count down to start (so you can keyboard interrupt)
+                          if 0 start immediately
+                          if None drop immediately to REPL (debug)
+        info:      (bool) Show machine status lines in REPL console
+        stats:     (bool) Show printPy fetch speed and memory stats when info=True
+        verbose:   (bool) Show init and serialOM comms info messages
     '''
-    debug   = 0
-    info    = True
-    stats   = True
-    verbose = True
+    autostart = 3
+    info      = True
+    stats     = True
+    verbose   = True
     '''
 
     THE ABOVE DEFAULTS ARE FOR COMISSIONING:
 
-    Once programmed and tested you should set debug
-    to 'None' so that printpy starts immediately;
-    and disable repl logging
+    Once programmed and tested you should set autostart
+    to 0 so that printpy starts immediately;
+    and disable console logging
 
-    debug   = None
-    info    = False
-    stats   = False
-    verbose = False
+    autostart = 0
+    info      = False
+    stats     = False
+    verbose   = False
     '''
