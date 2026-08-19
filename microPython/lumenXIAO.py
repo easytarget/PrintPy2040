@@ -65,7 +65,7 @@ class lumen:
                           int(neo[2]*bright))
         self._pixel.write()
         sleep_ms(BITSTREAM_PAUSE)
-        if auto:
+        if auto and self.flash > 0:
             try:
                 self._timer = Timer(period=self.flash, mode=Timer.ONE_SHOT, callback=unblink)
             except Exception as e:

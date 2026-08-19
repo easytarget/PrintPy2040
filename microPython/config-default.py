@@ -93,11 +93,12 @@ class config():
         mood_bright:  (float) Indicator LED brightnessx (0 to 1)
         mood_standby: (float) Indicator LED brightness when machine off
         mood_flash:   (int)   Mood indicator flash time (ms)
+                              0 = permanent on
     '''
     mood         = True
     mood_bright  = float(1.0)
     mood_standby = float(0.2)
-    mood_flash   = 66
+    mood_flash   = 100
 
     '''
         Communications heartbeat on auxillary RGB
@@ -107,7 +108,7 @@ class config():
     '''
     heart         = True
     heart_bright  = float(1.0)
-    heart_standby = float(0.33)
+    heart_standby = float(0.75)
 
     '''
         Display animation:
