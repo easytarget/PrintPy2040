@@ -23,9 +23,9 @@ Hold the 'boot' button on the XIAO board while connecting it to a USB port on yo
   * the version in this repo is the Firmware I have tested with
 * After sucessfully flashing you should see the REPL console of the device in your IDE:
 ```python
-  MicroPython v1.29.0 on 2026-08-29; Raspberry Pi Pico with RP2040
+  MicroPython v1.29.0 on 2026-08-24; Raspberry Pi Pico with RP2040
   Type "help()" for more information.
-  >>> 
+  >>>
 ```
 # Installing:
 Upload all the `.py` files from this directory onto the root folder of your device in the IDE; also copy the fonts directory to 'fonts'.
