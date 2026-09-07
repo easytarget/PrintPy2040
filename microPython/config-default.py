@@ -98,7 +98,7 @@ class config():
     mood         = True
     mood_bright  = float(1.0)
     mood_standby = float(0.2)
-    mood_flash   = 100
+    mood_flash   = 12
 
     '''
         Communications heartbeat on auxillary RGB
