@@ -23,7 +23,7 @@ def rp2040(pos = [0, 0, 0], rot = [0, 0, 90]):
         return p.color('green')
         
     def usbc():
-        c = cylinder(d = 3.2, h = 7.25, fn = 24)
+        c = cylinder(d = 3.2, h = 7.25, fn = 48)
         h = []
         for y in [-1,1]:
             h.append(c.translate([0, y * 2.9, 0]))
