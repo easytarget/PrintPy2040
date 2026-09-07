@@ -14,7 +14,7 @@ You need to set up the second serial (UART) port on your printer to 'no CRC/chec
 * For a Duet2 or 3 machine using the default (panelDue) UART interface your `config.g` needs to include that line.
   * This can normally go after the USB port setting (*M575 P0 ....*) line.
   * Later Duet models have additional UART ports that could be used; you will need to adjust ['M575'](https://docs.duet3d.com/User_manual/Reference/Gcodes#m575-set-serial-comms-parameters) as necesscary for them.
-* Do not change the `S0` parameter; PrintPY is not compatible with CRC or Checksumming.
+* Do not omit or change the `S0` parameter; PrintPY is not compatible with CRC or Checksumming.
 
 # RP2040 MicroPython Firmware:
 Hold the 'boot' button on the XIAO board while connecting it to a USB port on your computer; it will appear as a new disk drive (just like a USB thumb drive).
@@ -23,13 +23,13 @@ Hold the 'boot' button on the XIAO board while connecting it to a USB port on yo
   * the version in this repo is the Firmware I have tested with
 * After sucessfully flashing you should see the REPL console of the device in your IDE:
 ```python
-  MicroPython v1.24.1 on 2024-11-29; Raspberry Pi Pico with RP2040
+  MicroPython v1.29.0 on 2026-08-29; Raspberry Pi Pico with RP2040
   Type "help()" for more information.
   >>> 
 ```
 # Installing:
 Upload all the `.py` files from this directory onto the root folder of your device in the IDE; also copy the fonts directory to 'fonts'.
-* The 'Firmware' folder should not be copied; nor does the README.
+* The 'Firmware' folder should not be copied; you don't need to copy the README's either..
 
 ## Initial Configuration:
 Copy `config-default.py` to `config.py` on the device.
