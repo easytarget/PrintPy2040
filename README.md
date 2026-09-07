@@ -16,7 +16,7 @@ It uses two OLED displays for it's output, and these can be configured to turn o
 
 There is a button on the rear of the unit; this can wake the display for a (configurable) time when pressed.
 
-![Display detail](Docs/display.jpg)
+![Display detail](Docs/display.png)
 
 Wifi / Ethernet connection status is displayed, and the rear button can enable or disable the network as appropriate on a long press (configurable).
 
